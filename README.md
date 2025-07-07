@@ -61,5 +61,3 @@ You can find me here incase you need any help setting it up or just want to hang
 
 # supporting the project
 Give the project a star and consider contributing directly to the code
-
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/Y8Y8ZAA7N)

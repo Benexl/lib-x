@@ -1,0 +1,83 @@
+/**
+ * Rofi Theme: Tokyo Night Input
+ * Author: @benexl
+ * Description: A compact, modern modal dialog for text input.
+ */
+
+/*****----- Configuration -----*****/
+configuration {
+    font:           "JetBrains Mono Nerd Font 14";
+}
+
+/*****----- Global Properties -----*****/
+* {
+    base:     #1a1b26;
+    surface:  #24283b;
+    text:     #c0caf5;
+    subtext:  #a9b1d6;
+    blue:     #7aa2f7;
+    cyan:     #7dcfff;
+
+    background-color: transparent;
+    text-color:       @text;
+}
+
+/*****----- Main Window -----*****/
+window {
+    transparency:     "real";
+    location:         center;
+    anchor:           center;
+    fullscreen:       false;
+    width:            50%;
+    border:           1px;
+    border-radius:    16px;
+    padding:          16px;
+    border-color:     @blue;
+    background-color: @base;
+}
+
+/*****----- Main Box -----*****/
+mainbox {
+    children:         [ message, inputbar ];
+    spacing:          8px;
+    background-color: transparent;
+}
+
+/*****----- Message -----*****/
+message {
+    padding:          8px;
+    border-radius:    8px;
+    background-color: @surface;
+    text-color:       @text;
+}
+
+textbox {
+    font:             "JetBrains Mono Nerd Font Bold 14";
+    horizontal-align: 0.5;
+    background-color: transparent;
+    text-color:       inherit;
+}
+
+/*****----- Inputbar -----*****/
+inputbar {
+    children:         [ prompt, entry ];
+    border:           1px;
+    border-radius:    8px;
+    spacing:          8px;
+    border-color:     @blue;
+    background-color: @surface;
+}
+
+prompt {
+    padding:          8px;
+    background-color: @blue;
+    text-color:       @base;
+}
+
+entry {
+    padding:          8px;
+    background-color:  transparent;
+    placeholder:       "こんにちは...";
+    text-color:        @text;
+    placeholder-color: @subtext;
+}

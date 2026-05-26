@@ -1,0 +1,108 @@
+/**
+ * Rofi Theme: Tokyo Night Confirmation
+ * Author: @benexl
+ * Description: A compact and clear modal dialog for Yes/No confirmations.
+ */
+
+/*****----- Configuration -----*****/
+configuration {
+    font:           "JetBrains Mono Nerd Font 12";
+}
+
+/*****----- Global Properties -----*****/
+* {
+    base:     #1a1b26;
+    surface:  #24283b;
+    text:     #c0caf5;
+    blue:     #7aa2f7;
+
+    background-color: transparent;
+    text-color:       @text;
+}
+
+/*****----- Main Window -----*****/
+window {
+    transparency:     "real";
+    location:         center;
+    anchor:           center;
+    fullscreen:       false;
+    width:            50%;
+    border:           2px;
+    border-radius:    8px;
+    padding:          24px;
+    border-color:     @blue;
+    background-color: @base;
+}
+
+/*****----- Main Box -----*****/
+mainbox {
+    children:         [ inputbar, message, listview ];
+    spacing:          16px;
+    background-color: transparent;
+}
+
+/*****----- Inputbar -----*****/
+inputbar {
+    children:         [ prompt ];
+    background-color: transparent;
+    text-color:       @blue;
+}
+
+prompt {
+    font:             "JetBrains Mono Nerd Font Bold 14";
+    horizontal-align: 0.5;
+    background-color: transparent;
+    text-color:       inherit;
+    wrap:             true;
+}
+
+/*****----- Message -----*****/
+message {
+    padding:          8px;
+    margin:           8px 0px;
+    border-radius:    8px;
+    background-color: @surface;
+    text-color:       @text;
+}
+
+textbox {
+    font:             "JetBrains Mono Nerd Font 12";
+    horizontal-align: 0.5;
+    background-color: transparent;
+    text-color:       inherit;
+}
+
+/*****----- Listview -----*****/
+listview {
+    columns:          2;
+    lines:            1;
+    spacing:          16px;
+    layout:           vertical;
+    background-color: transparent;
+}
+
+/*****----- Elements -----*****/
+element {
+    padding:          16px;
+    border-radius:    8px;
+    cursor:           pointer;
+    background-color: @surface;
+    text-color:       @text;
+}
+
+element-text {
+    font:             "JetBrains Mono Nerd Font Bold 12";
+    horizontal-align: 0.5;
+    background-color: transparent;
+    text-color:       inherit;
+}
+
+element normal.normal {
+    background-color: @surface;
+    text-color:       @text;
+}
+
+element selected.normal {
+    background-color: @blue;
+    text-color:       @base;
+}

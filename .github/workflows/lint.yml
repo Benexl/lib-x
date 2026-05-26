@@ -1,0 +1,36 @@
+name: Lint & Format
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "shelx"
+      - "extensions/**"
+  pull_request:
+    branches: [main, master]
+    paths:
+      - "shelx"
+      - "extensions/**"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Install shellcheck and shfmt
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+          curl -sS https://webi.sh/shfmt | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Lint shelx
+        run: shellcheck --shell=sh --severity=warning shelx
+
+      - name: Lint extensions
+        run: |
+          shellcheck --shell=sh --severity=warning extensions/*/**
+
+    # TODO: add a formatting check

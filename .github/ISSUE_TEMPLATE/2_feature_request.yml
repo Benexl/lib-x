@@ -1,0 +1,34 @@
+name: Feature request
+description: Request a new feature, menu, or enhancement for shelx
+labels: [triage, enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        > [!IMPORTANT]
+        > `shelx`
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I've checked the [README](https://github.com/Benexl/shelx#readme) to ensure this isn't already possible via extensions or custom commands.
+          required: true
+        - label: I've searched the bugtracker for similar requests **including closed ones**. DO NOT post duplicates.
+          required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the requested feature
+      description: What are you trying to achieve? How should it work in the UI?
+      placeholder: Provide as much context, potential CLI flags, and UI workflow examples as possible.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Have you tried achieving this via the existing custom commands, extensions, or shell configurations?
+      placeholder: e.g., I tried using a custom command, but it didn't allow pagination...
+    validations:
+      required: false

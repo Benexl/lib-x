@@ -1,0 +1,53 @@
+name: Bug report
+description: Report a bug related to shelx UI, navigation, state management, or shell logic
+labels: [triage, bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        > [!IMPORTANT]
+        > `shelx`
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      description: |
+        Carefully read and work through this check list to prevent upstream or duplicate issues:
+      options:
+        - label: I have verified that I am running the latest version of `shelx` (Run `shelx -U`)
+          required: true
+        - label: I have read the [FAQ](https://github.com/Benexl/shelx#frequently-asked-questions-faq) and the bug tracker for similar issues **including closed ones**. DO NOT post duplicates.
+          required: true
+  - type: input
+    id: environment
+    attributes:
+      label: System & Environment
+      description: What OS, Terminal Emulator, and Shell are you using?
+      placeholder: e.g., macOS Sequoia / Kitty / zsh 5.9
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Dependency Versions
+      description: Output of `fzf --version`, and `rofi --version`
+      placeholder: fzf 0.50.0, rofi 2.0.0-dirty
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description & Steps to Reproduce
+      description: Describe the bug clearly. Provide exact steps, inputs, or search terms used to reproduce the issue.
+      placeholder: |
+        1. Run `shelx`
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Error Logs / Console Output
+      description: Paste any error messages, stack traces, or relevant terminal output here.
+      render: shell
+    validations:
+      required: false

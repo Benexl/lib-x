@@ -1,3 +1,4 @@
+Working on rewrite which will make it to be more like yt-x and add rofi config previews and just make xp more robust
 # Lib-x
 ![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/Benex254/FastAnime)
 ![GitHub License](https://img.shields.io/github/license/Benex254/lib-x)

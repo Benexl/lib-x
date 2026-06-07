@@ -2380,6 +2380,7 @@ __menu_main_edit_config() {
   _load_config
 }
 
+# shellcheck disable=SC2120
 _menu_main() {
   local actions
   local sort="$1"
@@ -2434,11 +2435,14 @@ _menu_main() {
     fi
 
     case "$action" in
-    "$TXT_MENU_MAIN_READING_LIST" | "$TXT_MENU_MAIN_RECENT" | "$TXT_MENU_MAIN_DROPPED" | \
-      "$TXT_MENU_MAIN_PAUSED" | "$TXT_MENU_MAIN_COMPLETED" | "$TXT_MENU_MAIN_REREADING" | \
-      "$TXT_MENU_MAIN_PLANING" | "$TXT_MENU_MAIN_DOCS")
-      __menu_main_user_list "$action"
-      ;;
+    "$TXT_MENU_MAIN_READING_LIST") __menu_main_user_list "$action" ;;
+    "$TXT_MENU_MAIN_RECENT") __menu_main_user_list "$action" ;;
+    "$TXT_MENU_MAIN_DROPPED") __menu_main_user_list "$action" ;;
+    "$TXT_MENU_MAIN_PAUSED") __menu_main_user_list "$action" ;;
+    "$TXT_MENU_MAIN_COMPLETED") __menu_main_user_list "$action" ;;
+    "$TXT_MENU_MAIN_REREADING") __menu_main_user_list "$action" ;;
+    "$TXT_MENU_MAIN_PLANING") __menu_main_user_list "$action" ;;
+    "$TXT_MENU_MAIN_DOCS") __menu_main_user_list "$action" ;;
     "$TXT_MENU_MAIN_ALL") __menu_main_all ;;
     "$TXT_MENU_MAIN_RANDOM") __menu_main_random ;;
     "$TXT_MENU_MAIN_EDIT_CONFIG") __menu_main_edit_config ;;

@@ -781,6 +781,271 @@ ui_launcher() {
 }
 
 # ==============================================================================
+# CORE UI: launcher with preview
+# ==============================================================================
+__ui_fzf_launcher_with_preview() {
+  local custom_opts
+  local multi_select
+  local preview_script
+
+  preview_script="\
+TXT_PREVIEW_INSTALL_VIEWER='$TXT_PREVIEW_INSTALL_VIEWER'
+CONFIG_IMAGE_RENDERER='$CONFIG_IMAGE_RENDERER'
+CLI_PLATFORM='$CLI_PLATFORM'
+THEME_FZF_PREVIEW_DIVIDER='$THEME_FZF_PREVIEW_DIVIDER'
+preview_script_path='{1}'
+[ -s \"\$preview_script_path\" ] && . \"\$preview_script_path\"\
+"
+
+  multi_select="$2"
+  [ "$multi_select" = "multi" ] && custom_opts="--multi"
+  [ -n "$CONFIG_FZF_HEADER" ] && custom_opts="$custom_opts --header-first --header=$CONFIG_FZF_HEADER"
+
+  # TODO: is there a better way to do this
+  local old_ifs
+  old_ifs="$IFS"
+  IFS=" "
+
+  # shellcheck disable=SC2086
+  fzf --prompt="${1}: " --delimiter '|' --with-nth "{2..}" --accept-nth "{2..}" --preview="$preview_script" $custom_opts
+
+  IFS="$old_ifs"
+}
+
+__ui_rofi_launcher_with_preview() {
+  ! [ -s "$CONFIG_ROFI_THEME_PREVIEW" ] && ui_notify_critical "$TXT_ROFI_NOT_CONFIGURED: where CONFIG_ROFI_THEME_PREVIEW=\"$CONFIG_ROFI_THEME_PREVIEW\""
+  local selection
+  local custom_opts
+  local multi_select
+  local line
+
+  multi_select="$2"
+  [ "$multi_select" = "multi" ] && custom_opts="-multi-select"
+
+  # shellcheck disable=SC2086
+  selection=$(
+    sed -E "s/$THEME_ESC(\[[0-9;]*[a-zA-Z]|\(B)//g" |
+      rofi -no-config -theme "$CONFIG_ROFI_THEME_PREVIEW" -dmenu -i $custom_opts -p "$1"
+  )
+  printf '%s' "$selection"
+}
+
+_ui_launcher_with_preview() {
+  if [ "$CONFIG_ENABLE_PREVIEW" = "true" ]; then
+    case "$CONFIG_LAUNCHER" in
+    rofi) __ui_rofi_launcher_with_preview "$@" ;;
+    fzf) __ui_fzf_launcher_with_preview "$@" ;;
+    gum) __ui_gum_launcher "$@" ;;
+    *) ui_notify_critical "$TXT_LAUNCHER_UNKNOWN: $CONFIG_LAUNCHER" ;;
+    esac
+  else
+    ui_launcher "$@" && return
+  fi
+}
+
+ui_launcher_with_preview() {
+  _ui_launcher_with_preview "$@"
+}
+
+# ==============================================================================
+# CORE UI: prompt
+# ==============================================================================
+__ui_default_prompt() {
+  local header
+  local value
+  header="$2"
+
+  if _dep_ch gum; then
+    # shellcheck disable=SC2086
+    gum input $CONFIG_GUM_INPUT_OPTS --header "$header" --prompt "$1: "
+  else
+    printf "%s\n" "$header" >/dev/stderr
+    printf "%s: " "$1" >/dev/stderr
+    read -r value
+    printf "%s" "$value"
+  fi
+}
+
+__ui_rofi_prompt() {
+  local default
+  local filter
+
+  if [ -p /dev/stdin ]; then
+    default="$(cat 2>/dev/null)"
+    filter='-filter'
+  fi
+
+  [ -s "$CONFIG_ROFI_THEME_PROMPT" ] ||
+    ui_notify_critical "Rofi prompt theme not set: $CONFIG_ROFI_THEME_PROMPT"
+
+  # NOTE: It doesnt look pretty so disabling it
+  if [ -n "$2" ] && false; then
+    # shellcheck disable=SC2086
+    rofi -no-config -theme "$CONFIG_ROFI_THEME_PROMPT" "$filter" "$default" -dmenu -p "$1" -mesg "$2"
+  else
+    # shellcheck disable=SC2086
+    rofi -no-config -theme "$CONFIG_ROFI_THEME_PROMPT" "$filter" "$default" -dmenu -p "$1"
+  fi
+}
+
+_ui_prompt() {
+  case "$CONFIG_LAUNCHER" in
+  rofi) __ui_rofi_prompt "$@" ;;
+  *) __ui_default_prompt "$@" ;;
+  esac
+}
+
+ui_prompt() {
+  _ui_prompt "$@"
+}
+
+# ==============================================================================
+# CORE UI: confirm
+# ==============================================================================
+_ui_default_confirm() {
+  local yes
+  local no
+  local default
+  local default_index
+
+  yes="${3:-$TXT_YES}"
+  no="${4:-$TXT_NO}"
+  default="${2:-$no}"
+
+  if [ "$default" = "$yes" ]; then
+    default_index=1
+  else
+    default_index=0
+  fi
+
+  if _dep_ch gum; then
+    # shellcheck disable=SC2086
+    gum confirm "$1" --default="$default_index" --affirmative="$yes" --negative="$no" $CONFIG_GUM_CONFIRM_OPTS
+  else
+    printf "%s ($yes/$no; $TXT_CONFIRM_DEFAULT: $default): " "$1" >/dev/stderr
+    read -r CONFIRMED
+    case "$CONFIRMED" in
+    "$yes")
+      return 0
+      ;;
+    "$no")
+      return 1
+      ;;
+    *)
+      if [ "$default" = "$yes" ]; then
+        return 0
+      else
+        return 1
+      fi
+      ;;
+    esac
+  fi
+}
+
+_ui_rofi_confirm() {
+  ! [ -s "$CONFIG_ROFI_THEME_CONFIRM" ] && ui_notify_critical "$TXT_ROFI_NOT_CONFIGURED: where CONFIG_ROFI_THEME_CONFIRM=\"$CONFIG_ROFI_THEME_CONFIRM\""
+  local yes
+  local no
+  local default
+  local default_index
+  local selection
+
+  yes="${3:-$TXT_YES}"
+  no="${4:-$TXT_NO}"
+  default="${2:-$no}"
+
+  if [ "$default" = "$yes" ]; then
+    default_index=0
+  else
+    default_index=1
+  fi
+
+  selection="$(printf "%s\n%s" "$yes" "$no" |
+    rofi -no-config -theme "$CONFIG_ROFI_THEME_CONFIRM" -dmenu -i -p "$1" -selected-row "$default_index")"
+  [ "$selection" = "$yes" ] && return 0 || return 1
+}
+
+_ui_confirm() {
+  case "$CONFIG_LAUNCHER" in
+  rofi) _ui_rofi_confirm "$@" ;;
+  *) _ui_default_confirm "$@" ;;
+  esac
+}
+
+ui_confirm() {
+  _ui_confirm "$@"
+}
+
+# ==============================================================================
+# CORE UI: pager
+# ==============================================================================
+__ui_default_pager() {
+  if _dep_ch bat; then
+    bat --paging=always --theme=TwoDark --color=always
+  elif _dep_ch gum; then
+    # shellcheck disable=SC2086
+    gum pager $CONFIG_GUM_PAGER_OPTS
+  elif _dep_ch less; then
+    less -R
+  else
+    more
+  fi
+}
+
+__ui_rofi_pager() {
+  ! [ -s "$CONFIG_ROFI_THEME_PAGER" ] && ui_notify_critical "$TXT_ROFI_NOT_CONFIGURED: where CONFIG_ROFI_THEME_PAGER=\"$CONFIG_ROFI_THEME_PAGER\""
+
+  rofi -no-config -theme "$CONFIG_ROFI_THEME_PAGER" -dmenu -i -mesg "$TXT_ROFI_PAGER_MESSAGE" -p "$TXT_ROFI_PAGER_PROMPT"
+}
+
+_ui_pager() {
+  case "$CONFIG_LAUNCHER" in
+  rofi) __ui_rofi_pager ;;
+  *) __ui_default_pager ;;
+  esac
+}
+
+ui_pager() {
+  _ui_pager
+}
+
+# ==============================================================================
+# CORE UI: loader
+# ==============================================================================
+__ui_default_loader() {
+  local cmd
+  cmd="$*"
+
+  if _dep_ch gum; then
+    # shellcheck disable=SC2086
+    gum spin $CONFIG_GUM_SPIN_OPTS --show-output -- $cmd
+  else
+    printf '%s\n' "$TXT_LOADING" >/dev/stderr
+    $cmd
+  fi
+
+}
+
+__ui_rofi_loader() {
+  local cmd
+  cmd="$*"
+
+  ui_notify "$TXT_LOADING"
+  $cmd
+}
+
+_ui_loader() {
+  case "$CONFIG_LAUNCHER" in
+  rofi) __ui_rofi_loader "$@" ;;
+  *) __ui_default_loader "$@" ;;
+  esac
+}
+
+ui_load() {
+  _ui_loader "$@"
+}
+
+# ==============================================================================
 # PREVIEWS
 # ==============================================================================
 __preview_fzf_create_shared_script() {

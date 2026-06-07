@@ -2085,6 +2085,7 @@ __menu_book_actions_edit_metadata() {
   _fetch_calibre_data "true"
 }
 
+# shellcheck disable=SC2120
 _menu_book_actions() {
   local actions
   local sort="$1"
@@ -2248,6 +2249,7 @@ __menu_miscellaneous_reload_data() {
   _fetch_calibre_data "true"
 }
 
+# shellcheck disable=SC2120
 _menu_miscellaneous() {
   local actions
   local sort="$1"

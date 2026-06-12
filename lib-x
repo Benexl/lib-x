@@ -86,7 +86,7 @@ mkdir -p \
 # Declarations for lsp
 # ==============================================================================
 CMD_EXIT=""
-CMD_GO_DIRECTLY_TO=""
+CMD_MAIN_ACTION=""
 CMD_SEARCH=""
 CMD_SORT_BY=""
 
@@ -2928,17 +2928,17 @@ _app_cmd_line_parser() {
       ;;
 
     # Direct menu shortcuts
-    --reading-list) CMD_GO_DIRECTLY_TO="$TXT_MENU_MAIN_READING_LIST" ;;
-    --recent) CMD_GO_DIRECTLY_TO="$TXT_MENU_MAIN_RECENT" ;;
-    --paused) CMD_GO_DIRECTLY_TO="$TXT_MENU_MAIN_PAUSED" ;;
-    --rereading) CMD_GO_DIRECTLY_TO="$TXT_MENU_MAIN_REREADING" ;;
-    --planing) CMD_GO_DIRECTLY_TO="$TXT_MENU_MAIN_PLANING" ;;
-    --completed) CMD_GO_DIRECTLY_TO="$TXT_MENU_MAIN_COMPLETED" ;;
-    --docs) CMD_GO_DIRECTLY_TO="$TXT_MENU_MAIN_DOCS" ;;
-    --dropped) CMD_GO_DIRECTLY_TO="$TXT_MENU_MAIN_DROPPED" ;;
-    --all) CMD_GO_DIRECTLY_TO="$TXT_MENU_MAIN_ALL" ;;
-    --random) CMD_GO_DIRECTLY_TO="$TXT_MENU_MAIN_RANDOM" ;;
-    --misc | --miscellaneous) CMD_GO_DIRECTLY_TO="$TXT_MENU_MAIN_MISC" ;;
+    --reading-list) CMD_MAIN_ACTION="$TXT_MENU_MAIN_READING_LIST" ;;
+    --recent) CMD_MAIN_ACTION="$TXT_MENU_MAIN_RECENT" ;;
+    --paused) CMD_MAIN_ACTION="$TXT_MENU_MAIN_PAUSED" ;;
+    --rereading) CMD_MAIN_ACTION="$TXT_MENU_MAIN_REREADING" ;;
+    --planing) CMD_MAIN_ACTION="$TXT_MENU_MAIN_PLANING" ;;
+    --completed) CMD_MAIN_ACTION="$TXT_MENU_MAIN_COMPLETED" ;;
+    --docs) CMD_MAIN_ACTION="$TXT_MENU_MAIN_DOCS" ;;
+    --dropped) CMD_MAIN_ACTION="$TXT_MENU_MAIN_DROPPED" ;;
+    --all) CMD_MAIN_ACTION="$TXT_MENU_MAIN_ALL" ;;
+    --random) CMD_MAIN_ACTION="$TXT_MENU_MAIN_RANDOM" ;;
+    --misc | --miscellaneous) CMD_MAIN_ACTION="$TXT_MENU_MAIN_MISC" ;;
 
     # Book action shortcuts
     --read) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_READ" ;;
@@ -2948,10 +2948,10 @@ _app_cmd_line_parser() {
     # Arguments with parameters
     -g | --go-directly-to)
       if [ -z "$2" ]; then
-        CMD_GO_DIRECTLY_TO="$(ui_prompt "Go to menu")"
-        [ -n "$CMD_GO_DIRECTLY_TO" ] || _app_usage 1
+        CMD_MAIN_ACTION="$(ui_prompt "Go to menu")"
+        [ -n "$CMD_MAIN_ACTION" ] || _app_usage 1
       else
-        CMD_GO_DIRECTLY_TO="$2"
+        CMD_MAIN_ACTION="$2"
         shift_count=2
       fi
       ;;
@@ -2963,7 +2963,7 @@ _app_cmd_line_parser() {
         CMD_SEARCH="$2"
         shift_count=2
       fi
-      CMD_GO_DIRECTLY_TO="${CMD_GO_DIRECTLY_TO:-$TXT_MENU_MAIN_ALL}"
+      CMD_MAIN_ACTION="${CMD_GO_DIRECTLY_TO:-$TXT_MENU_MAIN_ALL}"
       ;;
     -S | --sort-by)
       if [ -z "$2" ]; then
@@ -2973,7 +2973,7 @@ _app_cmd_line_parser() {
         CMD_SORT_BY="$2"
         shift_count=2
       fi
-      CMD_GO_DIRECTLY_TO="${CMD_GO_DIRECTLY_TO:-$TXT_MENU_MAIN_ALL}"
+      CMD_MAIN_ACTION="${CMD_GO_DIRECTLY_TO:-$TXT_MENU_MAIN_ALL}"
       ;;
     -r | --no-of-random-books)
       if [ -z "$2" ]; then
@@ -2983,7 +2983,7 @@ _app_cmd_line_parser() {
         CONFIG_NO_OF_RANDOM_BOOKS="$2"
         shift_count=2
       fi
-      CMD_GO_DIRECTLY_TO="${CMD_GO_DIRECTLY_TO:-$TXT_MENU_MAIN_RANDOM}"
+      CMD_MAIN_ACTION="${CMD_GO_DIRECTLY_TO:-$TXT_MENU_MAIN_RANDOM}"
       ;;
 
     # Subcommands

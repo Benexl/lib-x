@@ -69,8 +69,9 @@ readonly CLI_CURRENT_STATE_DIR="$CLI_STATE_DIR/${CLI_START_TIME}-$$"
 readonly CLI_PREVIEW_SCRIPTS_DIR="$CLI_CACHE_DIR/previews"
 readonly CLI_FZF_PREVIEW_SCRIPT="$CLI_PREVIEW_SCRIPTS_DIR/fzf-preview.sh"
 
-readonly CLI_CONFIG_FILE="$CLI_CONFIG_DIR/${CLI_NAME}.conf"
+readonly CLI_CONFIG_FILE="$CLI_CONFIG_DIR/config"
 
+readonly CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE="$CLI_CACHE_DIR/.calibre_library_timestamp"
 readonly CALIBRE_DB_JSON_FILE="$CLI_CACHE_DIR/calibre_db.json"
 readonly CALIBRE_CATEGORIES_CSV_FILE="$CLI_CACHE_DIR/calibre_categories.csv"
 readonly CLI_LAST_DB_TIMESTAMP="$CLI_CACHE_DIR/last_db_timestamp"
@@ -238,7 +239,6 @@ __load_default_lang() {
 
   TXT_PREVIEW_INSTALL_VIEWER="Please install a terminal image viewer (icat for kitty/wezterm, imgcat, or chafa)"
 
-  # FZF Preview Variables
   TXT_FZF_PREVIEW_AUTHORS="Authors"
   TXT_FZF_PREVIEW_TAGS="Tags"
   TXT_FZF_PREVIEW_PUBLISHER="Publisher"
@@ -246,7 +246,6 @@ __load_default_lang() {
   TXT_FZF_PREVIEW_RATING="Rating"
   TXT_FZF_PREVIEW_PUBDATE="Published"
 
-  # Main Menu UI Texts
   TXT_MENU_MAIN_PROMPT_ACTION="Select Action"
   TXT_MENU_MAIN_READING_LIST="Reading List"
   TXT_MENU_MAIN_RECENT="Recent"
@@ -256,12 +255,29 @@ __load_default_lang() {
   TXT_MENU_MAIN_COMPLETED="Completed"
   TXT_MENU_MAIN_DOCS="Docs"
   TXT_MENU_MAIN_RANDOM="Random"
-  TXT_MENU_MAIN_ALL="All"
+  TXT_MENU_MAIN_FORMATS="Formats"
+  TXT_MENU_MAIN_SERIES="Series"
+  TXT_MENU_MAIN_LANGUAGES="Languages"
+  TXT_MENU_MAIN_TAGS="Tags"
+  TXT_MENU_MAIN_RATINGS="Ratings"
+  TXT_MENU_MAIN_PUBLISHER="Publisher"
+  TXT_MENU_MAIN_IDENTIFIERS="Identifiers"
+  TXT_MENU_MAIN_AUTHORS="Authors"
   TXT_MENU_MAIN_DROPPED="Dropped"
   TXT_MENU_MAIN_EDIT_CONFIG="Edit Config"
   TXT_MENU_MAIN_MISC="Miscellaneous"
 
-  # Book Actions UI Texts
+  TXT_MENU_MISC_PROMPT="Select Action"
+  TXT_MENU_MISC_ADD_BOOKS="Add Books"
+  TXT_MENU_MISC_ADD_BOOKS_FOLDER="Add Books From Folder"
+  TXT_MENU_MISC_RELOAD_DATA="Reload Data"
+  TXT_MENU_MISC_PROMPT_CUSTOM_ARGS="Input custom args?"
+  TXT_MENU_MISC_PROMPT_ENTER_ARGS="Enter args"
+  TXT_MENU_MISC_PROMPT_PROCEED="Proceed adding books?"
+
+  TXT_MENU_LIST_EXPLORER_PROMPT="Select Book"
+  TXT_MENU_LIST_EMPTY="List is empty."
+
   TXT_MENU_BOOK_ACTIONS_PROMPT="Select Book Action"
   TXT_MENU_BOOK_ACTIONS_PROMPT_LIST="Select List"
   TXT_MENU_BOOK_ACTIONS_PROMPT_FIELD="Select field to edit"
@@ -274,19 +290,6 @@ __load_default_lang() {
   TXT_MENU_BOOK_ACTIONS_EDIT_METADATA="Edit Metadata"
   TXT_MENU_BOOK_ACTIONS_REMOVED_SUCCESS="Successfully removed"
 
-  # Misc UI Texts
-  TXT_MENU_MISC_PROMPT="Select Action"
-  TXT_MENU_MISC_ADD_BOOKS="Add Books"
-  TXT_MENU_MISC_ADD_BOOKS_FOLDER="Add Books From Folder"
-  TXT_MENU_MISC_RELOAD_DATA="Reload Data"
-  TXT_MENU_MISC_PROMPT_CUSTOM_ARGS="Input custom args?"
-  TXT_MENU_MISC_PROMPT_ENTER_ARGS="Enter args"
-  TXT_MENU_MISC_PROMPT_PROCEED="Proceed adding books?"
-
-  # Explorer UI Texts
-  TXT_MENU_LIST_EXPLORER_PROMPT="Select Book"
-  TXT_MENU_LIST_EMPTY="List is empty."
-
   # Icons
   TXT_ICON_MENU_MAIN_READING_LIST=""
   TXT_ICON_MENU_MAIN_RECENT=""
@@ -296,7 +299,17 @@ __load_default_lang() {
   TXT_ICON_MENU_MAIN_COMPLETED=""
   TXT_ICON_MENU_MAIN_DOCS="󰈙"
   TXT_ICON_MENU_MAIN_RANDOM=""
-  TXT_ICON_MENU_MAIN_ALL=""
+  TXT_ICON_MENU_MAIN_ALL="󰌱"
+  TXT_ICON_MENU_MAIN_FORMATS="󰉺"
+  TXT_ICON_MENU_MAIN_SERIES="󱉟"
+  TXT_ICON_MENU_MAIN_LANGUAGES=""
+  TXT_ICON_MENU_MAIN_TAGS=""
+  TXT_ICON_MENU_MAIN_RATINGS=""
+  TXT_ICON_MENU_MAIN_PUBLISHER=""
+  TXT_ICON_MENU_MAIN_IDENTIFIERS="󰁱"
+  TXT_ICON_MENU_MAIN_AUTHORS=""
+  TXT_ICON_MENU_EXIT=""
+  TXT_MENU_MAIN_ALL="All"
   TXT_ICON_MENU_MAIN_DROPPED=""
   TXT_ICON_MENU_MAIN_EDIT_CONFIG=""
   TXT_ICON_MENU_MAIN_MISC=""
@@ -609,27 +622,17 @@ _util_generate_hash() {
 }
 
 _util_menu_sort() {
-  # TODO: shift to using awk
-  local options_to_sort
-  local options_to_sort_copy
-  local sort
-  local i
-  i=0
-  options_to_sort="$1"
-  sort="$2"
-
-  for option in $(printf '%s' "$options_to_sort" | tr ' ' '-'); do
-    i=$((i + 1))
-    if [ -z "$options_to_sort_copy" ]; then
-      options_to_sort_copy="$i:$option"
-    else
-      options_to_sort_copy="$options_to_sort_copy\n$i:$option"
-    fi
-  done
-
-  for order in $(printf '%s' "$sort" | tr ',' '\n'); do
-    printf "$options_to_sort_copy" | grep "^$order:" | sed "s/$order://g" | tr '-' ' '
-  done
+  awk -v sort="$1" '
+    BEGIN {
+      split(sort,sort_array,",")
+    }
+    {
+      input_array[NR]=$0
+    }
+    END {
+    for(o in sort_array)
+      print input_array[sort_array[o]]
+    }'
 }
 
 _util_byebye() {
@@ -1881,9 +1884,11 @@ __state_clean_prev() {
 _state_init() {
   STATE_CURRENT=0
 
-  STATE_CURRENT_LIST_TITLES=""
+  STATE_CURRENT_BOOKS=""
+  STATE_CURRENT_BOOK_TITLES=""
+
+  STATE_CURRENT_BOOK=""
   STATE_CURRENT_BOOK_TITLE=""
-  STATE_CURRENT_BOOK_JSON=""
 }
 
 _state_push() {
@@ -1894,9 +1899,11 @@ _state_push() {
   mkdir -p "$current_state_dir"
 
   cat <<EOF >"$current_state_dir/state.env"
-STATE_CURRENT_LIST_TITLES='$(printf "%s" "$STATE_CURRENT_LIST_TITLES" | sed "s/'/'\\\\''/g")'
+STATE_CURRENT_BOOKS='$(printf "%s" "$STATE_CURRENT_BOOKS" | sed "s/'/'\\\\''/g")'
+STATE_CURRENT_BOOK_TITLES='$(printf "%s" "$STATE_CURRENT_BOOK_TITLES" | sed "s/'/'\\\\''/g")'
+
+STATE_CURRENT_BOOK='$(printf "%s" "$STATE_CURRENT_BOOK" | sed "s/'/'\\\\''/g")'
 STATE_CURRENT_BOOK_TITLE='$(printf "%s" "$STATE_CURRENT_BOOK_TITLE" | sed "s/'/'\\\\''/g")'
-STATE_CURRENT_BOOK_JSON='$(printf "%s" "$STATE_CURRENT_BOOK_JSON" | sed "s/'/'\\\\''/g")'
 EOF
 }
 
@@ -1925,40 +1932,163 @@ _state_pop() {
 }
 
 # ==============================================================================
-# DATA FETCHING
+# Calibre
 # ==============================================================================
-_fetch_calibre_data() {
-  export CALIBRE_DB_JSON_FILE IMAGE_RENDERER THEME_MAGENTA THEME_BOLD THEME_RESET
-  __preview_fzf_create_shared_script
+__fetch_calibre_db() {
+  calibredb list --for-machine --fields all | tee "$CALIBRE_DB_JSON_FILE"
+}
 
-  local force_update="${1:-false}"
-  local current_timestamp
-  current_timestamp="$(command ls -ld "$CONFIG_CALIBRE_LIBRARY_PATH" 2>/dev/null)"
+_fetch_calibre_db() {
+  local calibre_library_current_timestamp
 
-  if [ -n "$CMD_SORT_BY" ] || [ -n "$CMD_SEARCH" ]; then
-    # Ephemeral fetch
-    local args="--for-machine --fields all"
-    [ -n "$CMD_SEARCH" ] && args="$args --search \"$CMD_SEARCH\""
-    [ -n "$CMD_SORT_BY" ] && args="$args --sort-by \"$CMD_SORT_BY\""
-    eval "calibredb list $args" >"$CALIBRE_DB_JSON_FILE.tmp"
-    jq '. | to_entries | map(.value.title = "\(.key+1) " + .value.title) | map(.value)' "$CALIBRE_DB_JSON_FILE.tmp" >"$CALIBRE_DB_JSON_FILE"
-  else
-    local cached_timestamp
-    cached_timestamp="$(cat "$CLI_LAST_DB_TIMESTAMP" 2>/dev/null)"
+  calibre_library_current_timestamp="$(stat -c %Y "$CONFIG_CALIBRE_LIBRARY_PATH")"
 
-    if [ "$force_update" = "true" ] || [ ! -s "$CALIBRE_DB_JSON_FILE" ] || [ "$cached_timestamp" != "$current_timestamp" ]; then
-      ui_notify "Updating library cache..."
-      calibredb list --for-machine --fields all >"$CALIBRE_DB_JSON_FILE.tmp"
-      jq '. | to_entries | map(.value.title = "\(.key+1) " + .value.title) | map(.value)' "$CALIBRE_DB_JSON_FILE.tmp" >"$CALIBRE_DB_JSON_FILE"
-      calibredb list_categories --csv >"$CALIBRE_CATEGORIES_CSV_FILE"
-      printf '%s\n' "$current_timestamp" >"$CLI_LAST_DB_TIMESTAMP"
-      rm -f "$CALIBRE_DB_JSON_FILE.tmp"
+  if ! [ -s "$CALIBRE_DB_JSON_FILE" ] || ! [ -s "$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE" ] || [ "$(cat "$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE")" -lt "$calibre_library_current_timestamp" ]; then
+    if __fetch_calibre_db; then
+      printf "%s" "$calibre_library_current_timestamp" >"$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE"
     fi
+  else
+    cat "$CALIBRE_DB_JSON_FILE"
+  fi
+}
+
+__fetch_calibre_categories() {
+  calibredb list_categories --csv | tee "$CALIBRE_CATEGORIES_CSV_FILE"
+}
+
+_fetch_calibre_categories() {
+  local calibre_library_current_timestamp
+
+  calibre_library_current_timestamp="$(stat -c %Y "$CONFIG_CALIBRE_LIBRARY_PATH")"
+
+  if [ "$(cat "$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE")" -lt "$calibre_library_current_timestamp" ]; then
+    __fetch_calibre_categories
+  else
+    cat "$CALIBRE_CATEGORIES_CSV_FILE"
   fi
 }
 
 # ==============================================================================
-# DATA LOCAL
+# Calibre: sort functions
+# ==============================================================================
+# shellcheck disable=SC2016
+CALIBRE_SORT_JQ='
+def sort_calibre_db(key)
+  if $key == "title" then
+    sort_by(.title | ascii_downcase)
+  elif $key == "author" then
+    sort_by(.authors[0] // "" | ascii_downcase)
+  elif $key == "series" then
+    sort_by(.series // "" | ascii_downcase)
+  elif $key == "rating" then
+    sort_by(.rating // 0)
+  elif $key == "publisher" then
+    sort_by(.publisher // "" | ascii_downcase)
+  else .
+  end;
+'
+
+# ==============================================================================
+# Calibre: search functions
+# ==============================================================================
+_fetch_calibre_db_search_title() {
+  _fetch_calibre_db | jq -r --arg title "$1" --arg sort_by "$2" "
+    map(select(.title | test(\$title; 'i')))
+    | $CALIBRE_SORT_JQ
+    sort_calibre_db(.[\$sort_by])
+  "
+}
+
+fetch_calibre_db_search_title() {
+  _fetch_calibre_db_search_title "$@"
+}
+
+_fetch_calibre_db_search_author() {
+  _fetch_calibre_db | jq -r --arg author "$1" --arg sort_by "$2" "
+    map(select(.authors | index(\$author)))
+    | $CALIBRE_SORT_JQ
+    sort_calibre_db(.[\$sort_by])
+  "
+}
+
+fetch_calibre_db_search_author() {
+  _fetch_calibre_db_search_author "$@"
+}
+
+_fetch_calibre_db_search_series() {
+  _fetch_calibre_db | jq -r --arg series "$1" --arg sort_by "$2" "
+    map(select(.series | test(\$series; 'i')))
+    | $CALIBRE_SORT_JQ
+    sort_calibre_db(.[\$sort_by])
+  "
+}
+
+fetch_calibre_db_search_series() {
+  _fetch_calibre_db_search_series "$@"
+}
+
+_fetch_calibre_db_search_tags() {
+  _fetch_calibre_db | jq -r --arg tags "$1" --arg sort_by "$2" "
+    map(select(.tags | index(\$tags)))
+    | $CALIBRE_SORT_JQ
+    sort_calibre_db(.[\$sort_by])
+  "
+}
+
+fetch_calibre_db_search_tags() {
+  _fetch_calibre_db_search_tags "$@"
+}
+
+_fetch_calibre_db_search_identifier() {
+  _fetch_calibre_db | jq -r --arg identifier "$1" --arg sort_by "$2" "
+    map(select(.identifiers | to_entries[] | \"\(.key):\(.value)\" == \$identifier))
+    | $CALIBRE_SORT_JQ
+    sort_calibre_db(.[\$sort_by])
+  "
+}
+
+fetch_calibre_db_search_title() {
+  _fetch_calibre_db_search_title "$@"
+}
+
+_fetch_calibre_db_search_formats() {
+  _fetch_calibre_db | jq -r --arg format "$1" --arg sort_by "$2" "
+    map(select(.formats[] | ascii_downcase | endswith('.\$format')))
+    | $CALIBRE_SORT_JQ
+    sort_calibre_db(.[\$sort_by])
+  "
+}
+
+fetch_calibre_db_search_formats() {
+  _fetch_calibre_db_search_formats "$@"
+}
+
+_fetch_calibre_db_search_rating() {
+  _fetch_calibre_db | jq -r --arg rating "$1" --arg sort_by "$2" "
+    map(select(.rating == (\$rating | tonumber)))
+    | $CALIBRE_SORT_JQ
+    sort_calibre_db(.[\$sort_by])
+  "
+}
+
+fetch_calibre_db_search_rating() {
+  _fetch_calibre_db_search_rating "$@"
+}
+
+_fetch_calibre_db_search_publisher() {
+  _fetch_calibre_db | jq -r --arg publisher "$1" --arg sort_by "$2" "
+    map(select(.publisher | test(\$publisher; 'i')))
+    | $CALIBRE_SORT_JQ
+    sort_calibre_db(.[\$sort_by])
+  "
+}
+
+fetch_calibre_db_search_publisher() {
+  _fetch_calibre_db_search_publisher "$@"
+}
+
+# ==============================================================================
+# User Lists
 # ==============================================================================
 _manage_user_list() {
   local list_name="$1"
@@ -2009,7 +2139,7 @@ __menu_book_actions_read() {
     _update_recent "$STATE_CURRENT_BOOK_TITLE"
   fi
 
-  book_path="$(printf '%s' "$STATE_CURRENT_BOOK_JSON" | jq -r '.formats[0]')"
+  book_path="$(printf '%s' "$STATE_CURRENT_BOOK" | jq -r '.formats[0]')"
   _util_open "$book_path"
 
   if [ "$CONFIG_DISOWN_READING_PROCESS" = "false" ]; then
@@ -2060,7 +2190,7 @@ __menu_book_actions_remove_book() {
     if calibredb remove "$book_id"; then
       ui_notify "$TXT_MENU_BOOK_ACTIONS_REMOVED_SUCCESS"
     fi
-    _fetch_calibre_data "true"
+    _fetch_calibre_db
     _state_pop
     CMD_EXIT_MENU=true
   fi
@@ -2088,10 +2218,16 @@ __menu_book_actions_edit_metadata() {
 # shellcheck disable=SC2120
 _menu_book_actions() {
   local actions
-  local sort="$1"
-  local menu_options_filter="$2"
-  local extra_menu_options="$3"
-  local extra_menu_options_handler="$4"
+  local action
+  local sort
+  local menu_options_filter
+  local extra_menu_options
+  local extra_menu_options_handler
+
+  sort="$1"
+  menu_options_filter="$2"
+  extra_menu_options="$3"
+  extra_menu_options_handler="$4"
 
   actions="\
  ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_READ}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_READ}
@@ -2103,19 +2239,19 @@ _menu_book_actions() {
  ${THEME_FZF_ICON_COLOR_ERROR}${TXT_ICON_MENU_EXIT}${THEME_RESET}  ${TXT_MENU_EXIT}"
 
   if [ -n "$extra_menu_options" ] && [ -n "$extra_menu_options_handler" ]; then
-    actions="$(printf '%s\n%s' "$actions" "$extra_menu_options")"
+    actions="$actions
+$extra_menu_options"
   fi
+
   if [ -n "$menu_options_filter" ]; then
     actions="$(printf '%s' "$actions" | grep --invert-match "$menu_options_filter")"
   fi
+
   if [ -n "$sort" ]; then
-    actions="$(_util_menu_sort "$actions" "$sort")"
+    actions="$(printf '%s' "$actions" | _util_menu_sort "$sort")"
   fi
 
   while true; do
-    CMD_EXIT_MENU=false
-    local action
-
     if [ -n "$CMD_BOOK_ACTION" ]; then
       action="$CMD_BOOK_ACTION"
       unset -v CMD_BOOK_ACTION
@@ -2161,25 +2297,27 @@ __menu_book_list_explorer_select() {
 
   parsed_title="$(printf '%s' "$choice" | sed -E 's/^[0-9]+ //g')"
   STATE_CURRENT_BOOK_TITLE="$parsed_title"
-  STATE_CURRENT_BOOK_JSON="$(jq -r --arg t "$parsed_title" 'map(select(.title == $t)) | .[0]' "$CALIBRE_DB_JSON_FILE")"
+  STATE_CURRENT_BOOK="$(jq -r --arg t "$parsed_title" 'map(select(.title == $t)) | .[0]' "$CALIBRE_DB_JSON_FILE")"
 
   _state_push
   menu_book_actions
 }
 
 _menu_book_list_explorer() {
-  local other_choices="\
+  local other_choices
+  local choice
+
+  other_choices="\
 $TXT_MENU_BACK
 $TXT_MENU_EXIT"
 
   while true; do
-    local choice
 
     if [ "$CMD_BOOK_RESULTS_SKIP" = "true" ]; then
-      choice="$(printf '%s' "$STATE_CURRENT_LIST_TITLES" | head -n 1)"
+      choice="$(printf '%s' "$STATE_CURRENT_BOOK_TITLES" | head -n 1)"
       unset -v CMD_BOOK_RESULTS_SKIP
     else
-      choice="$(printf "%s\n%s" "$STATE_CURRENT_LIST_TITLES" "$other_choices" | ui_launcher_with_preview "$TXT_MENU_LIST_EXPLORER_PROMPT")"
+      choice="$(printf "%s\n%s" "$STATE_CURRENT_BOOK_TITLES" "$other_choices" | ui_launcher "$TXT_MENU_LIST_EXPLORER_PROMPT")"
     fi
 
     case "$choice" in
@@ -2307,151 +2445,101 @@ menu_miscellaneous() {
 # ==============================================================================
 # Menus: main
 # ==============================================================================
-__menu_main_user_list() {
-  local list_action="$1"
-  local file_name
-
-  if [ "$list_action" = "$TXT_MENU_MAIN_READING_LIST" ]; then
-    file_name="reading_list"
-  else
-    file_name="$(printf '%s' "$list_action" | tr ' ' '_' | tr '[:upper:]' '[:lower:]')_list"
-  fi
-
-  [ "$list_action" = "$TXT_MENU_MAIN_RECENT" ] && file_name="recent"
-
-  if [ -s "$CLI_DBS_DIR/$file_name" ]; then
-    STATE_CURRENT_LIST_TITLES="$(cat "$CLI_DBS_DIR/$file_name")"
-
-    if [ "$list_action" = "$TXT_MENU_MAIN_RECENT" ]; then
-      STATE_CURRENT_LIST_TITLES="$(tail -r "$CLI_DBS_DIR/$file_name" 2>/dev/null || tac "$CLI_DBS_DIR/$file_name")"
-    fi
-
-    _state_push
-    menu_book_list_explorer
-  else
-    ui_notify_warning "$TXT_MENU_LIST_EMPTY"
-  fi
-}
-
 __menu_main_all() {
-  STATE_CURRENT_LIST_TITLES="$(jq -r '.[].title' "$CALIBRE_DB_JSON_FILE")"
+  STATE_CURRENT_BOOKS="$(_fetch_calibre_db)"
+  STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
   _state_push
   menu_book_list_explorer
 }
 
 __menu_main_random() {
-  STATE_CURRENT_LIST_TITLES="$(jq -r '.[].title' "$CALIBRE_DB_JSON_FILE" | shuf -n "$CONFIG_NO_OF_RANDOM_BOOKS")"
+  STATE_CURRENT_BOOKS="$(_fetch_calibre_db)"
+  STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title' | shuf -n "$CONFIG_NO_OF_RANDOM_BOOKS")"
   _state_push
   menu_book_list_explorer
-}
-
-__menu_main_category() {
-  local category_action="$1"
-  local category
-  local selection
-  local search_prefix
-  local args
-
-  category="$(printf '%s' "$category_action" | tr '[:upper:]' '[:lower:]')"
-
-  if ! grep -q "^${category}," "$CALIBRE_CATEGORIES_CSV_FILE" 2>/dev/null; then
-    return 1 # Fall through to handler
-  fi
-
-  selection="$(grep "^${category}," "$CALIBRE_CATEGORIES_CSV_FILE" | cut -d, -f2 | tr -d '"' | ui_launcher "Select ${category_action}")"
-  [ -z "$selection" ] && return 0
-
-  search_prefix="${category}"
-  [ "$category" = "authors" ] && search_prefix="author"
-
-  args="--search \"${search_prefix}:${selection}\" --for-machine --fields=title"
-  [ -n "$CMD_SORT_BY" ] && args="$args --sort-by \"$CMD_SORT_BY\""
-
-  STATE_CURRENT_LIST_TITLES="$(eval "calibredb list $args" | jq -r '.[].title')"
-  _state_push
-  menu_book_list_explorer
-  return 0
 }
 
 __menu_main_edit_config() {
-  if _dep_ch "$CONFIG_EDITOR"; then
-    $CONFIG_EDITOR "$CLI_CONFIG_FILE"
-  else
-    vi "$CLI_CONFIG_FILE"
-  fi
+  _util_file_edit "$CLI_CONFIG_FILE"
   _load_config
 }
 
 # shellcheck disable=SC2120
 _menu_main() {
   local actions
+  local action
   local sort="$1"
   local menu_options_filter="$2"
   local extra_menu_options="$3"
   local extra_menu_options_handler="$4"
 
   actions="\
- ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_READING_LIST}${THEME_RESET}  ${TXT_MENU_MAIN_READING_LIST}
- ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_RECENT}${THEME_RESET}  ${TXT_MENU_MAIN_RECENT}
- ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_PAUSED}${THEME_RESET}  ${TXT_MENU_MAIN_PAUSED}
- ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_REREADING}${THEME_RESET}  ${TXT_MENU_MAIN_REREADING}
- ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_PLANING}${THEME_RESET}  ${TXT_MENU_MAIN_PLANING}
- ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_COMPLETED}${THEME_RESET}  ${TXT_MENU_MAIN_COMPLETED}
- ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_DOCS}${THEME_RESET}  ${TXT_MENU_MAIN_DOCS}
- ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_RANDOM}${THEME_RESET}  ${TXT_MENU_MAIN_RANDOM}
- ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_ALL}${THEME_RESET}  ${TXT_MENU_MAIN_ALL}"
-
-  # Dynamically fetch Calibre categories and append them
-  local dynamic_cats
-  dynamic_cats=$(awk -F, 'NR>1 && !seen[$1]++ {print $1}' "$CALIBRE_CATEGORIES_CSV_FILE" 2>/dev/null)
-  for cat_name in $dynamic_cats; do
-    local capitalized_cat
-    capitalized_cat="$(printf '%s' "$cat_name" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')"
-    actions="$(printf '%s\n %s%s%s  %s' "$actions" "$THEME_FZF_ICON_COLOR_PRIMARY" "$TXT_ICON_MENU_MAIN_CATEGORY" "$THEME_RESET" "$capitalized_cat")"
-  done
-
-  # Append bottom static actions
-  actions="$(printf '%s\n %s%s%s  %s\n %s%s%s  %s\n %s%s%s  %s\n %s%s%s  %s' "$actions" \
-    "$THEME_FZF_ICON_COLOR_PRIMARY" "$TXT_ICON_MENU_MAIN_DROPPED" "$THEME_RESET" "$TXT_MENU_MAIN_DROPPED" \
-    "$THEME_FZF_ICON_COLOR_PRIMARY" "$TXT_ICON_MENU_MAIN_EDIT_CONFIG" "$THEME_RESET" "$TXT_MENU_MAIN_EDIT_CONFIG" \
-    "$THEME_FZF_ICON_COLOR_PRIMARY" "$TXT_ICON_MENU_MAIN_MISC" "$THEME_RESET" "$TXT_MENU_MAIN_MISC" \
-    "$THEME_FZF_ICON_COLOR_ERROR" "$TXT_ICON_MENU_EXIT" "$THEME_RESET" "$TXT_MENU_EXIT")"
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_READING_LIST}${THEME_RESET}  ${TXT_MENU_MAIN_READING_LIST}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_RECENT}${THEME_RESET}  ${TXT_MENU_MAIN_RECENT}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_PAUSED}${THEME_RESET}  ${TXT_MENU_MAIN_PAUSED}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_REREADING}${THEME_RESET}  ${TXT_MENU_MAIN_REREADING}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_PLANING}${THEME_RESET}  ${TXT_MENU_MAIN_PLANING}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_COMPLETED}${THEME_RESET}  ${TXT_MENU_MAIN_COMPLETED}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_DOCS}${THEME_RESET}  ${TXT_MENU_MAIN_DOCS}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_RANDOM}${THEME_RESET}  ${TXT_MENU_MAIN_RANDOM}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_ALL}${THEME_RESET}  ${TXT_MENU_MAIN_ALL}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_SERIES}${THEME_RESET}  ${TXT_MENU_MAIN_SERIES}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_AUTHORS}${THEME_RESET}  ${TXT_MENU_MAIN_AUTHORS}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_TAGS}${THEME_RESET}  ${TXT_MENU_MAIN_TAGS}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_FORMATS}${THEME_RESET}  ${TXT_MENU_MAIN_FORMATS}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_LANGUAGES}${THEME_RESET}  ${TXT_MENU_MAIN_LANGUAGES}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_RATINGS}${THEME_RESET}  ${TXT_MENU_MAIN_RATINGS}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_PUBLISHER}${THEME_RESET}  ${TXT_MENU_MAIN_PUBLISHER}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_IDENTIFIERS}${THEME_RESET}  ${TXT_MENU_MAIN_IDENTIFIERS}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_DROPPED}${THEME_RESET}  ${TXT_MENU_MAIN_DROPPED}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_MISC}${THEME_RESET}  ${TXT_MENU_MAIN_MISC}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_EDIT_CONFIG}${THEME_RESET}  ${TXT_MENU_MAIN_EDIT_CONFIG}
+${THEME_FZF_ICON_COLOR_ERROR}${TXT_ICON_MENU_EXIT}${THEME_RESET}  ${TXT_MENU_EXIT}"
 
   if [ -n "$extra_menu_options" ] && [ -n "$extra_menu_options_handler" ]; then
-    actions="$(printf '%s\n%s' "$actions" "$extra_menu_options")"
+    actions="$actions
+$extra_menu_options"
   fi
+
   if [ -n "$menu_options_filter" ]; then
     actions="$(printf '%s' "$actions" | grep --invert-match "$menu_options_filter")"
   fi
+
   if [ -n "$sort" ]; then
-    actions="$(_util_menu_sort "$actions" "$sort")"
+    actions="$(printf '%s' "$actions" | _util_menu_sort "$sort")"
   fi
 
   while true; do
-    local action
-    if [ -n "$CMD_GO_DIRECTLY_TO" ]; then
-      action="$CMD_GO_DIRECTLY_TO"
-      unset -v CMD_GO_DIRECTLY_TO
+    if [ -n "$CMD_MAIN_ACTION" ]; then
+      action="$CMD_MAIN_ACTION"
+      unset -v CMD_MAIN_ACTION
     else
-      action="$(printf '%b' "$actions" | ui_launcher "$TXT_MENU_MAIN_PROMPT_ACTION" | sed 's/.*  //g')"
+      action="$(printf '%s' "$actions" | ui_launcher "$TXT_MENU_MAIN_PROMPT_ACTION" | sed 's/.*  //g')"
     fi
 
     case "$action" in
-    "$TXT_MENU_MAIN_READING_LIST") __menu_main_user_list "$action" ;;
-    "$TXT_MENU_MAIN_RECENT") __menu_main_user_list "$action" ;;
-    "$TXT_MENU_MAIN_DROPPED") __menu_main_user_list "$action" ;;
-    "$TXT_MENU_MAIN_PAUSED") __menu_main_user_list "$action" ;;
-    "$TXT_MENU_MAIN_COMPLETED") __menu_main_user_list "$action" ;;
-    "$TXT_MENU_MAIN_REREADING") __menu_main_user_list "$action" ;;
-    "$TXT_MENU_MAIN_PLANING") __menu_main_user_list "$action" ;;
-    "$TXT_MENU_MAIN_DOCS") __menu_main_user_list "$action" ;;
+    "$TXT_MENU_MAIN_READING_LIST") __menu_main_reading_list ;;
+    "$TXT_MENU_MAIN_RECENT") __menu_main_recent ;;
+    "$TXT_MENU_MAIN_PAUSED") __menu_main_paused ;;
+    "$TXT_MENU_MAIN_COMPLETED") __menu_main_completed ;;
+    "$TXT_MENU_MAIN_REREADING") __menu_main_rereading ;;
+    "$TXT_MENU_MAIN_PLANING") __menu_main_planning ;;
+    "$TXT_MENU_MAIN_DOCS") __menu_main_docs ;;
     "$TXT_MENU_MAIN_ALL") __menu_main_all ;;
+    "$TXT_MENU_MAIN_SERIES") __menu_main_series ;;
+    "$TXT_MENU_MAIN_AUTHORS") __menu_main_authors ;;
+    "$TXT_MENU_MAIN_TAGS") __menu_main_tags ;;
+    "$TXT_MENU_MAIN_FORMATS") __menu_main_formats ;;
+    "$TXT_MENU_MAIN_LANGUAGES") __menu_main_languages ;;
+    "$TXT_MENU_MAIN_RATINGS") __menu_main_ratings ;;
+    "$TXT_MENU_MAIN_PUBLISHER") __menu_main_publisher ;;
+    "$TXT_MENU_MAIN_IDENTIFIERS") __menu_main_identifiers ;;
     "$TXT_MENU_MAIN_RANDOM") __menu_main_random ;;
+    "$TXT_MENU_MAIN_DROPPED") __menu_main_dropped ;;
     "$TXT_MENU_MAIN_EDIT_CONFIG") __menu_main_edit_config ;;
     "$TXT_MENU_MAIN_MISC") menu_miscellaneous ;;
     "$TXT_MENU_EXIT" | "") _util_byebye ;;
     *)
-      # Fallback checks dynamic categories, then hooks.
       if ! __menu_main_category "$action"; then
         if [ -n "$extra_menu_options" ] && [ -n "$extra_menu_options_handler" ]; then
           if ! $extra_menu_options_handler "$action"; then
@@ -2810,7 +2898,7 @@ _app_cmd_line_parser() {
       readonly CLI_EXTENSION_CMDLINE_ARGS="$*"
       return
       ;;
-    -l | --launcher | -p | --preferred-selector)
+    -l | --launcher)
       [ -n "$2" ] || _app_usage 1
       CONFIG_LAUNCHER="$2"
       shift_count=2

@@ -2879,33 +2879,19 @@ _app_cmd_line_parser() {
     -ce | --cmd-exit) CMD_EXIT=true ;;
     -bs | --book-skip) CMD_BOOK_RESULTS_SKIP=true ;;
     -be | --book-exit) CMD_EXIT_MENU=true ;;
+    -d | --disown-reading-process) CONFIG_DISOWN_READING_PROCESS="true" ;;
+    -D | --no-disown-reading-process) CONFIG_DISOWN_READING_PROCESS="false" ;;
     --config-write) _print_config >"$CLI_CONFIG_FILE" && exit 0 ;;
     --preview) CONFIG_ENABLE_PREVIEW=true ;;
     --no-preview) CONFIG_ENABLE_PREVIEW=false ;;
     --preview-images) CONFIG_ENABLE_PREVIEW_IMAGES=true ;;
     --no-preview-images) CONFIG_ENABLE_PREVIEW_IMAGES=false ;;
-    -x | --extension)
-      [ -n "$2" ] || _app_usage 1
-      if [ "${2#/}" != "$2" ]; then
-        . "$2"
-      else
-        . "$CLI_EXTENSIONS_DIR/$2"
-      fi
-      shift_count=2
-      ;;
-    -xargs | --extension-arguments)
-      shift
-      readonly CLI_EXTENSION_CMDLINE_ARGS="$*"
-      return
-      ;;
+    --private) CONFIG_UPDATE_RECENT="false" ;;
     -l | --launcher)
       [ -n "$2" ] || _app_usage 1
       CONFIG_LAUNCHER="$2"
       shift_count=2
       ;;
-    -d | --disown-reading-process) CONFIG_DISOWN_READING_PROCESS="true" ;;
-    -D | --no-disown-reading-process) CONFIG_DISOWN_READING_PROCESS="false" ;;
-    --private) CONFIG_UPDATE_RECENT="false" ;;
     --rofi-theme-main | --rofi-theme)
       [ -n "$2" ] || _app_usage 1
       CONFIG_ROFI_THEME_MAIN="$2"
@@ -2926,8 +2912,20 @@ _app_cmd_line_parser() {
       CONFIG_ROFI_THEME_CONFIRM="$2"
       shift_count=2
       ;;
-
-    # Direct menu shortcuts
+    -x | --extension)
+      [ -n "$2" ] || _app_usage 1
+      if [ "${2#/}" != "$2" ]; then
+        . "$2"
+      else
+        . "$CLI_EXTENSIONS_DIR/$2"
+      fi
+      shift_count=2
+      ;;
+    -xargs | --extension-arguments)
+      shift
+      readonly CLI_EXTENSION_CMDLINE_ARGS="$*"
+      return
+      ;;
     --reading-list) CMD_MAIN_ACTION="$TXT_MENU_MAIN_READING_LIST" ;;
     --recent) CMD_MAIN_ACTION="$TXT_MENU_MAIN_RECENT" ;;
     --paused) CMD_MAIN_ACTION="$TXT_MENU_MAIN_PAUSED" ;;
@@ -2939,22 +2937,9 @@ _app_cmd_line_parser() {
     --all) CMD_MAIN_ACTION="$TXT_MENU_MAIN_ALL" ;;
     --random) CMD_MAIN_ACTION="$TXT_MENU_MAIN_RANDOM" ;;
     --misc | --miscellaneous) CMD_MAIN_ACTION="$TXT_MENU_MAIN_MISC" ;;
-
-    # Book action shortcuts
     --read) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_READ" ;;
     --edit-metadata) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_EDIT_METADATA" ;;
     --remove-book) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_REMOVE_BOOK" ;;
-
-    # Arguments with parameters
-    -g | --go-directly-to)
-      if [ -z "$2" ]; then
-        CMD_MAIN_ACTION="$(ui_prompt "Go to menu")"
-        [ -n "$CMD_MAIN_ACTION" ] || _app_usage 1
-      else
-        CMD_MAIN_ACTION="$2"
-        shift_count=2
-      fi
-      ;;
     -s | --search)
       if [ -z "$2" ]; then
         CMD_SEARCH="$(ui_prompt "Enter search query")"
@@ -2963,7 +2948,7 @@ _app_cmd_line_parser() {
         CMD_SEARCH="$2"
         shift_count=2
       fi
-      CMD_MAIN_ACTION="${CMD_GO_DIRECTLY_TO:-$TXT_MENU_MAIN_ALL}"
+      CMD_MAIN_ACTION="${CMD_MAIN_ACTION:-$TXT_MENU_MAIN_ALL}"
       ;;
     -S | --sort-by)
       if [ -z "$2" ]; then
@@ -2973,7 +2958,7 @@ _app_cmd_line_parser() {
         CMD_SORT_BY="$2"
         shift_count=2
       fi
-      CMD_MAIN_ACTION="${CMD_GO_DIRECTLY_TO:-$TXT_MENU_MAIN_ALL}"
+      CMD_MAIN_ACTION="${CMD_MAIN_ACTION:-$TXT_MENU_MAIN_ALL}"
       ;;
     -r | --no-of-random-books)
       if [ -z "$2" ]; then
@@ -2983,10 +2968,8 @@ _app_cmd_line_parser() {
         CONFIG_NO_OF_RANDOM_BOOKS="$2"
         shift_count=2
       fi
-      CMD_MAIN_ACTION="${CMD_GO_DIRECTLY_TO:-$TXT_MENU_MAIN_RANDOM}"
+      CMD_MAIN_ACTION="${CMD_MAIN_ACTION:-$TXT_MENU_MAIN_RANDOM}"
       ;;
-
-    # Subcommands
     completions)
       [ -n "$2" ] || _app_usage_completions 1
       case "$2" in

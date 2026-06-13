@@ -1485,21 +1485,20 @@ _state_pop() {
 # Calibre
 # ==============================================================================
 __fetch_calibre_db() {
-  calibredb list --for-machine --fields all | tee "$CALIBRE_DB_JSON_FILE"
+  calibredb list --for-machine --fields all >"$CALIBRE_DB_JSON_FILE"
 }
 
 _fetch_calibre_db() {
   local calibre_library_current_timestamp
 
-  calibre_library_current_timestamp="$(stat -c %Y "$CONFIG_CALIBRE_LIBRARY_PATH")"
+  calibre_library_current_timestamp="$(stat -c %Y "$CONFIG_CALIBRE_LIBRARY_PATH/metadata.db")"
 
-  if ! [ -s "$CALIBRE_DB_JSON_FILE" ] || ! [ -s "$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE" ] || [ "$(cat "$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE")" -lt "$calibre_library_current_timestamp" ]; then
+  if ! [ -s "$CALIBRE_DB_JSON_FILE" ] || ! [ -s "$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE" ] || [ "$calibre_library_current_timestamp" -gt "$(cat "$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE")" ]; then
     if __fetch_calibre_db; then
       printf "%s" "$calibre_library_current_timestamp" >"$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE"
     fi
-  else
-    cat "$CALIBRE_DB_JSON_FILE"
   fi
+  cat "$CALIBRE_DB_JSON_FILE"
 }
 
 fetch_calibre_db() {
@@ -1507,7 +1506,7 @@ fetch_calibre_db() {
 }
 
 __fetch_calibre_categories() {
-  calibredb list_categories --csv | tee "$CALIBRE_CATEGORIES_CSV_FILE"
+  calibredb list_categories --csv >"$CALIBRE_CATEGORIES_CSV_FILE"
 }
 
 _fetch_calibre_categories() {
@@ -1515,11 +1514,16 @@ _fetch_calibre_categories() {
 
   calibre_library_current_timestamp="$(stat -c %Y "$CONFIG_CALIBRE_LIBRARY_PATH")"
 
-  if [ "$(cat "$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE")" -lt "$calibre_library_current_timestamp" ]; then
-    __fetch_calibre_categories
-  else
-    cat "$CALIBRE_CATEGORIES_CSV_FILE"
+  if ! [ -s "$CALIBRE_DB_JSON_FILE" ] || ! [ -s "$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE" ] || [ "$(cat "$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE")" -lt "$calibre_library_current_timestamp" ]; then
+    if __fetch_calibre_categories; then
+      printf "%s" "$calibre_library_current_timestamp" >"$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE"
+    fi
   fi
+  cat "$CALIBRE_CATEGORIES_CSV_FILE"
+}
+
+fetch_calibre_categories() {
+  _fetch_calibre_categories
 }
 
 # ==============================================================================

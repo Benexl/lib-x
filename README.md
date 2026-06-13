@@ -8,8 +8,6 @@ Working on rewrite which will make it to be more like yt-x and add rofi config p
 
 A TUI wrapper over the calibredb
 
-[lib-x-all.webm](https://github.com/user-attachments/assets/58690f9f-b239-4c84-9175-f17b8c6d2293)
-
 
 # Installation
 ![Linux/BSD](https://img.shields.io/badge/-Linux/BSD-red.svg?style=for-the-badge&logo=linux)

@@ -1,33 +1,399 @@
-#!/usr/bin/env bash
-#A script written by Benexl in September 4, 2024 under GNU GENERAL PUBLIC LICENSE
+#!/usr/bin/env sh
+# shellcheck disable=SC3043,SC2034,SC1090
+# lib-x - Manage and read your calibre books from the terminal or app launcher
+# MIT License - Copyright (c) 2024 Benexl
 
-CLI_HEADER='
+# ==============================================================================
+# META
+# ==============================================================================
+readonly CLI_NAME="lib-x"
+readonly CLI_ARGS="$*"
+readonly CLI_APP_NAME="${LIB_X_APP_NAME:-"$CLI_NAME"}"
+readonly CLI_VERSION="0.2.0"
+readonly CLI_AUTHOR="Benexl"
+readonly CLI_REPO_URL="https://github.com/Benexl/lib-x"
+readonly CLI_VERSION_URL="https://raw.githubusercontent.com/Benexl/lib-x/refs/heads/master/version.txt"
+readonly CLI_RELEASES_BASE="https://github.com/Benexl/lib-x/releases/download"
+
+# ==============================================================================
+# SETUP
+# ==============================================================================
+readonly CLI_START_TIME="$(date +%s)"
+
+_dep_ch() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+if ! _dep_ch local; then
+  eval 'local() { unset -v $1; }'
+fi
+
+if _dep_ch realpath; then
+  readonly CLI_DIR="$(dirname "$(realpath "$0")")"
+else
+  readonly CLI_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+fi
+
+readonly CLI_PATH="$CLI_DIR/$CLI_NAME"
+
+case "$(uname -a)" in
+*ndroid*) readonly CLI_PLATFORM="android" ;;
+*Darwin*) readonly CLI_PLATFORM="mac" ;;
+*WSL* | *microsoft* | *Microsoft*) readonly CLI_PLATFORM="linux" ;;
+*MINGW* | *MSYS* | *CYGWIN*) readonly CLI_PLATFORM="windows" ;;
+*) readonly CLI_PLATFORM="linux" ;;
+esac
+
+if [ -t 1 ]; then
+  readonly CLI_IS_TERMINAL=true
+else
+  readonly CLI_IS_TERMINAL=false
+fi
+
+export SHELL="sh"
+
+# ==============================================================================
+# SETUP PATHS
+# ==============================================================================
+XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
+XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+
+readonly CLI_CONFIG_DIR="$XDG_CONFIG_HOME/$CLI_APP_NAME"
+readonly CLI_DBS_DIR="$CLI_CONFIG_DIR/DBS"
+readonly CLI_CACHE_DIR="$XDG_CACHE_HOME/$CLI_APP_NAME"
+
+readonly CLI_STATE_DIR="$CLI_CACHE_DIR/state"
+readonly CLI_CURRENT_STATE_DIR="$CLI_STATE_DIR/${CLI_START_TIME}-$$"
+
+readonly CLI_PREVIEW_SCRIPTS_DIR="$CLI_CACHE_DIR/previews"
+readonly CLI_FZF_PREVIEW_SCRIPT="$CLI_PREVIEW_SCRIPTS_DIR/fzf-preview.sh"
+
+readonly CLI_CONFIG_FILE="$CLI_CONFIG_DIR/config"
+
+readonly CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE="$CLI_CACHE_DIR/.calibre_library_timestamp"
+readonly CALIBRE_DB_JSON_FILE="$CLI_CACHE_DIR/calibre_db.json"
+readonly CALIBRE_CATEGORIES_CSV_FILE="$CLI_CACHE_DIR/calibre_categories.csv"
+readonly CLI_LAST_DB_TIMESTAMP="$CLI_CACHE_DIR/last_db_timestamp"
+
+mkdir -p \
+  "$CLI_CONFIG_DIR" \
+  "$CLI_DBS_DIR" \
+  "$CLI_CURRENT_STATE_DIR" \
+  "$CLI_PREVIEW_SCRIPTS_DIR"
+
+# ==============================================================================
+# Declarations for lsp
+# ==============================================================================
+CMD_EXIT=""
+CMD_MAIN_ACTION=""
+CMD_SEARCH=""
+CMD_SORT_BY=""
+
+# ==============================================================================
+# CONFIGURATION & ENVIRONMENT
+# ==============================================================================
+__load_default_config() {
+  : "${CONFIG_AUTOLOADED_EXTENSIONS:=}"
+  : "${CONFIG_ENABLE_COLORS:=true}"
+  : "${CONFIG_LAUNCHER:=fzf}"
+  : "${CONFIG_ENABLE_PREVIEW:=false}"
+  : "${CONFIG_ENABLE_PREVIEW_IMAGES:=false}"
+
+  if [ -n "$KITTY_WINDOW_ID" ] || [ -n "$GHOSTTY_BIN_DIR" ]; then
+    : "${CONFIG_IMAGE_RENDERER:=icat}"
+  else
+    : "${CONFIG_IMAGE_RENDERER:=chafa}"
+  fi
+
+  : "${CONFIG_CHAFA_ARGS:=}"
+  : "${CONFIG_ICAT_ARGS:=}"
+  : "${CONFIG_IMGCAT_ARGS:=}"
+
+  : "${CONFIG_CALIBRE_LIBRARY_PATH:=$HOME/Calibre Library}"
+
+  if _dep_ch yazi; then
+    : "${CONFIG_FILE_EXPLORER:=yazi}"
+  else
+    : "${CONFIG_FILE_EXPLORER:=fzf}"
+  fi
+
+  : "${CONFIG_DISOWN_READING_PROCESS:=true}"
+  : "${CONFIG_EDITOR:=${EDITOR:-vi}}"
+  : "${CONFIG_TERMINAL_EXEC:=}"
+  : "${CONFIG_NOTIFICATION_DURATION:=5}"
+
+  : "${CONFIG_CHECK_FOR_UPDATES:=true}"
+  : "${CONFIG_UPDATE_RECENT:=true}"
+  : "${CONFIG_NO_OF_RECENT:=30}"
+  : "${CONFIG_NO_OF_RANDOM_BOOKS:=30}"
+
+  : "${CONFIG_ROFI_THEME_MAIN:=}"
+  : "${CONFIG_ROFI_THEME_PREVIEW:=}"
+  : "${CONFIG_ROFI_THEME_PROMPT:=}"
+  : "${CONFIG_ROFI_THEME_CONFIRM:=}"
+  : "${CONFIG_ROFI_THEME_PAGER:=}"
+
+  : "${CONFIG_GUM_FILTER_OPTS:="--prompt.foreground #2ac3de --indicator.foreground #2ac3de --selected-indicator.foreground #2ac3de --unselected-prefix.foreground #585858 --header.foreground #2ac3de --text.foreground #c0caf5 --cursor-text.foreground #c0caf5 --match.foreground #2ac3de --placeholder.foreground #585858  --prompt  > --indicator ◆ --selected-prefix  ◉  --unselected-prefix  ○  --placeholder Search..."}"
+  : "${CONFIG_GUM_INPUT_OPTS:="--prompt.foreground #2ac3de --cursor.foreground #c0caf5 --placeholder Search... --cursor.mode blink"}"
+  : "${CONFIG_GUM_PAGER_OPTS:="--foreground #c0caf5 --line-number.foreground #585858 --match.foreground #2ac3de --match-highlight.foreground #1a1b26 --match-highlight.background #2ac3de --help.foreground #585858 --show-line-numbers --soft-wrap --border-foreground #2ac3de"}"
+  : "${CONFIG_GUM_SPIN_OPTS:="--spinner dot --spinner.foreground #2ac3de --title.foreground #585858  --align left"}"
+  : "${CONFIG_GUM_CONFIRM_OPTS:="--prompt.foreground #2ac3de --selected.foreground #1a1b26 --selected.background #2ac3de --unselected.foreground #585858"}"
+
+  : "${CONFIG_FZF_HEADER:=$CLI_HEADER}"
+  : "${CONFIG_FZF_OPTS:="
+  --ansi
+  --border
+  --scheme=history
+  --style=full
+  --color=bg+:#283457
+  --color=bg:#16161e
+  --color=border:#27a1b9
+  --color=fg:#c0caf5
+  --color=gutter:#16161e
+  --color=header:#2ac3de
+  --color=hl+:#2ac3de
+  --color=hl:#2ac3de
+  --color=info:#545c7e
+  --color=marker:#ff007c
+  --color=pointer:#ff007c
+  --color=prompt:#2ac3de
+  --color=query:#c0caf5:regular
+  --color=scrollbar:#27a1b9
+  --color=separator:#ff9e64
+  --color=spinner:#ff007c
+  --border=rounded
+  --border-label=''
+  --prompt=' >'
+  --marker=' >'
+  --pointer='◆'
+  --layout=reverse
+  --cycle
+  --ghost='Search library...'
+  --height=100%
+  --bind=ctrl-/:toggle-preview,ctrl-space:toggle-wrap+toggle-preview-wrap
+  --no-margin
+  +m
+  -i
+  --exact
+  --tabstop=1
+  --preview-window=border-rounded,left,35%,wrap
+  --wrap"}"
+}
+
+__load_env_config() {
+  CONFIG_AUTOLOADED_EXTENSIONS="${LIB_X_AUTOLOADED_EXTENSIONS:-$CONFIG_AUTOLOADED_EXTENSIONS}"
+  CONFIG_ENABLE_COLORS="${LIB_X_ENABLE_COLORS:-$CONFIG_ENABLE_COLORS}"
+  CONFIG_LAUNCHER="${LIB_X_LAUNCHER:-$CONFIG_LAUNCHER}"
+  CONFIG_ENABLE_PREVIEW="${LIB_X_ENABLE_PREVIEW:-$CONFIG_ENABLE_PREVIEW}"
+  CONFIG_ENABLE_PREVIEW_IMAGES="${LIB_X_ENABLE_PREVIEW_IMAGES:-$CONFIG_ENABLE_PREVIEW_IMAGES}"
+
+  CONFIG_IMAGE_RENDERER="${LIB_X_IMAGE_RENDERER:-$CONFIG_IMAGE_RENDERER}"
+  CONFIG_CHAFA_ARGS="${LIB_X_CHAFA_ARGS:-$CONFIG_CHAFA_ARGS}"
+  CONFIG_ICAT_ARGS="${LIB_X_ICAT_ARGS:-$CONFIG_ICAT_ARGS}"
+  CONFIG_IMGCAT_ARGS="${LIB_X_IMGCAT_ARGS:-$CONFIG_IMGCAT_ARGS}"
+
+  CONFIG_CALIBRE_LIBRARY_PATH="${LIB_X_CALIBRE_LIBRARY_PATH:-$CONFIG_CALIBRE_LIBRARY_PATH}"
+  CONFIG_FILE_EXPLORER="${LIB_X_FILE_EXPLORER:-$CONFIG_FILE_EXPLORER}"
+  CONFIG_DISOWN_READING_PROCESS="${LIB_X_DISOWN_READING_PROCESS:-$CONFIG_DISOWN_READING_PROCESS}"
+
+  CONFIG_EDITOR="${LIB_X_EDITOR:-$CONFIG_EDITOR}"
+  CONFIG_TERMINAL_EXEC="${LIB_X_TERMINAL_EXEC:-$CONFIG_TERMINAL_EXEC}"
+  CONFIG_NOTIFICATION_DURATION="${LIB_X_NOTIFICATION_DURATION:-$CONFIG_NOTIFICATION_DURATION}"
+
+  CONFIG_CHECK_FOR_UPDATES="${LIB_X_CHECK_FOR_UPDATES:-$CONFIG_CHECK_FOR_UPDATES}"
+  CONFIG_UPDATE_RECENT="${LIB_X_UPDATE_RECENT:-$CONFIG_UPDATE_RECENT}"
+  CONFIG_NO_OF_RECENT="${LIB_X_NO_OF_RECENT:-$CONFIG_NO_OF_RECENT}"
+  CONFIG_NO_OF_RANDOM_BOOKS="${LIB_X_NO_OF_RANDOM_BOOKS:-$CONFIG_NO_OF_RANDOM_BOOKS}"
+
+  CONFIG_GUM_FILTER_OPTS="${LIB_X_GUM_OPTS:-$CONFIG_GUM_FILTER_OPTS}"
+  CONFIG_GUM_INPUT_OPTS="${LIB_X_GUM_INPUT_OPTS:-$CONFIG_GUM_INPUT_OPTS}"
+  CONFIG_GUM_PAGER_OPTS="${LIB_X_GUM_PAGER_OPTS:-$CONFIG_GUM_PAGER_OPTS}"
+  CONFIG_GUM_SPIN_OPTS="${LIB_X_GUM_SPIN_OPTS:-$CONFIG_GUM_SPIN_OPTS}"
+  CONFIG_GUM_CONFIRM_OPTS="${LIB_X_GUM_CONFIRM_OPTS:-$CONFIG_GUM_CONFIRM_OPTS}"
+
+  CONFIG_FZF_HEADER="${LIB_X_FZF_HEADER:-$CONFIG_FZF_HEADER}"
+  CONFIG_FZF_OPTS="${LIB_X_FZF_OPTS:-$CONFIG_FZF_OPTS}"
+  CONFIG_ROFI_THEME_MAIN="${LIB_X_ROFI_THEME_MAIN:-$CONFIG_ROFI_THEME_MAIN}"
+  CONFIG_ROFI_THEME_PREVIEW="${LIB_X_ROFI_THEME_PREVIEW:-$CONFIG_ROFI_THEME_PREVIEW}"
+  CONFIG_ROFI_THEME_PROMPT="${LIB_X_ROFI_THEME_PROMPT:-$CONFIG_ROFI_THEME_PROMPT}"
+  CONFIG_ROFI_THEME_CONFIRM="${LIB_X_ROFI_THEME_CONFIRM:-$CONFIG_ROFI_THEME_CONFIRM}"
+  CONFIG_ROFI_THEME_PAGER="${LIB_X_ROFI_THEME_PAGER:-$CONFIG_ROFI_THEME_PAGER}"
+}
+
+__load_default_lang() {
+  TXT_BYEBYE="Have a good day"
+  TXT_NO_TERMINAL_EXEC="No supported terminal emulator found for executing commands. Please set CONFIG_TERMINAL_EXEC to a valid terminal command."
+
+  TXT_MENU_NEXT="Next"
+  TXT_MENU_PREVIOUS="Previous"
+  TXT_MENU_BACK="Back"
+  TXT_MENU_EXIT="Exit"
+  TXT_MENU_INVALID_ACTION="Invalid Action"
+
+  TXT_YES="y"
+  TXT_NO="n"
+  TXT_CONFIRM_DEFAULT="Default"
+
+  TXT_LOADING="Loading..."
+
+  TXT_PREVIEW_INSTALL_VIEWER="Please install a terminal image viewer (icat for kitty/wezterm, imgcat, or chafa)"
+
+  TXT_FZF_PREVIEW_AUTHORS="Authors"
+  TXT_FZF_PREVIEW_TAGS="Tags"
+  TXT_FZF_PREVIEW_PUBLISHER="Publisher"
+  TXT_FZF_PREVIEW_LANGUAGES="Languages"
+  TXT_FZF_PREVIEW_RATING="Rating"
+  TXT_FZF_PREVIEW_PUBDATE="Published"
+
+  TXT_MENU_MAIN_PROMPT_ACTION="Select Action"
+  TXT_MENU_MAIN_READING_LIST="Reading"
+  TXT_MENU_MAIN_RECENT="Recent"
+  TXT_MENU_MAIN_PAUSED="Paused"
+  TXT_MENU_MAIN_REREADING="Re-reading"
+  TXT_MENU_MAIN_PLANING="Planing"
+  TXT_MENU_MAIN_COMPLETED="Completed"
+  TXT_MENU_MAIN_DOCS="Docs"
+  TXT_MENU_MAIN_RANDOM="Random"
+  TXT_MENU_MAIN_SEARCH="Search"
+  TXT_MENU_MAIN_ALL="All"
+  TXT_MENU_MAIN_FORMATS="Formats"
+  TXT_MENU_MAIN_SERIES="Series"
+  TXT_MENU_MAIN_LANGUAGES="Languages"
+  TXT_MENU_MAIN_TAGS="Tags"
+  TXT_MENU_MAIN_RATINGS="Ratings"
+  TXT_MENU_MAIN_PUBLISHER="Publisher"
+  TXT_MENU_MAIN_IDENTIFIERS="Identifiers"
+  TXT_MENU_MAIN_AUTHORS="Authors"
+  TXT_MENU_MAIN_DROPPED="Dropped"
+  TXT_MENU_MAIN_EDIT_CONFIG="Edit Config"
+  TXT_MENU_MAIN_MISC="Miscellaneous"
+
+  TXT_MENU_MAIN_SEARCH_PROMPT="Enter search query"
+
+  TXT_MENU_MISC_PROMPT="Select Action"
+  TXT_MENU_MISC_ADD_BOOKS="Add Books"
+  TXT_MENU_MISC_ADD_BOOKS_FOLDER="Add Books From Folder"
+  TXT_MENU_MISC_RELOAD_DATA="Reload Data"
+  TXT_MENU_MISC_PROMPT_CUSTOM_ARGS="Input custom args?"
+  TXT_MENU_MISC_PROMPT_ENTER_ARGS="Enter args"
+  TXT_MENU_MISC_PROMPT_PROCEED="Proceed adding books?"
+
+  TXT_MENU_LIST_EXPLORER_PROMPT="Select Book"
+  TXT_MENU_LIST_EMPTY="List is empty."
+
+  TXT_MENU_BOOK_ACTIONS_PROMPT="Select Book Action"
+  TXT_MENU_BOOK_ACTIONS_PROMPT_LIST="Select List"
+  TXT_MENU_BOOK_ACTIONS_PROMPT_FIELD="Select field to edit"
+  TXT_MENU_BOOK_ACTIONS_PROMPT_NEW_VAL="Enter new value for"
+  TXT_MENU_BOOK_ACTIONS_READ="Read"
+  TXT_MENU_BOOK_ACTIONS_ADD_LIST="Add To List"
+  TXT_MENU_BOOK_ACTIONS_REMOVE_LIST="Remove From List"
+  TXT_MENU_BOOK_ACTIONS_REMOVE_BOOK="Remove Book"
+  TXT_MENU_BOOK_ACTIONS_REMOVE_CONFIRM="Are you sure you want to remove"
+  TXT_MENU_BOOK_ACTIONS_EDIT_METADATA="Edit Metadata"
+  TXT_MENU_BOOK_ACTIONS_REMOVED_SUCCESS="Successfully removed"
+
+  # Icons
+  TXT_ICON_MENU_MAIN_READING_LIST=""
+  TXT_ICON_MENU_MAIN_RECENT=""
+  TXT_ICON_MENU_MAIN_PAUSED=""
+  TXT_ICON_MENU_MAIN_REREADING=""
+  TXT_ICON_MENU_MAIN_PLANING=""
+  TXT_ICON_MENU_MAIN_COMPLETED=""
+  TXT_ICON_MENU_MAIN_DOCS="󰈙"
+  TXT_ICON_MENU_MAIN_RANDOM=""
+  TXT_ICON_MENU_MAIN_SEARCH=""
+  TXT_ICON_MENU_MAIN_ALL="󰌱"
+  TXT_ICON_MENU_MAIN_FORMATS="󰉺"
+  TXT_ICON_MENU_MAIN_SERIES="󱉟"
+  TXT_ICON_MENU_MAIN_LANGUAGES=""
+  TXT_ICON_MENU_MAIN_TAGS=""
+  TXT_ICON_MENU_MAIN_RATINGS=""
+  TXT_ICON_MENU_MAIN_PUBLISHER=""
+  TXT_ICON_MENU_MAIN_IDENTIFIERS="󰁱"
+  TXT_ICON_MENU_MAIN_AUTHORS=""
+  TXT_ICON_MENU_EXIT=""
+  TXT_ICON_MENU_MAIN_DROPPED=""
+  TXT_ICON_MENU_MAIN_EDIT_CONFIG=""
+  TXT_ICON_MENU_MAIN_MISC=""
+  TXT_ICON_MENU_MAIN_CATEGORY=""
+
+  TXT_ICON_MENU_BOOK_ACTIONS_READ=""
+  TXT_ICON_MENU_BOOK_ACTIONS_ADD_LIST="󰐒"
+  TXT_ICON_MENU_BOOK_ACTIONS_REMOVE_LIST="󰐐"
+  TXT_ICON_MENU_BOOK_ACTIONS_REMOVE_BOOK="󰗙"
+  TXT_ICON_MENU_BOOK_ACTIONS_EDIT_METADATA="󱚌"
+
+  TXT_ICON_MENU_MISC_ADD_BOOKS="󰗛"
+  TXT_ICON_MENU_MISC_ADD_BOOKS_FOLDER="󰉗"
+  TXT_ICON_MENU_MISC_RELOAD_DATA="󰑓"
+
+  TXT_ICON_MENU_BACK="󰌍"
+  TXT_ICON_MENU_EXIT="󰈆"
+
+  [ -s "$CLI_DEFAULT_LANG_FILE" ] && . "$CLI_DEFAULT_LANG_FILE"
+}
+
+__load_default_theme() {
+  THEME_ESC="$(printf '\033')"
+
+  if $CLI_SUPPORTS_TRUE_COLOR && [ "$CONFIG_ENABLE_COLORS" = "true" ]; then
+    # Tokyo Night: Cyan (#2ac3de)
+    THEME_FZF_ICON_COLOR_PRIMARY="$(printf '\033[38;2;42;195;222m')"
+
+    # Tokyo Night: Dark3 (#545c7e)
+    THEME_FZF_ICON_COLOR_SECONDARY="$(printf '\033[38;2;84;92;126m')"
+
+    # Tokyo Night: Orange (#ff9e64)
+    THEME_FZF_ICON_COLOR_ACCENT="$(printf '\033[38;2;255;158;100m')"
+
+    # Tokyo Night: Pink (#ff007c)
+    THEME_FZF_ICON_COLOR_ERROR="$(printf '\033[38;2;255;0;124m')"
+
+    # Tokyo Night: Foreground (#c0caf5)
+    THEME_FZF_PREVIEW_TITLE="$(printf '\033[38;2;192;202;245m')"
+
+    # Tokyo Night: Cyan (#2ac3de)
+    THEME_FZF_PREVIEW_KEY="$(printf '\033[38;2;42;195;222m')"
+
+    # Tokyo Night: Dark3 (#545c7e)
+    THEME_FZF_PREVIEW_VALUE="$(printf '\033[38;2;88;91;112m')"
+
+    # Tokyo Night: Dark3 (#545c7e)
+    THEME_FZF_PREVIEW_DIVIDER="$(printf '\033[38;2;88;91;112m')"
+
+    THEME_BOLD="$(printf '\033[1m')"
+    THEME_RESET="$(printf '\033[0m')"
+  fi
+
+  # Load external theme extension if provided
+  [ -s "$CLI_DEFAULT_THEME_FILE" ] && . "$CLI_DEFAULT_THEME_FILE"
+}
+
+__post_config_load() {
+  CLI_HEADER="$(printf '%s' "$THEME_FZF_ICON_COLOR_PRIMARY")\
 ██╗░░░░░██╗██████╗░░░░░░░██╗░░██╗
 ██║░░░░░██║██╔══██╗░░░░░░╚██╗██╔╝
 ██║░░░░░██║██████╦╝█████╗░╚███╔╝░
 ██║░░░░░██║██╔══██╗╚════╝░██╔██╗░
 ███████╗██║██████╦╝░░░░░░██╔╝╚██╗
-╚══════╝╚═╝╚═════╝░░░░░░░╚═╝░░╚═╝
-'
+╚══════╝╚═╝╚═════╝░░░░░░░╚═╝░░╚═╝$(printf '%s' "$THEME_RESET")"
 
-CLI_NAME="lib-x"
-CLI_VERSION="0.2.0"
-CLI_AUTHOR="Benexl"
+  if [ -n "$CONFIG_AUTOLOADED_EXTENSIONS" ]; then
+    for ext in $(printf '%s' "$CONFIG_AUTOLOADED_EXTENSIONS" | tr ',' '\n'); do
+      [ -s "$CLI_EXTENSIONS_DIR/$ext" ] && . "$CLI_EXTENSIONS_DIR/$ext"
+    done
+  fi
 
-CLI_DIR="$(dirname "$(realpath "$0")")"
-CLI_CONFIG_DIR="$HOME/.config/$CLI_NAME"
-CLI_CONFIG_FILE="$CLI_CONFIG_DIR/${CLI_NAME}.conf"
-CLI_DBS_DIR="$CLI_CONFIG_DIR/DBS"
-CLI_CACHE_DIR="$HOME/.cache/$CLI_NAME"
+  export FZF_DEFAULT_OPTS="$CONFIG_FZF_OPTS"
+}
 
-[ -d "$CLI_CACHE_DIR" ] || mkdir -p "$CLI_CACHE_DIR"
-[ -d "$CLI_DBS_DIR" ] || mkdir -p "$CLI_DBS_DIR"
-
-CALIBRE_DB_JSON_FILE="$CLI_CACHE_DIR/calibre_db.json"
-CALIBRE_CATEGORIES_CSV_FILE="$CLI_CACHE_DIR/calibre_categories.csv"
-
-print_config() {
-  echo "\
+_print_config() {
+  cat <<EOF
+# ===================================================================================
+# 大きな力には大きな責任が伴う
+# ===================================================================================
 #
 #    ██╗░░░░░██╗██████╗░░░░░░░██╗░░██╗  ░█████╗░░█████╗░███╗░░██╗███████╗██╗░██████╗░
 #    ██║░░░░░██║██╔══██╗░░░░░░╚██╗██╔╝  ██╔══██╗██╔══██╗████╗░██║██╔════╝██║██╔════╝░
@@ -36,244 +402,671 @@ print_config() {
 #    ███████╗██║██████╦╝░░░░░░██╔╝╚██╗  ╚█████╔╝╚█████╔╝██║░╚███║██║░░░░░██║╚██████╔╝
 #    ╚══════╝╚═╝╚═════╝░░░░░░░╚═╝░░╚═╝  ░╚════╝░░╚════╝░╚═╝░░╚══╝╚═╝░░░░░╚═╝░╚═════╝░
 #
+# ===================================================================================
+#
+# !! BE CAREFUL WHAT YOU INCLUDE HERE SINCE THE CONFIG FILE IS SOURCED AS A SCRIPT  !!
+# !! ITS RECOMMENDED TO ONLY DO VARIABLE ASSIGNMENTS AND CONDITIONAL ASSIGNMENTS    !!
+# !! AND DO MORE COMPLEX STUFF USING EXTENSIONS BY CONVENTION                       !!
+# !! Environment variables (export LIB_X_VAR=...) override these settings.          !!
+#
+# ===================================================================================
 
-# whether to show colors when printing ouput
-PRETTY_PRINT: $PRETTY_PRINT
+# List of extensions to load automatically on startup
+CONFIG_AUTOLOADED_EXTENSIONS="$CONFIG_AUTOLOADED_EXTENSIONS"
 
-# your preferred editor for editing your config
-EDITOR: $PREFERRED_EDITOR
+# Enable or disable colored/formatted output
+# Options: true, false (Default: true)
+CONFIG_ENABLE_COLORS="$CONFIG_ENABLE_COLORS"
 
-# your preferred selector for the tui [fzf/rofi]
-PREFERRED_SELECTOR: $PREFERRED_SELECTOR
+# The menu launcher tool used for the ui
+# Options: fzf, rofi, gum (Default: fzf)
+CONFIG_LAUNCHER="$CONFIG_LAUNCHER"
 
-# whether to show previews [true/false]
-# its cool so enable it
-ENABLE_PREVIEW: $ENABLE_PREVIEW
+# Enable book metadata/cover previews within the selector
+# Options: true, false (Default: false)
+CONFIG_ENABLE_PREVIEW="$CONFIG_ENABLE_PREVIEW"
+CONFIG_ENABLE_PREVIEW_IMAGES="$CONFIG_ENABLE_PREVIEW_IMAGES"
 
-# whether to update the recent list kept locally [true/false]
-UPDATE_RECENT: $UPDATE_RECENT
+# The tool used to render previews in the terminal
+# Options: chafa, icat, imgcat (Default: chafa)
+CONFIG_IMAGE_RENDERER="$CONFIG_IMAGE_RENDERER"
 
-# the number of recent videos to keep
-NO_OF_RECENT: $NO_OF_RECENT
+# Extra arguments for specific image renderers
+CONFIG_CHAFA_ARGS="$CONFIG_CHAFA_ARGS"
+CONFIG_ICAT_ARGS="$CONFIG_ICAT_ARGS"
+CONFIG_IMGCAT_ARGS="$CONFIG_IMGCAT_ARGS"
 
-# the duration notifications stay on the screen
-NOTIFICATION_DURATION: $NOTIFICATION_DURATION
+# The path to your Calibre library database directory
+CONFIG_CALIBRE_LIBRARY_PATH="$CONFIG_CALIBRE_LIBRARY_PATH"
 
-# the path to the calibre library
-CALIBRE_LIBRARY_PATH: $CALIBRE_LIBRARY_PATH
+# Preferred file explorer when adding books from folders
+# Options: yazi, fzf (Default: yazi if installed, else fzf)
+CONFIG_FILE_EXPLORER="$CONFIG_FILE_EXPLORER"
 
-# the image renderer to use
-IMAGE_RENDERER: $IMAGE_RENDERER
+# Disown the reading process so you can close lib-x without closing the book
+# Options: true, false (Default: true)
+CONFIG_DISOWN_READING_PROCESS="$CONFIG_DISOWN_READING_PROCESS"
 
-# whether to disown the reading process
-DISOWN_READING_PROCESS: $DISOWN_READING_PROCESS
+# Text editor for manual configuration editing
+# Options: vim, nano, code ... (Default: \$EDITOR or vi)
+CONFIG_EDITOR="$CONFIG_EDITOR"
 
-# the number of random books
-NO_OF_RANDOM_BOOKS: $NO_OF_RANDOM_BOOKS
+# The terminal to use to execute commands that require a terminal
+CONFIG_TERMINAL_EXEC="$CONFIG_TERMINAL_EXEC"
 
-# preferred file explorer when adding books etc
-FILE_EXPLORER: $FILE_EXPLORER
-"
-}
-load_config() {
-  ! [ -f "$CLI_CONFIG_DIR/${CLI_NAME}.conf" ] && touch "$CLI_CONFIG_DIR/${CLI_NAME}.conf"
-  DB_READING_LIST="$CLI_DBS_DIR/reading_list"
-  ! [ -f "$DB_READING_LIST" ] && touch "$DB_READING_LIST"
-  DB_PAUSED_LIST="$CLI_DBS_DIR/paused_list"
-  ! [ -f "$DB_PAUSED_LIST" ] && touch "$DB_PAUSED_LIST"
-  DB_PLANING_LIST="$CLI_DBS_DIR/planing_list"
-  ! [ -f "$DB_PLANING_LIST" ] && touch "$DB_PLANING_LIST"
-  DB_RE_READING_LIST="$CLI_DBS_DIR/re_reading_list"
-  ! [ -f "$DB_RE_READING_LIST" ] && touch "$DB_RE_READING_LIST"
-  DB_COMPLETED_LIST="$CLI_DBS_DIR/completed_list"
-  ! [ -f "$DB_COMPLETED_LIST" ] && touch "$DB_COMPLETED_LIST"
-  DB_DROPPED_LIST="$CLI_DBS_DIR/dropped_list"
-  ! [ -f "$DB_DROPPED_LIST" ] && touch "$DB_DROPPED_LIST"
-  DB_DOCS_LIST="$CLI_DBS_DIR/docs_list"
-  ! [ -f "$DB_DOCS_LIST" ] && touch "$DB_DOCS_LIST"
-  DB_RECENT_LIST="$CLI_DBS_DIR/recent"
-  ! [ -f "$DB_RECENT_LIST" ] && touch "$DB_RECENT_LIST"
+# Duration in seconds for desktop/terminal notifications
+CONFIG_NOTIFICATION_DURATION="$CONFIG_NOTIFICATION_DURATION"
 
-  CALIBRE_LIBRARY_PATH="$(awk -F': ' '/^CALIBRE_LIBRARY_PATH:/ && !/#/ {print $2}' "$CLI_CONFIG_DIR/${CLI_NAME}.conf")"
-  [ -z "$CALIBRE_LIBRARY_PATH" ] && CALIBRE_LIBRARY_PATH="$HOME/Calibre Library"
+# Automatically check for script updates on startup
+# Options: true, false (Default: true)
+CONFIG_CHECK_FOR_UPDATES="$CONFIG_CHECK_FOR_UPDATES"
 
-  PRETTY_PRINT="$(awk -F': ' '/^PRETTY_PRINT:/ && !/#/ {print $2}' "$CLI_CONFIG_DIR/${CLI_NAME}.conf")"
-  [ -z "$PRETTY_PRINT" ] && PRETTY_PRINT="true"
+# Whether to automatically update the Recent List when reading a book
+# Options: true, false (Default: true)
+CONFIG_UPDATE_RECENT="$CONFIG_UPDATE_RECENT"
 
-  FILE_EXPLORER="$(awk -F': ' '/^FILE_EXPLORER:/ && !/#/ {print $2}' "$CLI_CONFIG_DIR/${CLI_NAME}.conf")"
-  [ -z "$FILE_EXPLORER" ] && if command -v "yazi" &>/dev/null; then FILE_EXPLORER="yazi"; else FILE_EXPLORER="fzf"; fi
+# Number of items to keep in the recent history list
+CONFIG_NO_OF_RECENT="$CONFIG_NO_OF_RECENT"
 
-  IMAGE_RENDERER="$(awk -F': ' '/^IMAGE_RENDERER:/ && !/#/ {print $2}' "$CLI_CONFIG_DIR/${CLI_NAME}.conf")"
-  [ -z "$IMAGE_RENDERER" ] && IMAGE_RENDERER=$([ -n "$KITTY_WINDOW_ID" ] && echo "icat" || echo "chafa")
+# Number of items to retrieve when selecting "Random"
+CONFIG_NO_OF_RANDOM_BOOKS="$CONFIG_NO_OF_RANDOM_BOOKS"
 
-  DISOWN_READING_PROCESS="$(awk -F': ' '/^DISOWN_READING_PROCESS:/ && !/#/ {print $2}' "$CLI_CONFIG_DIR/${CLI_NAME}.conf")"
-  [ -z "$DISOWN_READING_PROCESS" ] && DISOWN_READING_PROCESS="true"
+# Custom options passed directly to gum
+CONFIG_GUM_OPTS="$CONFIG_GUM_FILTER_OPTS"
+CONFIG_GUM_INPUT_OPTS="$CONFIG_GUM_INPUT_OPTS"
+CONFIG_GUM_PAGER_OPTS="$CONFIG_GUM_PAGER_OPTS"
+CONFIG_GUM_SPIN_OPTS="$CONFIG_GUM_SPIN_OPTS"
+CONFIG_GUM_CONFIRM_OPTS="$CONFIG_GUM_CONFIRM_OPTS"
 
-  PREFERRED_EDITOR="$(awk -F': ' '/^EDITOR:/ && !/#/ {print $2}' "$CLI_CONFIG_DIR/${CLI_NAME}.conf")"
-  [ -z "$PREFERRED_EDITOR" ] && PREFERRED_EDITOR=${EDITOR:-open}
+# Custom options passed directly to fzf
+CONFIG_FZF_HEADER="\\
+$CONFIG_FZF_HEADER"
+CONFIG_FZF_OPTS="$CONFIG_FZF_OPTS"
 
-  PREFERRED_SELECTOR="$(awk -F': ' '/^PREFERRED_SELECTOR:/ && !/#/ {print $2}' "$CLI_CONFIG_DIR/${CLI_NAME}.conf")"
-  [ -z "$PREFERRED_SELECTOR" ] && PREFERRED_SELECTOR="fzf"
+# Rofi config all are required to run rofi as a launcher
+CONFIG_ROFI_THEME_MAIN="$CONFIG_ROFI_THEME_MAIN"
+CONFIG_ROFI_THEME_PREVIEW="$CONFIG_ROFI_THEME_PREVIEW"
+CONFIG_ROFI_THEME_PROMPT="$CONFIG_ROFI_THEME_PROMPT"
+CONFIG_ROFI_THEME_CONFIRM="$CONFIG_ROFI_THEME_CONFIRM"
+CONFIG_ROFI_THEME_PAGER="$CONFIG_ROFI_THEME_PAGER"
 
-  ENABLE_PREVIEW="$(awk -F': ' '/^ENABLE_PREVIEW:/ && !/#/ {print $2}' "$CLI_CONFIG_DIR/${CLI_NAME}.conf")"
-  [ -z "$ENABLE_PREVIEW" ] && ENABLE_PREVIEW="false"
-
-  UPDATE_RECENT="$(awk -F': ' '/^UPDATE_RECENT:/ && !/#/ {print $2}' "$CLI_CONFIG_DIR/${CLI_NAME}.conf")"
-  [ -z "$UPDATE_RECENT" ] && UPDATE_RECENT="true"
-
-  NO_OF_RECENT="$(awk -F': ' '/^NO_OF_RECENT:/ && !/#/ {print $2}' "$CLI_CONFIG_DIR/${CLI_NAME}.conf")"
-  [ -z "$NO_OF_RECENT" ] && NO_OF_RECENT=30
-
-  NOTIFICATION_DURATION="$(awk -F': ' '/^NOTIFICATION_DURATION:/ && !/#/ {print $2}' "$CLI_CONFIG_DIR/${CLI_NAME}.conf")"
-  [ -z "$NOTIFICATION_DURATION" ] && NOTIFICATION_DURATION=5
-
-  ROFI_THEME="$(awk -F': ' '/^ROFI_THEME:/ && !/#/ {print $2}' "$CLI_CONFIG_DIR/${CLI_NAME}.conf")"
-
-  NO_OF_RANDOM_BOOKS="$(awk -F': ' '/^NO_OF_RANDOM_BOOKS:/ && !/#/ {print $2}' "$CLI_CONFIG_DIR/${CLI_NAME}.conf")"
-  [ -z "$NO_OF_RANDOM_BOOKS" ] && NO_OF_RANDOM_BOOKS=30
-
-  print_config >"$CLI_CONFIG_FILE"
-  FZF_DEFAULT_OPTS=${LIBX_FZF_OPTS:-'
-    --color=fg:#d0d0d0,fg+:#d0d0d0,bg:#121212,bg+:#262626
-    --color=hl:#5f87af,hl+:#5fd7ff,info:#afaf87,marker:#87ff00
-    --color=prompt:#d7005f,spinner:#af5fff,pointer:#af5fff,header:#87afaf
-    --color=border:#262626,label:#aeaeae,query:#d9d9d9
-    --border="rounded" --border-label="" --preview-window="border-rounded" --prompt="> "
-    --marker=">" --pointer="◆" --separator="─" --scrollbar="│"
-  '}
-  export FZF_DEFAULT_OPTS IMAGE_RENDERER
-
+# ==============================================================================
+# 楽しんでね
+# ==============================================================================
+EOF
 }
 
-LIB_X_PREVIEW="
-if ! [ -z {} ] && ! [ {} = \"Exit\" ] && ! [ {} = \"Back\" ];then
-  CALIBRE_DB=\"\$(cat \"$CALIBRE_DB_JSON_FILE\")\";
-  title=\"\$(echo {} | sed 's/\\\/\\\\\\\/g;')\";
-  book=\$(echo \"\$CALIBRE_DB\" |jq -r \"map(select(.title == \\\"\$title\\\")) | .[0]\")
-  book_title=\$(echo  \"\$book\"|jq -r '.title');
-  book_authors=\$(echo  \"\$book\"|jq -r '.authors');
-  book_tags=\$(echo  \"\$book\"|jq -r '.tags|join(\", \")');
-  book_cover=\$(echo  \"\$book\"|jq -r '.cover');
-  book_comments=\$(echo  \"\$book\"|jq -r '.comments');
-  book_langs=\$(echo  \"\$book\"|jq -r '.languages[]');
-  
-  init_pretty_print;
-  if [ -s \"\$book_cover\" ];then
-    fzf_preview  \"\$book_cover\";
-  fi
+_load_config() {
+  __load_default_config
 
-  ll=1
-  while [ \$ll -le \$FZF_PREVIEW_COLUMNS ];do echo -n -e \"─\" ;(( ll++ ));done;
-  printf \"\${MAGENTA}\${BOLD_LIB_X}Title:\${RESET} \$book_title\n\";
-  printf \"\${MAGENTA}\${BOLD_LIB_X}Authors:\${RESET} \$book_authors\n\";
-  printf \"\${MAGENTA}\${BOLD_LIB_X}Tags:\${RESET} \$book_tags\n\";
-  printf \"\${MAGENTA}\${BOLD_LIB_X}Languages:\${RESET} \$book_langs\n\";
+  [ -s "$CLI_CONFIG_FILE" ] || _print_config >"$CLI_CONFIG_FILE"
 
-  ll=1
-  while [ \$ll -le \$FZF_PREVIEW_COLUMNS ];do echo -n -e \"─\" ;(( ll++ ));done;
- ! [ \"\$book_comments\" = "null" ] && echo -e \"\$book_comments\"
-  
-else\
-  echo Loading;\
-fi;\
-      "
-reload_calibre_data() {
+  . "$CLI_CONFIG_FILE"
 
-  if [ -n "$SORT_BY" ] && [ -n "$SEARCH" ]; then
-    CALIBRE_DB="$(calibredb list --for-machine --fields all --search "$SEARCH" --sort-by "$SORT_BY")"
-    CALIBRE_CATEGORIES="$(cat "$CALIBRE_CATEGORIES_CSV_FILE")"
-  elif [ -n "$SORT_BY" ]; then
-    CALIBRE_DB="$(calibredb list --for-machine --fields all --sort-by "$SORT_BY")"
-    CALIBRE_CATEGORIES="$(cat "$CALIBRE_CATEGORIES_CSV_FILE")"
-  elif [ -n "$SEARCH" ]; then
-    CALIBRE_DB="$(calibredb list --for-machine --fields all --search "$SEARCH")"
-    CALIBRE_CATEGORIES="$(cat "$CALIBRE_CATEGORIES_CSV_FILE")"
-  else
-    if [ "$FORCE_UPDATE_DB" = "true" ] || ! [ -s "$CALIBRE_DB_JSON_FILE" ] || ! [ -s "$CALIBRE_CATEGORIES_CSV_FILE" ] || ! [ -s "$CLI_CACHE_DIR/last_db_timestamp" ] || ! [ "$(cat "$CLI_CACHE_DIR/last_db_timestamp")" = "$(command ls -ld "$CALIBRE_LIBRARY_PATH")" ]; then
-      calibredb list --for-machine --fields all >"$CALIBRE_DB_JSON_FILE"
-      CALIBRE_DB="$(cat "$CALIBRE_DB_JSON_FILE" | jq "
-          .entries=(.entries 
-          | to_entries
-          | map(.value.title=\"\(.key+1|tostring| if (.|length) < 2 then \"0\" + . else . end) \"+.value.title) 
-          |map(.value))
-          ")"
+  __load_env_config
+  __load_default_lang
+  __load_default_theme
+  __post_config_load
+}
 
-      calibredb list_categories --csv >"$CALIBRE_CATEGORIES_CSV_FILE"
+# ==============================================================================
+# CORE: utilities
+# ==============================================================================
+_util_terminal_exec() {
+  local term
+  local old_ifs
+  local cmd
+  cmd="$*"
+  old_ifs="$IFS"
 
-      CALIBRE_CATEGORIES="$(cat "$CALIBRE_CATEGORIES_CSV_FILE")"
-      command ls -ld "$CALIBRE_LIBRARY_PATH" >"$CLI_CACHE_DIR/last_db_timestamp"
-
+  if ! $CLI_IS_TERMINAL; then
+    if [ -n "$CONFIG_TERMINAL_EXEC" ]; then
+      term="$CONFIG_TERMINAL_EXEC"
+    elif _dep_ch kitty; then
+      term="kitty --exec"
+    elif _dep_ch alacritty; then
+      term="alacritty --command"
     else
-      CALIBRE_CATEGORIES="$(cat "$CALIBRE_CATEGORIES_CSV_FILE")"
-      CALIBRE_DB="$(cat "$CALIBRE_DB_JSON_FILE")"
+      ui_notify_error "$TXT_NO_TERMINAL_EXEC"
+      return 1
     fi
+    IFS=" "
+    # shellcheck disable=SC2086
+    $term $cmd
+    IFS="$old_ifs"
+    return
   fi
+  IFS=" "
+  $cmd
+  IFS="$old_ifs"
 }
-init_pretty_print() {
-  if [ "$PRETTY_PRINT" = "true" ]; then
-    RED=$(tput setaf 1)
-    MAGENTA="\x1b[38;2;215;0;95m"
-    CYAN=$(tput setaf 6)
-    BOLD_LIB_X=$(tput bold)
-    RESET=$(tput sgr0)
-    export RED MAGENTA BOLD_LIB_X RESET CYAN
+
+_util_open() {
+  local target
+  local converted_target
+  target="$1"
+
+  if _dep_ch open; then
+    open "$target" || return 1
+    return 0
+  elif _dep_ch xdg-open; then
+    xdg-open "$target" || return 1
+    return 0
+  elif _dep_ch wslview; then
+    wslview "$target" || return 1
+    return 0
+  elif _dep_ch cmd.exe; then
+    converted_target="$target"
+
+    case "$target" in
+    http://* | https://* | ftp://* | ftps://* | mailto:*) ;;
+    *)
+      if _dep_ch cygpath; then
+        converted_target="$(cygpath -w "$target" 2>/dev/null || printf "%s" "$target")"
+      elif _dep_ch wslpath; then
+        converted_target="$(wslpath -w "$target" 2>/dev/null || printf "%s" "$target")"
+      fi
+      ;;
+    esac
+
+    cmd.exe /C start "" "$converted_target" >/dev/null 2>&1 || return 1
+    return 0
+  else
+    return 1
   fi
 }
 
-prompt() {
-  if [ "$PREFERRED_SELECTOR" = "rofi" ]; then
-    rofi -dmenu -p "$1: "
-  elif command -v "gum" >/dev/null 2>&1; then
-    gum input --header "$CLI_HEADER" --prompt "$1: " --value "$2"
+_util_file_edit() {
+  local file_path
+  file_path="$1"
+
+  if _dep_ch "$CONFIG_EDITOR"; then
+    _util_terminal_exec "$CONFIG_EDITOR" "$file_path"
+  elif _dep_ch "$EDITOR"; then
+    _util_terminal_exec "$EDITOR" "$file_path"
+  elif ! _util_open "$file_path"; then
+    ui_notify_warning "$TXT_EDITOR_NOT_FOUND"
+  fi
+}
+
+_util_generate_hash() {
+  local input
+
+  if [ -n "$1" ]; then
+    input="$1"
   else
-    echo "$CLI_HEADER" >/dev/stderr
+    input=$(cat)
+  fi
+
+  if _dep_ch sha256sum; then
+    printf "%s" "$input" | sha256sum | awk '{print $1}'
+  elif _dep_ch shasum; then
+    printf "%s" "$input" | shasum -a 256 | awk '{print $1}'
+  elif _dep_ch sha256; then
+    printf "%s" "$input" | sha256 | awk '{print $1}'
+  elif _dep_ch openssl; then
+    printf "%s" "$input" | openssl dgst -sha256 | awk '{print $2}'
+  else
+    printf "%s" "$input" | base64 | tr '/+' '_-' | tr -d '\n'
+  fi
+}
+
+_util_menu_sort() {
+  awk -v sort="$1" '
+    BEGIN {
+      split(sort,sort_array,",")
+    }
+    {
+      input_array[NR]=$0
+    }
+    END {
+    for(o in sort_array)
+      print input_array[sort_array[o]]
+    }'
+}
+
+_util_byebye() {
+  printf '%s %s\n' "$TXT_BYEBYE" "$USER"
+  exit
+}
+
+# ==============================================================================
+# CORE UI: notify
+# ==============================================================================
+__ui_notify_terminal() {
+  #TODO: finish implementation
+  case "$1" in
+  info) printf '%s\n' "$2" >&2 && sleep "$CONFIG_NOTIFICATION_DURATION" ;;
+  warning) printf '%s\n' "$2" >&2 && sleep "$CONFIG_NOTIFICATION_DURATION" ;;
+  error) printf '%s\n' "$2" >&2 && sleep "$CONFIG_NOTIFICATION_DURATION" ;;
+  critical) printf '%s\n' "$2" >&2 && exit 1 ;;
+  *) printf '%s\n' "$2" >&2 && sleep "$CONFIG_NOTIFICATION_DURATION" ;;
+  esac
+
+}
+
+__ui_notify_non_terminal() {
+  #TODO: finish implementation
+  case "$1" in
+  info) notify-send "$2" ;;
+  warning) notify-send "$2" ;;
+  error) notify-send "$2" ;;
+  critical) notify-send "$2" && exit 1 ;;
+  esac
+}
+
+_ui_notify() {
+  if $CLI_IS_TERMINAL; then
+    __ui_notify_terminal info "$1"
+  else
+    __ui_notify_non_terminal info "$1"
+  fi
+}
+
+_ui_notify_warning() {
+  if $CLI_IS_TERMINAL; then
+    __ui_notify_terminal warning "$1"
+  else
+    __ui_notify_non_terminal warning "$1"
+  fi
+}
+
+_ui_notify_error() {
+  if $CLI_IS_TERMINAL; then
+    __ui_notify_terminal error "$1"
+  else
+    __ui_notify_non_terminal error "$1"
+  fi
+}
+
+_ui_notify_critical() {
+  if $CLI_IS_TERMINAL; then
+    __ui_notify_terminal critical "$1"
+  else
+    __ui_notify_non_terminal critical "$1"
+  fi
+}
+
+ui_notify() {
+  _ui_notify "$@"
+}
+
+ui_notify_warning() {
+  _ui_notify_warning "$@"
+}
+
+ui_notify_error() {
+  _ui_notify_error "$@"
+}
+
+ui_notify_critical() {
+  _ui_notify_critical "$@"
+}
+
+# ==============================================================================
+# CORE UI: launcher
+# ==============================================================================
+__ui_gum_launcher() {
+  local custom_opts
+  local multi_select
+  multi_select="$2"
+
+  [ "$multi_select" = "multi" ] && custom_opts="--no-limit"
+  [ -n "$CONFIG_FZF_HEADER" ] && custom_opts="$custom_opts --header $CONFIG_FZF_HEADER"
+
+  local old_ifs
+  old_ifs="$IFS"
+  IFS=" "
+
+  # shellcheck disable=SC2086
+  gum filter $CONFIG_GUM_FILTER_OPTS --prompt="${1}: " $custom_opts
+
+  IFS="$old_ifs"
+}
+
+__ui_fzf_launcher() {
+  local custom_opts
+  local multi_select
+  multi_select="$2"
+
+  [ "$multi_select" = "multi" ] && custom_opts="--multi"
+  [ -n "$CONFIG_FZF_HEADER" ] && custom_opts="$custom_opts --header-first --header=$CONFIG_FZF_HEADER"
+
+  local old_ifs
+  old_ifs="$IFS"
+  IFS=" "
+
+  # shellcheck disable=SC2086
+  fzf --prompt="${1}: " $custom_opts
+
+  IFS="$old_ifs"
+}
+
+__ui_rofi_launcher() {
+  ! [ -s "$CONFIG_ROFI_THEME_MAIN" ] && ui_notify_critical "$TXT_ROFI_NOT_CONFIGURED: where CONFIG_ROFI_THEME_MAIN=\"$CONFIG_ROFI_THEME_MAIN\""
+  local selection
+  local custom_opts
+  local multi_select
+  local line
+
+  multi_select="$2"
+  [ "$multi_select" = "multi" ] && custom_opts="-multi-select"
+
+  # shellcheck disable=SC2086
+  selection=$(
+    sed -E "s/$THEME_ESC(\[[0-9;]*[a-zA-Z]|\(B)//g" |
+      rofi -no-config -theme "$CONFIG_ROFI_THEME_MAIN" -dmenu -i $custom_opts -p "$1"
+  )
+  printf '%s' "$selection"
+}
+
+_ui_launcher() {
+  case "$CONFIG_LAUNCHER" in
+  rofi) __ui_rofi_launcher "$@" ;;
+  fzf) __ui_fzf_launcher "$@" ;;
+  gum) __ui_gum_launcher "$@" ;;
+  *) ui_notify_critical "$TXT_LAUNCHER_UNKNOWN: $CONFIG_LAUNCHER" ;;
+  esac
+}
+
+ui_launcher() {
+  _ui_launcher "$@"
+}
+
+# ==============================================================================
+# CORE UI: launcher with preview
+# ==============================================================================
+__ui_fzf_launcher_with_preview() {
+  local custom_opts
+  local multi_select
+  local preview_script
+
+  preview_script="\
+TXT_PREVIEW_INSTALL_VIEWER='$TXT_PREVIEW_INSTALL_VIEWER'
+CONFIG_IMAGE_RENDERER='$CONFIG_IMAGE_RENDERER'
+CLI_PLATFORM='$CLI_PLATFORM'
+THEME_FZF_PREVIEW_DIVIDER='$THEME_FZF_PREVIEW_DIVIDER'
+preview_script_path='{1}'
+[ -s \"\$preview_script_path\" ] && . \"\$preview_script_path\"\
+"
+
+  multi_select="$2"
+  [ "$multi_select" = "multi" ] && custom_opts="--multi"
+  [ -n "$CONFIG_FZF_HEADER" ] && custom_opts="$custom_opts --header-first --header=$CONFIG_FZF_HEADER"
+
+  # TODO: is there a better way to do this
+  local old_ifs
+  old_ifs="$IFS"
+  IFS=" "
+
+  # shellcheck disable=SC2086
+  fzf --prompt="${1}: " --delimiter '|' --with-nth "{2..}" --accept-nth "{2..}" --preview="$preview_script" $custom_opts
+
+  IFS="$old_ifs"
+}
+
+__ui_rofi_launcher_with_preview() {
+  ! [ -s "$CONFIG_ROFI_THEME_PREVIEW" ] && ui_notify_critical "$TXT_ROFI_NOT_CONFIGURED: where CONFIG_ROFI_THEME_PREVIEW=\"$CONFIG_ROFI_THEME_PREVIEW\""
+  local selection
+  local custom_opts
+  local multi_select
+  local line
+
+  multi_select="$2"
+  [ "$multi_select" = "multi" ] && custom_opts="-multi-select"
+
+  # shellcheck disable=SC2086
+  selection=$(
+    sed -E "s/$THEME_ESC(\[[0-9;]*[a-zA-Z]|\(B)//g" |
+      rofi -no-config -theme "$CONFIG_ROFI_THEME_PREVIEW" -dmenu -i $custom_opts -p "$1"
+  )
+  printf '%s' "$selection"
+}
+
+_ui_launcher_with_preview() {
+  if [ "$CONFIG_ENABLE_PREVIEW" = "true" ]; then
+    case "$CONFIG_LAUNCHER" in
+    rofi) __ui_rofi_launcher_with_preview "$@" ;;
+    fzf) __ui_fzf_launcher_with_preview "$@" ;;
+    gum) __ui_gum_launcher "$@" ;;
+    *) ui_notify_critical "$TXT_LAUNCHER_UNKNOWN: $CONFIG_LAUNCHER" ;;
+    esac
+  else
+    ui_launcher "$@" && return
+  fi
+}
+
+ui_launcher_with_preview() {
+  _ui_launcher_with_preview "$@"
+}
+
+# ==============================================================================
+# CORE UI: prompt
+# ==============================================================================
+__ui_default_prompt() {
+  local header
+  local value
+  header="$2"
+
+  if _dep_ch gum; then
+    # shellcheck disable=SC2086
+    gum input $CONFIG_GUM_INPUT_OPTS --header "$header" --prompt "$1: "
+  else
+    printf "%s\n" "$header" >/dev/stderr
     printf "%s: " "$1" >/dev/stderr
-    read -r VAL
-    echo "$VAL"
+    read -r value
+    printf "%s" "$value"
   fi
 }
 
-confirm() {
-  if command -v "gum" >/dev/null 2>&1; then
-    gum confirm "$1"
+__ui_rofi_prompt() {
+  local default
+  local filter
+
+  if [ -p /dev/stdin ]; then
+    default="$(cat 2>/dev/null)"
+    filter='-filter'
+  fi
+
+  [ -s "$CONFIG_ROFI_THEME_PROMPT" ] ||
+    ui_notify_critical "Rofi prompt theme not set: $CONFIG_ROFI_THEME_PROMPT"
+
+  # NOTE: It doesnt look pretty so disabling it
+  if [ -n "$2" ] && false; then
+    # shellcheck disable=SC2086
+    rofi -no-config -theme "$CONFIG_ROFI_THEME_PROMPT" "$filter" "$default" -dmenu -p "$1" -mesg "$2"
   else
-    echo "$CLI_HEADER" >/dev/stderr
-    printf "$1" >/dev/stderr
+    # shellcheck disable=SC2086
+    rofi -no-config -theme "$CONFIG_ROFI_THEME_PROMPT" "$filter" "$default" -dmenu -p "$1"
+  fi
+}
+
+_ui_prompt() {
+  case "$CONFIG_LAUNCHER" in
+  rofi) __ui_rofi_prompt "$@" ;;
+  *) __ui_default_prompt "$@" ;;
+  esac
+}
+
+ui_prompt() {
+  _ui_prompt "$@"
+}
+
+# ==============================================================================
+# CORE UI: confirm
+# ==============================================================================
+_ui_default_confirm() {
+  local yes
+  local no
+  local default
+  local default_index
+
+  yes="${3:-$TXT_YES}"
+  no="${4:-$TXT_NO}"
+  default="${2:-$no}"
+
+  if [ "$default" = "$yes" ]; then
+    default_index=1
+  else
+    default_index=0
+  fi
+
+  if _dep_ch gum; then
+    # shellcheck disable=SC2086
+    gum confirm "$1" --default="$default_index" --affirmative="$yes" --negative="$no" $CONFIG_GUM_CONFIRM_OPTS
+  else
+    printf "%s ($yes/$no; $TXT_CONFIRM_DEFAULT: $default): " "$1" >/dev/stderr
     read -r CONFIRMED
     case "$CONFIRMED" in
-    y | Y)
+    "$yes")
       return 0
       ;;
-    *)
+    "$no")
       return 1
+      ;;
+    *)
+      if [ "$default" = "$yes" ]; then
+        return 0
+      else
+        return 1
+      fi
       ;;
     esac
   fi
 }
 
-core_dep_ch() {
-  ! command -v "calibre" >/dev/null 2>&1 && echo calibre is not installed and is a core dep please install it to proceed && exit 1
-  ! command -v "jq" >/dev/null 2>&1 && echo jq is not installed and is a core dep please install it to proceed && exit 1
-  ! command -v "fzf" >/dev/null 2>&1 && echo fzf is not installed and is a core dep please install it to proceed && exit 1
+_ui_rofi_confirm() {
+  ! [ -s "$CONFIG_ROFI_THEME_CONFIRM" ] && ui_notify_critical "$TXT_ROFI_NOT_CONFIGURED: where CONFIG_ROFI_THEME_CONFIRM=\"$CONFIG_ROFI_THEME_CONFIRM\""
+  local yes
+  local no
+  local default
+  local default_index
+  local selection
+
+  yes="${3:-$TXT_YES}"
+  no="${4:-$TXT_NO}"
+  default="${2:-$no}"
+
+  if [ "$default" = "$yes" ]; then
+    default_index=0
+  else
+    default_index=1
+  fi
+
+  selection="$(printf "%s\n%s" "$yes" "$no" |
+    rofi -no-config -theme "$CONFIG_ROFI_THEME_CONFIRM" -dmenu -i -p "$1" -selected-row "$default_index")"
+  [ "$selection" = "$yes" ] && return 0 || return 1
 }
-send_notification() {
-  echo "$1" >&2 && sleep "$NOTIFICATION_DURATION"
-  clear
-  return 0
+
+_ui_confirm() {
+  case "$CONFIG_LAUNCHER" in
+  rofi) _ui_rofi_confirm "$@" ;;
+  *) _ui_default_confirm "$@" ;;
+  esac
+}
+
+ui_confirm() {
+  _ui_confirm "$@"
+}
+
+# ==============================================================================
+# CORE UI: pager
+# ==============================================================================
+__ui_default_pager() {
+  if _dep_ch bat; then
+    bat --paging=always --theme=TwoDark --color=always
+  elif _dep_ch gum; then
+    # shellcheck disable=SC2086
+    gum pager $CONFIG_GUM_PAGER_OPTS
+  elif _dep_ch less; then
+    less -R
+  else
+    more
+  fi
+}
+
+__ui_rofi_pager() {
+  ! [ -s "$CONFIG_ROFI_THEME_PAGER" ] && ui_notify_critical "$TXT_ROFI_NOT_CONFIGURED: where CONFIG_ROFI_THEME_PAGER=\"$CONFIG_ROFI_THEME_PAGER\""
+
+  rofi -no-config -theme "$CONFIG_ROFI_THEME_PAGER" -dmenu -i -mesg "$TXT_ROFI_PAGER_MESSAGE" -p "$TXT_ROFI_PAGER_PROMPT"
+}
+
+_ui_pager() {
+  case "$CONFIG_LAUNCHER" in
+  rofi) __ui_rofi_pager ;;
+  *) __ui_default_pager ;;
+  esac
+}
+
+ui_pager() {
+  _ui_pager
+}
+
+# ==============================================================================
+# CORE UI: loader
+# ==============================================================================
+__ui_default_loader() {
+  local cmd
+  cmd="$*"
+
+  if _dep_ch gum; then
+    # shellcheck disable=SC2086
+    gum spin $CONFIG_GUM_SPIN_OPTS --show-output -- $cmd
+  else
+    printf '%s\n' "$TXT_LOADING" >/dev/stderr
+    $cmd
+  fi
+
+}
+
+__ui_rofi_loader() {
+  local cmd
+  cmd="$*"
+
+  ui_notify "$TXT_LOADING"
+  $cmd
+}
+
+_ui_loader() {
+  case "$CONFIG_LAUNCHER" in
+  rofi) __ui_rofi_loader "$@" ;;
+  *) __ui_default_loader "$@" ;;
+  esac
+}
+
+ui_load() {
+  _ui_loader "$@"
+}
+
+# ==============================================================================
+# PREVIEWS
+# ==============================================================================
+__preview_fzf_create_shared_script() {
+  if ! [ -s "$CLI_FZF_PREVIEW_SCRIPT" ]; then
+    cat <<'EOF' >"$CLI_FZF_PREVIEW_SCRIPT"
+#!/usr/bin/env sh
+# ==============================================================================
+# Shared script for fzf previews
+# ==============================================================================
+
+draw_divider() {
+  ll=1
+  while [ $ll -le $FZF_PREVIEW_COLUMNS ];do printf "${THEME_FZF_PREVIEW_DIVIDER}─${THEME_RESET}" ;ll=$(( ll + 1 ));done;
+  echo
 }
 
 fzf_preview() {
   file=$1
 
   dim=${FZF_PREVIEW_COLUMNS}x${FZF_PREVIEW_LINES}
-  if [ "$dim" = x ]; then
+  if [ "$dim" = "x" ]; then
     dim=$(stty size </dev/tty | awk "{print \$2 \"x\" \$1}")
   fi
-  if ! [ "$IMAGE_RENDERER" = "icat" ] && [ -z "$KITTY_WINDOW_ID" ] && [ "$((FZF_PREVIEW_TOP + FZF_PREVIEW_LINES))" -eq "$(stty size </dev/tty | awk "{print \$1}")" ]; then
+  if ! [ "$CONFIG_IMAGE_RENDERER" = "icat" ] && [ -z "$KITTY_WINDOW_ID" ] && [ "$((FZF_PREVIEW_TOP + FZF_PREVIEW_LINES))" -eq "$(stty size </dev/tty | awk "{print \$1}")" ]; then
     dim=${FZF_PREVIEW_COLUMNS}x$((FZF_PREVIEW_LINES - 1))
   fi
 
-  if [ "$IMAGE_RENDERER" = "icat" ] && [ -z "$GHOSTTY_BIN_DIR" ]; then
+  if [ "$CONFIG_IMAGE_RENDERER" = "icat" ] && [ -z "$GHOSTTY_BIN_DIR" ]; then
     if command -v kitten >/dev/null 2>&1; then
       kitten icat --clear --transfer-mode=memory --unicode-placeholder --stdin=no --place="$dim@0x0" "$file" | sed "\$d" | sed "$(printf "\$s/\$/\033[m/")"
     elif command -v icat >/dev/null 2>&1; then
@@ -291,7 +1084,7 @@ fzf_preview() {
       chafa -s "$dim" "$file"
     fi
   elif command -v chafa >/dev/null 2>&1; then
-    case "$PLATFORM" in
+    case "$CLI_PLATFORM" in
     android) chafa -s "$dim" "$file" ;;
     windows) chafa -f sixel -s "$dim" "$file" ;;
     *) chafa -s "$dim" "$file" ;;
@@ -302,892 +1095,1723 @@ fzf_preview() {
     imgcat -W "${dim%%x*}" -H "${dim##*x}" "$file"
 
   else
-    echo please install a terminal image viewer
-    echo either icat for kitty terminal and wezterm or imgcat or chafa
+    printf "%s" "$TXT_PREVIEW_INSTALL_VIEWER"
   fi
 }
-
-update_script() {
-  lib_x_path="$(command -v lib-x)"
-  if [ -z "$lib_x_path" ]; then
-    send_notification "Can't find lib-x in PATH"
-    exit 1
-  fi
-
-  if [ ! -w "$lib_x_path" ]; then
-    if [ -n "$(command -v sudo)" ]; then
-      exec sudo -s "$lib_x_path" "-u"
-    else
-      send_notification "Insufficient permissions to update and can't find sudo in PATH"
-      exit 1
-    fi
-  fi
-
-  update=$(curl -s "https://raw.githubusercontent.com/Benexl/lib-x/refs/heads/master/lib-x" || send_notification "Failed to fetch latest" && byebye 1)
-  update="$(printf '%s\n' "$update" | diff -u "$lib_x_path" - 2>/dev/null)"
-  if [ -z "$update" ]; then
-    send_notification "Script is up to date :)"
+EOF
   else
-    if printf '%s\n' "$update" | patch "$lib_x_path" -; then
-      send_notification "Script has been updated!"
-    else
-      send_notification "Can't update for some reason!"
-    fi
-  fi
-  exec "$lib_x_path"
-}
-check_update() {
-  update=$(curl -s "https://raw.githubusercontent.com/Benexl/lib-x/refs/heads/master/lib-x")
-  update="$(printf '%s\n' "$update" | diff -u "$(command -v lib-x)" - 2>/dev/null)"
-  if [ -n "$update" ]; then
-    confirm "An update has been found would you like to see the changes before deciding whether to update" && echo "$update" | less
-    if [ "$PREFERRED_SELECTOR" = "fzf" ]; then
-      answer=$(prompt "$1")
-    else
-      answer=$(printf "Yes\nNo" | launcher "$1")
-    fi
-    case "$answer" in
-    [Yy]*) update_script ;;
-    esac
+    return
   fi
 }
 
-launcher() {
-  case "$PREFERRED_SELECTOR" in
-  rofi)
-    if [ -z "$ROFI_THEME" ]; then
-      while read -r line; do echo "$line" | sed -r 's/\x1B(\[[0-9;]*[a-zA-Z]|\(B)//g'; done | rofi -sort -matching fuzzy -dmenu -i -width 1500 -p "" -mesg "Select Action" -matching fuzzy -sorting-method fzf
-    else
-      while read -r line; do echo "$line" | sed -r 's/\x1B(\[[0-9;]*[a-zA-Z]|\(B)//g'; done | rofi -no-config -theme "$ROFI_THEME" -sort -matching fuzzy -dmenu -i -width 1500 -p "" -mesg "Select Action" -matching fuzzy -sorting-method fzf
-    fi
-    ;;
-  *)
-    fzf \
-      --info=hidden \
-      --layout=reverse \
-      --height=100% \
-      --prompt="${1}: " \
-      --header-first --header="$CLI_HEADER" \
-      --exact --cycle --ansi
-    ;;
+__preview_fzf_generate_script_for_item() {
+  local data_item
+  local title
+  local raw_title
+  local id
+  local image_path
+  local view_count
+  local live_status
+  local description
+  local channel
+  local channel_follower_count
+  local duration
+  local timestamp
+  local preview_script_path
+  local script
+  local img_url
+
+  data_item="$1"
+
+  eval "$(printf "%s" "$data_item" | jq -r '
+    def format_number:
+      tostring | split("") | reverse | join("") |
+      gsub("(?<thousands>[0-9]{3})(?=[0-9])"; "\(.thousands),") |
+      split("") | reverse | join("");
+
+    def format_duration:
+      try(
+        if . >= 3600 then
+          (./3600|floor) as $h | if $h == 1 then "\($h) hour" else "\($h) hours" end
+        elif . >= 60 then
+          (./60|floor) as $m | if $m == 1 then "\($m) min" else "\($m) mins" end
+        else
+          (./1|floor) as $s | if $s == 1 then "\($s) sec" else "\($s) secs" end
+        end
+      ) catch null;
+
+    def format_timestamp:
+      if .timestamp then
+        (now - .timestamp) as $diff
+        | if $diff < 60 then "Just now"
+          elif $diff < 3600 then
+            ($diff/60 | floor) as $mins
+            | if $mins == 1 then "1 minute ago" else "\($mins) minutes ago" end
+          elif $diff < 86400 then
+            ($diff/3600 | floor) as $hours
+            | if $hours == 1 then "1 hour ago" else "\($hours) hours ago" end
+          elif $diff < 2592000 then
+            ($diff/86400 | floor) as $days
+            | if $days == 1 then "1 day ago" else "\($days) days ago" end
+          elif $diff < 31536000 then
+            ($diff/2592000 | floor) as $months
+            | if $months == 1 then "1 month ago" else "\($months) months ago" end
+          else
+            ($diff/31536000 | floor) as $years
+            | if $years == 1 then "1 year ago" else "\($years) years ago" end
+          end
+      elif .upload_date then
+        (try (.upload_date | strptime("%Y%m%d") | mktime) catch null) as $epoch
+        | if $epoch then
+            (now - $epoch) as $diff
+            | if $diff < 60 then "Just now"
+              elif $diff < 3600 then
+                ($diff/60 | floor) as $mins
+                | if $mins == 1 then "1 minute ago" else "\($mins) minutes ago" end
+              elif $diff < 86400 then
+                ($diff/3600 | floor) as $hours
+                | if $hours == 1 then "1 hour ago" else "\($hours) hours ago" end
+              elif $diff < 2592000 then
+                ($diff/86400 | floor) as $days
+                | if $days == 1 then "1 day ago" else "\($days) days ago" end
+              elif $diff < 31536000 then
+                ($diff/2592000 | floor) as $months
+                | if $months == 1 then "1 month ago" else "\($months) months ago" end
+              else
+                ($diff/31536000 | floor) as $years
+                | if $years == 1 then "1 year ago" else "\($years) years ago" end
+              end
+          else null end
+      else null
+      end;
+    [
+      "id=" + (.id // "" | @sh),
+      "title=" + (.title // "" | sub("^[0-9]+ "; "") | @sh | @sh),
+      "raw_title=" + (.title // "" | @sh),
+      "img_url=" + (.thumbnails[-1].url // "" | @sh),
+      "view_count=" + (.view_count | if . == null then "null" else (format_number | @sh) end),
+      "live_status=" + (if .live_status == "is_live" then ("Online" | @sh) elif .live_status == "was_live" then ("Offline" | @sh) else "null" end),
+      "description=" + (.description | if . == null then "null" else (@sh | @sh) end),
+      "channel=" + (.channel | if . == null then "null" else (@sh | @sh) end),
+      "channel_follower_count=" + (.channel_follower_count | if . == null then "null" else (format_number | @sh) end),
+      "duration=" + (.duration | format_duration | if . == null then "null" else @sh end),
+      "timestamp=" + (format_timestamp | if . == null then "null" else @sh end)
+    ] | join("\n")
+')"
+
+  preview_script_path="$CLI_PREVIEW_SCRIPTS_DIR/$(printf "%s" "$raw_title" | _util_generate_hash).sh"
+
+  case "$img_url" in
+  //*) img_url="https:$img_url" ;;
   esac
 
+  image_path="$CLI_PREVIEW_IMGS_DIR/$(printf "%s" "$img_url" | _util_generate_hash).jpg"
+
+  cat <<EOF >"$preview_script_path"
+#!/usr/bin/env sh
+# ==============================================================================
+# This script is generated dynamically for each preview item and is executed 
+# by fzf when that item is previewed. You can customize the content and layout 
+# of the preview by modifying the way this script is generated in 
+# __preview_fzf_generate_script_for_item function. The script has access to the 
+# item's data through the variables defined at the beginning (title, image_path,
+# view_count, live_status, description, channel, duration, timestamp).
+# You can also use any utilities or functions defined in the shared script 
+# ($CLI_FZF_PREVIEW_SCRIPT) to render images or format text.
+# ==============================================================================
+
+if [ -s "$CLI_FZF_PREVIEW_SCRIPT" ];then
+  . "$CLI_FZF_PREVIEW_SCRIPT"
+else
+  exit 1
+fi
+
+if [ '$CONFIG_ENABLE_PREVIEW_IMAGES' = 'true' ];then
+  if [ -s "$image_path" ];then
+    fzf_preview "$image_path" 2>/dev/null;
+  else
+    printf '%s\n' "$TXT_FZF_PREVIEW_IMAGE_LOADING";
+  fi
+fi
+
+
+draw_divider
+
+title="\$(printf $title | fold -s -w "\$FZF_PREVIEW_COLUMNS")"
+printf "${THEME_FZF_PREVIEW_TITLE}%s${THEME_FZF_PREVIEW_TITLE}\n" "\$title"
+
+draw_divider
+
+if ! [ $channel = "null" ];then
+channel="\$(printf $channel | fold -s -w \$FZF_PREVIEW_COLUMNS)"
+printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}${TXT_FZF_PREVIEW_CHANNEL}: ${THEME_RESET}%s\n" "${THEME_FZF_PREVIEW_VALUE}\$channel${THEME_RESET}";
+fi
+
+if ! [ "$channel_follower_count" = "null" ];then
+channel_follower_count="\$(printf "$channel_follower_count" | fold -s -w \$FZF_PREVIEW_COLUMNS)"
+printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}${TXT_FZF_PREVIEW_CHANNEL_FOLLOWERS}: ${THEME_RESET}%s\n" "${THEME_FZF_PREVIEW_VALUE}\$channel_follower_count${THEME_RESET}";
+fi
+
+if ! [ $channel = "null" ] && ! [ "$duration" = "null" ];then
+draw_divider
+fi
+
+if ! [ "$duration" = "null" ];then
+duration="\$(printf "$duration" | fold -s -w \$FZF_PREVIEW_COLUMNS)"
+printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}${TXT_FZF_PREVIEW_DURATION}: ${THEME_RESET}%s\n" "${THEME_FZF_PREVIEW_VALUE}\$duration${THEME_RESET}";
+fi
+
+if ! [ "$view_count" = "null" ];then
+view_count="\$(printf "$view_count" | fold -s -w \$FZF_PREVIEW_COLUMNS)"
+printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}${TXT_FZF_PREVIEW_VIEW_COUNT}: ${THEME_RESET}%s\n" "${THEME_FZF_PREVIEW_VALUE}\$view_count views${THEME_RESET}";
+fi
+
+if ! [ "$live_status" = "null" ];then
+live_status="\$(printf "$live_status" | fold -s -w \$FZF_PREVIEW_COLUMNS)"
+printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}${TXT_FZF_PREVIEW_LIVE_STATUS}: ${THEME_RESET}%s\n" "${THEME_FZF_PREVIEW_VALUE}\$live_status${THEME_RESET}";
+fi
+
+if ! [ "$timestamp" = "null" ];then
+timestamp="\$(printf "$timestamp" | fold -s -w \$FZF_PREVIEW_COLUMNS)"
+printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}${TXT_FZF_PREVIEW_TIMESTAMP}: ${THEME_RESET}%s\n" "${THEME_FZF_PREVIEW_VALUE}\$timestamp${THEME_RESET}";
+fi
+if ! [ $channel = "null" ] || ! [ "$channel_follower_count" = "null" ] || ! [ "$duration" = "null" ] || ! [ "$view_count" = "null" ] || ! [ "$live_status" = "null" ] || ! [ "$timestamp" = "null" ];then
+draw_divider
+fi
+
+if ! [ $description = "null" ];then
+  printf "%s\n" $description|fold -s -w "\$FZF_PREVIEW_COLUMNS"
+fi
+EOF
 }
 
-launcher_with_preview() {
-  case "$PREFERRED_SELECTOR" in
-  rofi)
-    if [ -z "$ROFI_THEME" ]; then
-      while read -r line; do echo "$line" | sed -r 's/\x1B(\[[0-9;]*[a-zA-Z]|\(B)//g'; done | rofi -sort -matching fuzzy -dmenu -i -width 1500 -p "" -mesg "$1" -matching fuzzy -sorting-method fzf
-    else
-      while read -r line; do echo "$line" | sed -r 's/\x1B(\[[0-9;]*[a-zA-Z]|\(B)//g'; done | rofi -no-config -theme "$ROFI_THEME" -sort -matching fuzzy -dmenu -i -p "" -mesg "Select Action" -matching fuzzy -sorting-method fzf
-    fi
-    ;;
-  *)
-    fzf \
-      --info=hidden \
-      --layout=reverse \
-      --height=100% \
-      --prompt="${1}: " \
-      --header-first --header="$CLI_HEADER" \
-      --preview-window=left,35%,wrap --bind=right:accept \
-      --expect=shift-left,shift-right --tabstop=1 \
-      --cycle --exact \
-      --ansi --preview="$LIB_X_PREVIEW"
-    ;;
-  esac
+_preview_fzf_generate_script() {
+  local data_to_preview
+  local i
+  local data_item
 
-}
-user_lists_manager() {
-  case "$1" in
-  "Reading")
-    if [ "$2" = "add" ]; then
-      if grep "^${title}\$" -s -q <"$DB_READING_LIST"; then
-        send_notification "Already in Reading List"
-      else
-        send_notification Adding to reading list...
-        echo "$title" >>"$DB_READING_LIST"
-      fi
-    elif [ "$2" = "remove" ]; then
-      if grep "^$title\$" -q <"$DB_READING_LIST"; then
-        if confirm "Are you sure you want to remove '$title' from  $1 List?"; then
-          send_notification "removing from $1 List..."
-          updated_list="$(grep --invert-match "^$title\$" <"$DB_READING_LIST")"
-          echo "$updated_list" | grep --extended-regexp '[[:alnum:]]+' >"$DB_READING_LIST"
-        fi
-      else
-        send_notification "$title is not in your $1 List"
-      fi
-    fi
-    ;;
+  i=0
+  data_to_preview="$1"
 
-  "Paused")
-    if [ "$2" = "add" ]; then
-      if grep "^${title}\$" -s -q <"$DB_PAUSED_LIST"; then
-        send_notification "Already in paused List"
-      else
-        send_notification "Adding to paused list..."
-        echo "$title" >>"$DB_PAUSED_LIST"
-      fi
-    elif [ "$2" = "remove" ]; then
-      if grep "^$title\$" -q <"$DB_PAUSED_LIST"; then
-        if confirm "Are you sure you want to remove '$title' from  $1 List?"; then
-          send_notification "removing from $1 List..."
-          updated_list="$(grep --invert-match "^$title\$" <"$DB_PAUSED_LIST")"
-          echo "$updated_list" | grep --extended-regexp '[[:alnum:]]+' >"$DB_PAUSED_LIST"
+  __preview_fzf_create_shared_script
 
-        fi
-      else
-        send_notification "$title is not in your $1 List"
-      fi
-    fi
-    ;;
-
-  "Recent")
-    if [ "$2" = "add" ]; then
-      if grep "^${title}\$" -s -q <"$DB_RECENT_LIST"; then
-        send_notification "Already in paused List"
-      else
-        send_notification "Adding to paused list..."
-        echo "$title" >>"$DB_RECENT_LIST"
-      fi
-    elif [ "$2" = "remove" ]; then
-      if grep "^$title\$" -q <"$DB_RECENT_LIST"; then
-        if confirm "Are you sure you want to remove '$title' from  $1 List?"; then
-          send_notification "removing from $1 List..."
-          updated_list="$(grep --invert-match "^$title\$" <"$DB_RECENT_LIST")"
-          echo "$updated_list" | grep --extended-regexp '[[:alnum:]]+' >"$DB_RECENT_LIST"
-
-        fi
-      else
-        send_notification "$title is not in your $1 List"
-      fi
-    fi
-    ;;
-
-  "Re-reading")
-    if [ "$2" = "add" ]; then
-      if grep "^${title}\$" -s -q <"$DB_RE_READING_LIST"; then
-        send_notification "Already in re-reading List"
-      else
-        send_notification "Adding to re-reading list..."
-        echo "$title" >>"$DB_RE_READING_LIST"
-      fi
-    elif [ "$2" = "remove" ]; then
-      if grep "^$title\$" -q <"$DB_RE_READING_LIST"; then
-        if confirm "Are you sure you want to remove '$title' from  $1 List?"; then
-          send_notification "removing from $1 List..."
-          updated_list="$(grep --invert-match "^$title\$" <"$DB_RE_READING_LIST")"
-          echo "$updated_list" | grep --extended-regexp '[[:alnum:]]+' >"$DB_RE_READING_LIST"
-        fi
-      else
-        send_notification "$title is not in your $1 List"
-      fi
-    fi
-    ;;
-  "Completed")
-    if [ "$2" = "add" ]; then
-      if grep "^${title}\$" -s -q <"$DB_COMPLETED_LIST"; then
-        send_notification "Already in completed List"
-      else
-        send_notification "Adding to completed list..."
-        echo "$title" >>"$DB_COMPLETED_LIST"
-      fi
-    elif [ "$2" = "remove" ]; then
-      if grep "^$title\$" -q <"$DB_COMPLETED_LIST"; then
-        if confirm "Are you sure you want to remove '$title' from  $1 List?"; then
-          send_notification "removing from $1 List..."
-          updated_list="$(grep --invert-match "^$title\$" <"$DB_COMPLETED_LIST")"
-          echo "$updated_list" | grep --extended-regexp '[[:alnum:]]+' >"$DB_COMPLETED_LIST"
-        fi
-      else
-        send_notification "$title is not in your $1 List"
-      fi
-    fi
-    ;;
-
-  "Docs")
-    if [ "$2" = "add" ]; then
-      if grep "^${title}\$" -s -q <"$DB_DOCS_LIST"; then
-        echo Already in docs List
-        sleep 1
-      else
-        echo Adding to docs list...
-        echo "$title" >>"$DB_DOCS_LIST"
-      fi
-    elif [ "$2" = "remove" ]; then
-      if grep "^$title\$" -q <"$DB_DOCS_LIST"; then
-        if confirm "Are you sure you want to remove '$title' from  $1 List?"; then
-          echo "removing from $1 List..."
-          updated_list="$(grep --invert-match "^$title\$" <"$DB_DOCS_LIST")"
-          echo "$updated_list" | grep --extended-regexp '[[:alnum:]]+' >"$DB_DOCS_LIST"
-        fi
-      else
-        echo "$title is not in your $1 List"
-        sleep 1
-      fi
-    fi
-    ;;
-
-  "Planing")
-    if [ "$2" = "add" ]; then
-      if grep "^${title}\$" -s -q <"$DB_PLANING_LIST"; then
-        echo Already in planing List
-        sleep 1
-      else
-        echo Adding to planing list...
-        echo "$title" >>"$DB_PLANING_LIST"
-      fi
-    elif [ "$2" = "remove" ]; then
-      if grep "^$title\$" -q <"$DB_PLANING_LIST"; then
-        if confirm "Are you sure you want to remove '$title' from  $1 List?"; then
-          echo "removing from $1 List..."
-          updated_list="$(grep --invert-match "^$title\$" <"$DB_PLANING_LIST")"
-          echo "$updated_list" | grep --extended-regexp '[[:alnum:]]+' >"$DB_PLANING_LIST"
-        fi
-      else
-        echo "$title is not in your $1 List"
-        sleep 1
-      fi
-    fi
-    ;;
-  "Dropped")
-    if [ "$2" = "add" ]; then
-      if grep "^${title}\$" -s -q <"$DB_DROPPED_LIST"; then
-        echo Already in dropped List
-        sleep 1
-      else
-        echo Adding to dropped list...
-        echo "$title" >>"$DB_DROPPED_LIST"
-      fi
-    elif [ "$2" = "remove" ]; then
-      if grep "^$title\$" -q <"$DB_DROPPED_LIST"; then
-        if confirm "Are you sure you want to remove '$title' from  $1 List?"; then
-          echo "removing from $1 List..."
-          updated_list="$(grep --invert-match "^$title\$" <"$DB_DROPPED_LIST")"
-          echo "$updated_list" | grep --extended-regexp '[[:alnum:]]+' >"$DB_DROPPED_LIST"
-        fi
-      else
-        echo "$title is not in your $1 List"
-        sleep 1
-      fi
-    fi
-    ;;
-  *)
-    echo unknown option
-    ;;
-  esac
-}
-byebye() {
-  clear
-  echo "Have a good day $USERNAME"
-  exit 0
-}
-main() {
-
-  init_pretty_print
-  while true; do
-
-    # ---- main menu ----
-    if [[ -n "$GO_DIRECTLY_TO" ]]; then
-      action="$GO_DIRECTLY_TO"
-      unset GO_DIRECTLY_TO
-    else
-      _categories=$(for category in $(echo "$CALIBRE_CATEGORIES" | tail -n +2 | cut -d , -f 1 | uniq); do echo "${CYAN}${RESET}  ${category^}"; done)
-      action=$(printf "\
-${CYAN}${RESET}  Reading-List
-${CYAN}${RESET}  Recent
-${CYAN}${RESET}  Paused
-${CYAN}${RESET}  Re-reading
-${CYAN}${RESET}  Planing
-${CYAN}${RESET}  Completed
-${CYAN}󰈙${RESET}  Docs
-${CYAN}${RESET}  Random
-${CYAN}${RESET}  All
-%s
-${CYAN}${RESET}  Dropped
-${CYAN}${RESET}  Edit Config
-${CYAN}${RESET}  Miscellaneous
-${RED}󰈆${RESET}  Exit" "$_categories" | launcher "Select Action" | sed 's/^.  //g')
-    fi
-    case "$action" in
-    # ---- user lists ----
-    "Reading-List")
-      if [ -s "$DB_READING_LIST" ]; then
-        titles="$(cat "$DB_READING_LIST")"
-      else
-        send_notification "You dont have anything in your reading list" && continue
-      fi
-      ;;
-    "Recent")
-      if [ -s "$DB_RECENT_LIST" ]; then
-        titles="$(tac "$DB_RECENT_LIST")"
-      else
-        send_notification "You dont have anything in your recent list" && continue
-      fi
-      ;;
-    "Dropped")
-      if [ -s "$DB_DROPPED_LIST" ]; then
-        titles="$(cat "$DB_DROPPED_LIST")"
-      else
-        send_notification "You dont have anything in your dropped list" && continue
-      fi
-
-      ;;
-    "Paused")
-      if [ -s "$DB_PAUSED_LIST" ]; then
-        titles="$(cat "$DB_PAUSED_LIST")"
-      else
-        send_notification "You dont have anything in your paused list" && continue
-      fi
-      ;;
-    "Completed")
-      if [ -s "$DB_COMPLETED_LIST" ]; then
-        titles="$(cat "$DB_COMPLETED_LIST")"
-      else
-        send_notification "You dont have anything in your completed list" && continue
-      fi
-      ;;
-    "Re-reading")
-      if [ -s "$DB_RE_READING_LIST" ]; then
-        titles="$(cat "$DB_RE_READING_LIST")"
-      else
-        send_notification "You dont have anything in your re-reading list" && continue
-      fi
-      ;;
-    "Planing")
-      if [ -s "$DB_PLANING_LIST" ]; then
-        titles="$(cat "$DB_PLANING_LIST")"
-      else
-        send_notification "You dont have anything in your planning list" && continue
-      fi
-      ;;
-    "Docs")
-      if [ -s "$DB_DOCS_LIST" ]; then
-        titles="$(cat "$DB_DOCS_LIST")"
-      else
-        send_notification "You dont have anything in your docs list" && continue
-      fi
-      ;;
-
-    # ---- others ----
-    "All")
-      titles="$(echo "$CALIBRE_DB" | jq -r '.[].title')"
-      ;;
-    "Random")
-      titles="$(echo "$CALIBRE_DB" | jq -r '.[].title' | shuf -n "$NO_OF_RANDOM_BOOKS")"
-      ;;
-
-    # ---- calibre search ----
-    "Formats")
-      series=$(echo "$CALIBRE_CATEGORIES" | grep "^formats" | cut -d , -f 2 | launcher "Select Format" | tr -d '"')
-      if [ -n "$SORT_BY" ]; then
-        titles=$(calibredb list --search "format:$series" --sort-by "$SORT_BY" --for-machine --fields=title | jq '.[].title' -r)
-      else
-        titles=$(calibredb list --search "format:$series" --for-machine --fields=title | jq '.[].title' -r)
-      fi
-      ;;
-    "Series")
-      series=$(echo "$CALIBRE_CATEGORIES" | grep "^series" | cut -d , -f 2 | launcher "Select Series" | tr -d '"')
-      if [ -n "$SORT_BY" ]; then
-        titles=$(calibredb list --search "series:$series" --sort-by "$SORT_BY" --for-machine --fields=title | jq '.[].title' -r)
-      else
-        titles=$(calibredb list --search "series:$series" --for-machine --fields=title | jq '.[].title' -r)
-      fi
-      ;;
-    "Languages")
-      language=$(echo "$CALIBRE_CATEGORIES" | grep "^languages" | cut -d , -f 2 | launcher "Select Language" | tr -d '"')
-      if [ -n "$SORT_BY" ]; then
-        titles=$(calibredb list --search "language:$language" --sort-by "$SORT_BY" --for-machine --fields=title | jq '.[].title' -r)
-      else
-        titles=$(calibredb list --search "language:$language" --for-machine --fields=title | jq '.[].title' -r)
-      fi
-      ;;
-    "Tags")
-      tag=$(echo "$CALIBRE_CATEGORIES" | grep "^tags" | cut -d , -f 2 | launcher "Select Tag" | tr -d '"')
-      if [ -n "$SORT_BY" ]; then
-        titles=$(calibredb list --search "tag:$tag" --sort-by "$SORT_BY" --for-machine --fields=title | jq '.[].title' -r)
-      else
-        titles=$(calibredb list --search "tag:$tag" --for-machine --fields=title | jq '.[].title' -r)
-      fi
-      ;;
-    "Rating")
-      rating=$(echo "$CALIBRE_CATEGORIES" | grep "^tags" | cut -d , -f 2 | launcher "Select Rating" | tr -d '"')
-      if [ -n "$SORT_BY" ]; then
-        titles=$(calibredb list --search "rating:$rating" --sort-by "$SORT_BY" --for-machine --fields=title | jq '.[].title' -r)
-      else
-        titles=$(calibredb list --search "rating:$rating" --for-machine --fields=title | jq '.[].title' -r)
-      fi
-      ;;
-    "Publisher")
-      publisher=$(echo "$CALIBRE_CATEGORIES" | grep "^publisher" | cut -d , -f 2 | launcher "Select Publisher" | tr -d '"')
-      if [ -n "$SORT_BY" ]; then
-        titles=$(calibredb list --search "publisher:$publisher" --sort-by "$SORT_BY" --for-machine --fields=title | jq '.[].title' -r)
-      else
-        titles=$(calibredb list --search "publisher:$publisher" --for-machine --fields=title | jq '.[].title' -r)
-      fi
-      ;;
-    "Identifiers")
-      identifier=$(echo "$CALIBRE_CATEGORIES" | grep "^identifiers" | cut -d , -f 2 | launcher "Select Identifiers" | tr -d '"')
-      if [ -n "$SORT_BY" ]; then
-        titles=$(calibredb list --search "identifier:$identifier" --sort "$SORT_BY" --for-machine --fields=title | jq '.[].title' -r)
-      else
-        titles=$(calibredb list --search "identifier:$identifier" --for-machine --fields=title | jq '.[].title' -r)
-      fi
-      ;;
-    "Authors")
-      series=$(echo "$CALIBRE_CATEGORIES" | grep "^authors" | cut -d , -f 2 | launcher "Select Author" | tr -d '"')
-      if [ -n "$SORT_BY" ]; then
-        titles=$(calibredb list --search "author:$series" --sort "$SORT_BY" --for-machine --fields=title | jq '.[].title' -r)
-      else
-        titles=$(calibredb list --search "author:$series" --for-machine --fields=title | jq '.[].title' -r)
-      fi
-      ;;
-    # ---- others ----
-    "Edit Config")
-      $PREFERRED_EDITOR "$CLI_CONFIG_FILE"
-      continue
-      load_config
-      ;;
-    "Exit")
-      byebye
-      ;;
-    Miscellaneous)
-      while true; do
-
-        local miscellaneous_action
-        local books_path
-        miscellaneous_action=$(printf "\
-${CYAN}󰗛${RESET}  Add Books
-${CYAN}󰉗${RESET}  Add Books From Folder
-${CYAN}󰑓${RESET}  Reload Data
-${CYAN}${RESET}  Back
-${RED}󰈆${RESET}  Exit" | launcher "Select Action" | sed 's/^.  //g')
-        case "$miscellaneous_action" in
-        Add\ Books\ From\ Folder)
-          if [ "$FILE_EXPLORER" = "yazi" ]; then
-            yazi --cwd-file "$CLI_CACHE_DIR/books_path"
-            books_path=$(cat "$CLI_CACHE_DIR/books_path")
-          elif [ "$FILE_EXPLORER" = "fzf" ]; then
-            books_path=$(find $HOME -type d | fzf)
-          else
-            send_notification "Unsupported file explorer"
-            continue
-          fi
-
-          if confirm "Would you like to input custom args (default: calibre_db add '$books_path')"; then
-            clear
-            calibredb add --help
-            custom_args=$(prompt "Enter your custom args separated by spaces")
-          fi
-          confirm "Would you like to proceed in adding books?" && calibredb add "$books_path" $custom_args || send_notification "Failed to add books"
-          ;;
-        Reload\ Data)
-          send_notification "Reloading calibre data" && FORCE_UPDATE_DB="true" reload_calibre_data
-          ;;
-        Add\ Books)
-          if [ "$FILE_EXPLORER" = "yazi" ]; then
-            yazi --chooser-file "$CLI_CACHE_DIR/books_path"
-            books_path=$(cat "$CLI_CACHE_DIR/books_path")
-          elif [ "$FILE_EXPLORER" = "fzf" ]; then
-            books_path=$(find $HOME -type f | fzf --multi)
-          else
-            send_notification "Unsupported file explorer"
-            continue
-          fi
-
-          if confirm "Would you like to input custom args (default: calibre_db add '$books_path')"; then
-            clear
-            calibredb add --help
-            custom_args=$(prompt "Enter your custom args separated by spaces")
-          fi
-          confirm "Would you like to proceed in adding books?" && echo "$books_path" | xargs -I "%s" -- calibredb add "%s" $custom_args && send_notification "Success" || send_notification "Failed to add books"
-          ;;
-        Back)
-          break
-          ;;
-        Exit)
-          byebye
-          ;;
-        *)
-          send_notification "Invalid action"
-          ;;
-        esac
-      done
-      continue
-      ;;
-    *)
-      send_notification 'invalid action'
-      continue
-      ;;
-    esac
-    clear
-
-    # book selection loop
-    while true; do
-      # ---- select book ----
-      SHELL="bash"
-      export SHELL
-      export -f fzf_preview init_pretty_print
-      if [ "$ENABLE_PREVIEW" = "true" ]; then
-        title=$(printf "%s\nBack\nExit" "$titles" | launcher_with_preview "Select Book" | tr -d "\n")
-      else
-        title=$(printf "%s\nBack\nExit" "$titles" | launcher "Select Book" | tr -d "\n")
-      fi
-      [ "$title" = "Exit" ] && byebye
-      [ "$title" = "Back" ] && break
-      [ -z "$title" ] && send_notification "Nothing has been selected" && break
-      clear
-      book=$(cat "$CALIBRE_DB_JSON_FILE" | jq "map(select(.title == \"$title\")) | .[0]")
-
-      # ---- book actions ----
-      while true; do
-        action=$(
-          printf "\
-${CYAN}${RESET}  Read
-${CYAN}󰐒${RESET}  Add To List
-${CYAN}󰐐${RESET}  Remove From List
-${CYAN}󰗙${RESET}  Remove Book
-${CYAN}󱚌${RESET}  Edit Metadata
-${CYAN}󰌍${RESET}  Back
-${RED}󰈆${RESET}  Exit" | launcher "Select Book Action" | sed 's/^.  //g'
-        )
-        case "$action" in
-        "Read")
-          # update recent list
-          if [ "$UPDATE_RECENT" = "true" ]; then
-            updated_recent_file_contents=$(grep --invert-match -s "^$title\$" <"$DB_RECENT_LIST" | grep --extended-regexp "[[:alnum:]]+" | tail -n "$NO_OF_RECENT")
-            echo "$updated_recent_file_contents" >"$DB_RECENT_LIST"
-            echo "$title" >>"$DB_RECENT_LIST"
-          fi
-
-          # open book
-          book_path="$(echo "$book" | jq -r '.formats[0]')"
-          if command -v "open"; then
-            open "$book_path" &>/dev/null &
-          elif command -v "xdg-open"; then
-            xdg-open "$book_path" &>/dev/null &
-          else
-            send_notification "No supported reader found"
-          fi
-          # disown
-          [ "${PREFERRED_SELECTOR,,}" = "rofi" ] && wait
-          [ "$DISOWN_READING_PROCESS" = "true" ] && [ "${PREFERRED_SELECTOR,,}" = "fzf" ] && disown
-          [ "$DISOWN_READING_PROCESS" = "false" ] && [ "${PREFERRED_SELECTOR,,}" = "fzf" ] && wait
-          ;;
-        "Add To List")
-          list_to_add_to=$(printf "Reading\nPaused\nPlaning\nRe-reading\nDocs\nCompleted\nDropped\nRecent" | launcher "Select List")
-          user_lists_manager "$list_to_add_to" "add"
-          ;;
-        "Remove From List")
-          list_to_remove_from=$(printf "Reading\nPaused\nPlaning\nRe-reading\nDocs\nCompleted\nDropped\nRecent" | launcher "Select List")
-          user_lists_manager "$list_to_remove_from" "remove"
-          ;;
-        Remove\ Book)
-          book_id="$(echo "$book" | jq -r '.id')"
-          confirm "Are you sure you want to remove $title" && calibredb remove "$book_id" && send_notification "Successfully removed"
-          ;;
-        "Back")
-          break
-          ;;
-        Edit\ Metadata)
-          metadata_field=$(printf "\
-author_sort
-authors
-comments
-cover
-id
-identifiers
-languages
-pubdate
-publisher
-rating
-series
-series_index
-size
-sort
-tags
-timestamp
-title
-title_sort
-cover" | launcher "Select field to edit")
-          book_id="$(echo "$book" | jq -r '.id')"
-          calibredb show_metadata "$book_id"
-          metadata_val=$(prompt "Enter new value for $metadata_field")
-          calibredb set_metadata "$book_id" --field "$metadata_field:$metadata_val"
-          calibredb backup_metadata
-          reload_calibre_data
-          ;;
-        "Main Menu")
-          MAIN=true
-          break
-          ;;
-        "Exit")
-          byebye
-          ;;
-        *)
-          send_notification "invalid action"
-          ;;
-        esac
-        clear
-      done
-      if [ "$MAIN" = true ]; then
-        MAIN=false
-        break
-      fi
-    done
+  printf "%s" "$data_to_preview" | jq -c '.entries[]' | while IFS= read -r data_item; do
+    __preview_fzf_generate_script_for_item "$data_item"
   done
 }
 
-# ---- cli ----
+__preview_download_image() {
+  local url
+  local output_path
+  local images_to_download_file
+  url="$1"
+  output_path="$2"
+  images_to_download_file="$3"
 
-trap byebye INT TERM
-
-usage() {
-  printf "\
-Usage: %s [arguments] [options] 
-
-Commandline options override the config
-Some of the options are directly passed to calibredb
-
-Options:
-  -s, --search
-    search for a book based on calibredb search syntax
-  -S, --sort-by 
-    sort the books on a specified field
-  -g, --go-directly-to
-    open $CLI_NAME with a sub-menu pre-selected
-  -e, --edit-config
-    edit $CLI_NAME config file
-  --rofi-theme <path>
-    set the path to your rofi config file
-  -d,--disown-reading-process
-    disown the reading process so you can contine reading even if you close $CLI_NAME
-  -D,--no-disown-reading-process
-    don't disown the reading process hence when $CLI_NAME closes the app your using to read your book will also close
-  -p <selector>,--preferred-selector <selector>
-    set the preferred selector for $CLI_NAME to use
-  --preview
-    enable the preview window
-  --no-preview
-    disable the preview window
-  -r <number>, --no-of-random-books <number>
-    the number of random books to show; also makes the cli auto choose Random sub-menu
-  -h, --help
-    Show this help message and exit
-  -v, --version
-    print the $CLI_NAME version and exit
-
-arguments:
-  completions
-    generates shell completions for $CLI_NAME
-
-Examples:
-  $CLI_NAME --search tag:chess --sort-by author
-  $CLI_NAME --search tag:chess 
-  $CLI_NAME --sort-by size 
-  $CLI_NAME --go-directly-to Reading-List --sort-by size
-  $CLI_NAME --go-directly-to Reading-List 
-  $CLI_NAME --no-of-random-books 50 --go-directly-to Random
-
-  $CLI_NAME completions --fish 
-" "$CLI_NAME"
-  exit "$1"
+  if ! [ -s "$output_path" ]; then
+    printf 'url=%s\n' "$url" >>"$images_to_download_file"
+    printf 'output=%s\n' "$output_path" >>"$images_to_download_file"
+  fi
 }
 
-load_config
-while [ $# -gt 0 ]; do
-  case "$1" in
-  -h | --help)
-    usage 0
+_preview_fzf_download_imgs() {
+  local data_to_preview
+  local images_to_download_file
+  local url
+  local output_path
+  images_to_download_file="$CLI_CURRENT_STATE_DIR/images-to-download-$(date +%s)"
+  data_to_preview="$1"
+
+  printf "%s" "$data_to_preview" | jq -r '.entries[].thumbnails[-1].url' | while IFS= read -r url; do
+    case "$url" in
+    //*) url="https:$url" ;;
+    esac
+
+    output_path="$CLI_PREVIEW_IMGS_DIR/$(printf "%s" "$url" | _util_generate_hash).jpg"
+    __preview_download_image "$url" "$output_path" "$images_to_download_file"
+  done
+  [ -s "$images_to_download_file" ] && curl -sL --parallel --parallel-max 5 --config "$images_to_download_file" >/dev/null 2>&1 && rm "$images_to_download_file" 2>/dev/null
+}
+
+_preview_fzf() {
+  while IFS= read -r line; do
+    if [ "$CONFIG_ENABLE_PREVIEW" = "true" ]; then
+      printf '%s/%s.sh|%s\n' "$CLI_PREVIEW_SCRIPTS_DIR" "$(printf '%s' "$line" | _util_generate_hash)" "$line"
+    else
+      printf '%s\n' "$line"
+    fi
+  done
+
+  local data_to_preview
+  data_to_preview="$1"
+
+  if [ "$CONFIG_ENABLE_PREVIEW" = "true" ]; then
+    _preview_fzf_generate_script "$data_to_preview" &
+    if [ "$CONFIG_ENABLE_PREVIEW_IMAGES" = "true" ]; then
+      _preview_fzf_download_imgs "$data_to_preview" &
+    fi
+  fi
+}
+
+preview_fzf() {
+  _preview_fzf "$@"
+}
+
+_preview_rofi() {
+  local data_to_preview
+  local images_to_download_file
+  local input_titles
+  local input_count
+  local output_count
+  local others
+  local output
+  data_to_preview="$1"
+  output="$CLI_CURRENT_STATE_DIR/rofi-preview-output-$(date +%s)"
+  images_to_download_file="$CLI_CURRENT_STATE_DIR/images-to-download-$(date +%s)"
+
+  if [ "$CONFIG_ENABLE_PREVIEW" = "true" ] && [ -n "$data_to_preview" ]; then
+    input_titles="$(cat)"
+
+    # shellcheck disable=SC2141
+    printf "%s" "$data_to_preview" | jq --compact-output -r '.entries[]' | while IFS='\n' read -r entry; do
+      url=$(printf '%s' "$entry" | jq -r '.thumbnails[-1].url')
+      title=$(printf '%s' "$entry" | jq -r '.title')
+      if [ -n "$url" ] && [ "$url" != "null" ]; then
+        case "$url" in
+        //*) url="https:$url" ;;
+        esac
+        url_hash="$(printf "%s" "$url" | _util_generate_hash)"
+        img_path="$CLI_PREVIEW_IMGS_DIR/${url_hash}.jpg"
+
+        __preview_download_image "$url" "$img_path" "$images_to_download_file"
+        printf '%s\0icon\x1f%s\n' "$title" "$img_path"
+      else
+        printf '%s\n' "$title"
+      fi
+    done >"$output"
+
+    [ -s "$images_to_download_file" ] && curl -sL --parallel --parallel-max 5 --config "$images_to_download_file" >/dev/null 2>&1 && rm "$images_to_download_file" 2>/dev/null
+
+    input_count=$(printf "%s" "$input_titles" | wc -l)
+    output_count=$(wc -l <"$output")
+    others=$((input_count + 1 - output_count))
+
+    cat "$output"
+    if [ "$others" -gt 0 ]; then
+      printf '%s' "$input_titles" | tail -n "$others"
+    fi
+  else
+    cat
+  fi
+}
+
+preview_rofi() {
+  _preview_rofi "$@"
+}
+
+_preview() {
+  case "$CONFIG_LAUNCHER" in
+  fzf) preview_fzf "$@" ;;
+  rofi) preview_rofi "$@" ;;
+  *) cat ;;
+  esac
+}
+
+preview() {
+  _preview "$@"
+}
+
+# ==============================================================================
+# State Management
+# ==============================================================================
+__state_clean_prev() {
+  local current_state_dir
+  current_state_dir="$CLI_CURRENT_STATE_DIR/$STATE_CURRENT"
+  ! [ -d "$current_state_dir" ] && ui_notify_critical "$TXT_STATE_MALFORMED_CURRENT"
+  rm -rf "$current_state_dir"
+}
+
+_state_init() {
+  STATE_CURRENT=0
+
+  STATE_CURRENT_CATEGORY=""
+
+  STATE_CURRENT_BOOKS=""
+  STATE_CURRENT_BOOK_TITLES=""
+
+  STATE_CURRENT_BOOK=""
+  STATE_CURRENT_BOOK_TITLE=""
+}
+
+_state_push() {
+  local current_state_dir
+
+  STATE_CURRENT="$((STATE_CURRENT + 1))"
+  current_state_dir="$CLI_CURRENT_STATE_DIR/$STATE_CURRENT"
+  mkdir -p "$current_state_dir"
+
+  cat <<EOF >"$current_state_dir/state.env"
+STATE_CURRENT_CATEGORY='$(printf "%s" "$STATE_CURRENT_CATEGORY" | sed "s/'/'\\\\''/g")'
+
+STATE_CURRENT_BOOKS='$(printf "%s" "$STATE_CURRENT_BOOKS" | sed "s/'/'\\\\''/g")'
+STATE_CURRENT_BOOK_TITLES='$(printf "%s" "$STATE_CURRENT_BOOK_TITLES" | sed "s/'/'\\\\''/g")'
+
+STATE_CURRENT_BOOK='$(printf "%s" "$STATE_CURRENT_BOOK" | sed "s/'/'\\\\''/g")'
+STATE_CURRENT_BOOK_TITLE='$(printf "%s" "$STATE_CURRENT_BOOK_TITLE" | sed "s/'/'\\\\''/g")'
+EOF
+}
+
+_state_pop() {
+  local current_state_dir
+  local pop_count
+  local i
+  i=0
+  pop_count="${1:-1}"
+
+  [ "$pop_count" -le 0 ] && return
+
+  while [ "$i" -lt "$pop_count" ]; do
+    __state_clean_prev
+    STATE_CURRENT="$((STATE_CURRENT - 1))"
+    i=$((i + 1))
+  done
+
+  [ "$((STATE_CURRENT))" -lt 1 ] && return
+
+  current_state_dir="$CLI_CURRENT_STATE_DIR/$STATE_CURRENT"
+  ! [ -d "$current_state_dir" ] && ui_notify_critical "$TXT_STATE_MALFORMED_CURRENT"
+
+  # shellcheck disable=SC1091
+  . "$current_state_dir/state.env" || ui_notify_critical "$TXT_STATE_MALFORMED_CURRENT"
+}
+
+# ==============================================================================
+# Calibre
+# ==============================================================================
+__fetch_calibre_db() {
+  calibredb list --for-machine --fields all >"$CALIBRE_DB_JSON_FILE"
+}
+
+_fetch_calibre_db() {
+  local calibre_library_current_timestamp
+
+  calibre_library_current_timestamp="$(stat -c %Y "$CONFIG_CALIBRE_LIBRARY_PATH/metadata.db")"
+
+  if ! [ -s "$CALIBRE_DB_JSON_FILE" ] || ! [ -s "$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE" ] || [ "$calibre_library_current_timestamp" -gt "$(cat "$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE")" ]; then
+    if __fetch_calibre_db; then
+      printf "%s" "$calibre_library_current_timestamp" >"$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE"
+    fi
+  fi
+  cat "$CALIBRE_DB_JSON_FILE"
+}
+
+fetch_calibre_db() {
+  _fetch_calibre_db
+}
+
+__fetch_calibre_categories() {
+  calibredb list_categories --csv >"$CALIBRE_CATEGORIES_CSV_FILE"
+}
+
+_fetch_calibre_categories() {
+  local calibre_library_current_timestamp
+
+  calibre_library_current_timestamp="$(stat -c %Y "$CONFIG_CALIBRE_LIBRARY_PATH/metadata.db")"
+
+  if ! [ -s "$CALIBRE_CATEGORIES_CSV_FILE" ] || ! [ -s "$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE" ] || [ "$calibre_library_current_timestamp" -gt "$(cat "$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE")" ]; then
+    if __fetch_calibre_categories; then
+      printf "%s" "$calibre_library_current_timestamp" >"$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE"
+    fi
+  fi
+  cat "$CALIBRE_CATEGORIES_CSV_FILE"
+}
+
+fetch_calibre_categories() {
+  _fetch_calibre_categories
+}
+
+_fetch_calibre_category() {
+  fetch_calibre_categories | awk -v category="$1" -v FS=, '$1 == category {print $2}'
+}
+
+fetch_calibre_category() {
+  _fetch_calibre_category "$@"
+}
+
+# ==============================================================================
+# Calibre: sort functions
+# ==============================================================================
+# shellcheck disable=SC2016
+CALIBRE_SORT_JQ='
+def sort_calibre_db($key):
+  if $key == "title" then
+    sort_by(.title | ascii_downcase)
+  elif $key == "author" then
+    sort_by(.authors[0] // "" | ascii_downcase)
+  elif $key == "series" then
+    sort_by(.series // "" | ascii_downcase)
+  elif $key == "rating" then
+    sort_by(.rating // 0)
+  elif $key == "publisher" then
+    sort_by(.publisher // "" | ascii_downcase)
+  else .
+  end;
+'
+
+# ==============================================================================
+# Calibre: search functions
+# ==============================================================================
+_fetch_calibre_db_search_title() {
+  _fetch_calibre_db | jq -r --arg title "$1" --arg sort_by "$2" "
+    map(select(.title | test(\$title; \"i\")))
+    | $CALIBRE_SORT_JQ
+    sort_calibre_db(\$sort_by)
+  "
+}
+
+fetch_calibre_db_search_title() {
+  _fetch_calibre_db_search_title "$@"
+}
+
+_fetch_calibre_db_search_series() {
+  _fetch_calibre_db | jq -r --arg series "$1" --arg sort_by "$2" "
+    map(select(.series == \$series))
+    | $CALIBRE_SORT_JQ
+    sort_calibre_db(\$sort_by)
+  "
+}
+
+fetch_calibre_db_search_series() {
+  _fetch_calibre_db_search_series "$@"
+}
+
+_fetch_calibre_db_search_author() {
+  _fetch_calibre_db | jq -r --arg author "$1" --arg sort_by "$2" "
+  map(select((.authors | split(\",\") | index(\$author)) != null))
+    | $CALIBRE_SORT_JQ
+    sort_calibre_db(\$sort_by)
+  "
+}
+
+fetch_calibre_db_search_author() {
+  _fetch_calibre_db_search_author "$@"
+}
+
+_fetch_calibre_db_search_tag() {
+  _fetch_calibre_db | jq -r --arg tag "$1" --arg sort_by "$2" "
+  map(select((.tags | index(\$tag)) != null))
+    | $CALIBRE_SORT_JQ
+    sort_calibre_db(\$sort_by)
+  "
+}
+
+fetch_calibre_db_search_tag() {
+  _fetch_calibre_db_search_tag "$@"
+}
+
+_fetch_calibre_db_search_format() {
+  _fetch_calibre_db | jq -r --arg format "$1" --arg sort_by "$2" "
+  map(select(.formats[] | ascii_downcase | endswith(\".\\(\$format | ascii_downcase)\")))
+    | $CALIBRE_SORT_JQ
+    sort_calibre_db(\$sort_by)
+  "
+}
+
+fetch_calibre_db_search_format() {
+  _fetch_calibre_db_search_format "$@"
+}
+
+_fetch_calibre_db_search_language() {
+  _fetch_calibre_db | jq -r --arg lang "$1" --arg sort_by "$2" "
+  map(select(any(.languages[]; \$lang | test(.; \"i\"))))
+    | $CALIBRE_SORT_JQ
+    sort_calibre_db(\$sort_by)
+  "
+}
+
+fetch_calibre_db_search_language() {
+  _fetch_calibre_db_search_language "$@"
+}
+
+_fetch_calibre_db_search_rating() {
+  _fetch_calibre_db | jq -r --argjson rating "$1" --arg sort_by "$2" "
+    map(select(.rating == \$rating ))
+    | $CALIBRE_SORT_JQ
+    sort_calibre_db(\$sort_by)
+  "
+}
+
+fetch_calibre_db_search_rating() {
+  _fetch_calibre_db_search_rating "$@"
+}
+
+_fetch_calibre_db_search_publisher() {
+  _fetch_calibre_db | jq -r --arg publisher "$1" --arg sort_by "$2" "
+  map(select((.publisher // \"\" | split(\",\") | index(\$publisher)) != null))
+    | $CALIBRE_SORT_JQ
+    sort_calibre_db(\$sort_by)
+  "
+}
+
+fetch_calibre_db_search_publisher() {
+  _fetch_calibre_db_search_publisher "$@"
+}
+
+_fetch_calibre_db_search_identifier() {
+  _fetch_calibre_db | jq -r --arg identifier "$1" --arg sort_by "$2" "
+  map(select((.identifiers | to_entries[].key) == \$identifier))
+    | $CALIBRE_SORT_JQ
+    sort_calibre_db(\$sort_by)
+  "
+}
+
+fetch_calibre_db_search_identifier() {
+  _fetch_calibre_db_search_identifier "$@"
+}
+
+# ==============================================================================
+# User Lists
+# ==============================================================================
+_manage_user_list() {
+  local list_name="$1"
+  local action="$2"
+  local title="$3"
+  local file="$CLI_DBS_DIR/${list_name}"
+
+  case "$action" in
+  add)
+    if grep -Fqx "$title" "$file" 2>/dev/null; then
+      ui_notify_warning "Already in $list_name List"
+    else
+      ui_notify "Adding to $list_name list..."
+      printf "%s\n" "$title" >>"$file"
+    fi
     ;;
-  -v | --version)
-    echo "$CLI_NAME $CLI_VERSION Copyright © 2024 $CLI_AUTHOR projects"
-    exit 0
+  remove)
+    if grep -Fqx "$title" "$file" 2>/dev/null; then
+      if ui_confirm "Are you sure you want to remove '$title' from $list_name List?"; then
+        ui_notify "Removing from $list_name List..."
+        grep -Fv "$title" "$file" >"${file}.tmp"
+        mv "${file}.tmp" "$file"
+      fi
+    else
+      ui_notify_warning "$title is not in your $list_name List"
+    fi
     ;;
-  -e | --edit-config)
-    $PREFERRED_EDITOR "$CLI_CONFIG_FILE" || exit 1
-    exit 0
-    ;;
-  -s | --search)
-    [ -n "$2" ] || usage 1
-    SEARCH="$2"
-    GO_DIRECTLY_TO="${GO_DIRECTLY_TO:-All}"
-    shift
-    ;;
-  -g | --go-directly-to)
-    [ -n "$2" ] || usage 1
-    GO_DIRECTLY_TO="$2"
-    shift
-    ;;
-  -S | --sort-by)
-    [ -n "$2" ] || usage 1
-    SORT_BY="$2"
-    GO_DIRECTLY_TO="${GO_DIRECTLY_TO:-All}"
-    shift
-    ;;
-  -r | --no-of-random-books)
-    [ -n "$2" ] || usage 1
-    NO_OF_RANDOM_BOOKS="$2"
-    GO_DIRECTLY_TO="${GO_DIRECTLY_TO:-Random}"
-    shift
-    ;;
-  -p | --preferred-selector)
-    [ -n "$2" ] || usage 1
-    PREFERRED_SELECTOR="$2"
-    shift
-    ;;
-  --private)
-    UPDATE_RECENT="false"
-    ;;
-  --preview)
-    ENABLE_PREVIEW="true"
-    ;;
-  --no-preview)
-    ENABLE_PREVIEW="false"
-    ;;
-  -d | --disown-reading-process)
-    DISOWN_READING_PROCESS="true"
-    ;;
-  -D | --no-disown-reading-process)
-    DISOWN_READING_PROCESS="false"
-    ;;
-  --rofi-theme)
-    [ -n "$2" ] || usage 1
-    ROFI_THEME="$2"
-    shift
-    ;;
-  -U | --update)
-    check_update "A new version of $CLI_NAME has been found would you like to upgrade(y/n)"
-    ;;
-  -E | --generate-desktop-entry)
-    echo "
+  esac
+}
+
+_update_recent() {
+  local title="$1"
+  local file="$CLI_DBS_DIR/recent"
+  grep -Fv "$title" "$file" >"${file}.tmp" 2>/dev/null || true
+  mv "${file}.tmp" "$file" 2>/dev/null || true
+  printf "%s\n" "$title" >>"$file"
+  tail -n "$CONFIG_NO_OF_RECENT" "$file" >"${file}.tmp"
+  mv "${file}.tmp" "$file"
+}
+
+# ==============================================================================
+# Menus: book actions
+# ==============================================================================
+__menu_book_actions_read() {
+  local book_path
+
+  if [ "$CONFIG_UPDATE_RECENT" = "true" ]; then
+    _update_recent "$STATE_CURRENT_BOOK_TITLE"
+  fi
+
+  book_path="$(printf '%s' "$STATE_CURRENT_BOOK" | jq -r '.formats[0]')"
+  _util_open "$book_path"
+
+  if [ "$CONFIG_DISOWN_READING_PROCESS" = "false" ]; then
+    wait
+  fi
+}
+
+__menu_book_actions_add_to_list() {
+  local list
+
+  list="$(printf "%s\n%s\n%s\n%s\n%s\n%s\n%s" \
+    "$TXT_MENU_MAIN_READING_LIST" \
+    "$TXT_MENU_MAIN_PAUSED" \
+    "$TXT_MENU_MAIN_PLANING" \
+    "$TXT_MENU_MAIN_REREADING" \
+    "$TXT_MENU_MAIN_DOCS" \
+    "$TXT_MENU_MAIN_COMPLETED" \
+    "$TXT_MENU_MAIN_DROPPED" | ui_launcher "$TXT_MENU_BOOK_ACTIONS_PROMPT_LIST")"
+
+  if [ -n "$list" ]; then
+    _manage_user_list "$(printf '%s' "$list" | tr ' ' '_' | tr '[:upper:]' '[:lower:]')" "add" "$STATE_CURRENT_BOOK_TITLE"
+  fi
+}
+
+__menu_book_actions_remove_from_list() {
+  local list
+
+  list="$(printf "%s\n%s\n%s\n%s\n%s\n%s\n%s" \
+    "$TXT_MENU_MAIN_READING_LIST" \
+    "$TXT_MENU_MAIN_PAUSED" \
+    "$TXT_MENU_MAIN_PLANING" \
+    "$TXT_MENU_MAIN_REREADING" \
+    "$TXT_MENU_MAIN_DOCS" \
+    "$TXT_MENU_MAIN_COMPLETED" \
+    "$TXT_MENU_MAIN_DROPPED" | ui_launcher "$TXT_MENU_BOOK_ACTIONS_PROMPT_LIST")"
+
+  if [ -n "$list" ]; then
+    _manage_user_list "$(printf '%s' "$list" | tr ' ' '_' | tr '[:upper:]' '[:lower:]')" "remove" "$STATE_CURRENT_BOOK_TITLE"
+  fi
+}
+
+__menu_book_actions_remove_book() {
+  local book_id
+
+  book_id="$(printf '%s' "$STATE_CURRENT_BOOK_JSON" | jq -r '.id')"
+
+  if ui_confirm "$TXT_MENU_BOOK_ACTIONS_REMOVE_CONFIRM $STATE_CURRENT_BOOK_TITLE?"; then
+    if calibredb remove "$book_id"; then
+      ui_notify "$TXT_MENU_BOOK_ACTIONS_REMOVED_SUCCESS"
+    fi
+    _fetch_calibre_db
+    _state_pop
+    CMD_EXIT_MENU=true
+  fi
+}
+
+__menu_book_actions_edit_metadata() {
+  local field
+  local book_id
+  local val
+
+  field="$(printf "author_sort\nauthors\ncomments\ncover\nid\nidentifiers\nlanguages\npubdate\npublisher\nrating\nseries\nseries_index\nsize\nsort\ntags\ntimestamp\ntitle\ntitle_sort" | ui_launcher "$TXT_MENU_BOOK_ACTIONS_PROMPT_FIELD")"
+
+  [ -z "$field" ] && return
+
+  book_id="$(printf '%s' "$STATE_CURRENT_BOOK_JSON" | jq -r '.id')"
+  calibredb show_metadata "$book_id"
+
+  val="$(ui_prompt "$TXT_MENU_BOOK_ACTIONS_PROMPT_NEW_VAL $field")"
+
+  calibredb set_metadata "$book_id" --field "$field:$val"
+  calibredb backup_metadata
+  _fetch_calibre_data "true"
+}
+
+# shellcheck disable=SC2120
+_menu_book_actions() {
+  local actions
+  local action
+  local sort
+  local menu_options_filter
+  local extra_menu_options
+  local extra_menu_options_handler
+
+  sort="$1"
+  menu_options_filter="$2"
+  extra_menu_options="$3"
+  extra_menu_options_handler="$4"
+
+  actions="\
+ ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_READ}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_READ}
+ ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_ADD_LIST}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_ADD_LIST}
+ ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_REMOVE_LIST}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_REMOVE_LIST}
+ ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_REMOVE_BOOK}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_REMOVE_BOOK}
+ ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_EDIT_METADATA}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_EDIT_METADATA}
+ ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BACK}${THEME_RESET}  ${TXT_MENU_BACK}
+ ${THEME_FZF_ICON_COLOR_ERROR}${TXT_ICON_MENU_EXIT}${THEME_RESET}  ${TXT_MENU_EXIT}"
+
+  if [ -n "$extra_menu_options" ] && [ -n "$extra_menu_options_handler" ]; then
+    actions="$actions
+$extra_menu_options"
+  fi
+
+  if [ -n "$menu_options_filter" ]; then
+    actions="$(printf '%s' "$actions" | grep --invert-match "$menu_options_filter")"
+  fi
+
+  if [ -n "$sort" ]; then
+    actions="$(printf '%s' "$actions" | _util_menu_sort "$sort")"
+  fi
+
+  while true; do
+    if [ -n "$CMD_BOOK_ACTION" ]; then
+      action="$CMD_BOOK_ACTION"
+      unset -v CMD_BOOK_ACTION
+    else
+      action="$(printf "%s" "$actions" | ui_launcher "$TXT_MENU_BOOK_ACTIONS_PROMPT" | sed 's/.*  //g')"
+    fi
+
+    case "$action" in
+    "$TXT_MENU_BOOK_ACTIONS_READ") __menu_book_actions_read ;;
+    "$TXT_MENU_BOOK_ACTIONS_ADD_LIST") __menu_book_actions_add_to_list ;;
+    "$TXT_MENU_BOOK_ACTIONS_REMOVE_LIST") __menu_book_actions_remove_from_list ;;
+    "$TXT_MENU_BOOK_ACTIONS_REMOVE_BOOK") __menu_book_actions_remove_book ;;
+    "$TXT_MENU_BOOK_ACTIONS_EDIT_METADATA") __menu_book_actions_edit_metadata ;;
+    "$TXT_MENU_BACK" | "") _state_pop && break ;;
+    "$TXT_MENU_EXIT") _util_byebye ;;
+    *)
+      if [ -n "$extra_menu_options" ] && [ -n "$extra_menu_options_handler" ]; then
+        if ! $extra_menu_options_handler "$action"; then
+          _ui_notify_error "${TXT_MENU_INVALID_ACTION}: $action"
+        fi
+      fi
+      ;;
+    esac
+
+    if [ "$CMD_EXIT" = "true" ]; then
+      _util_byebye
+    elif [ "$CMD_EXIT_MENU" = "true" ]; then
+      break
+    fi
+  done
+}
+
+menu_book_actions() {
+  _menu_book_actions
+}
+
+# ==============================================================================
+# Menus: book list explorer
+# ==============================================================================
+__menu_book_list_explorer_select() {
+  local choice="$1"
+  local parsed_title
+
+  parsed_title="$(printf '%s' "$choice" | sed -E 's/^[0-9]+ //g')"
+  STATE_CURRENT_BOOK_TITLE="$parsed_title"
+  STATE_CURRENT_BOOK="$(jq -r --arg t "$parsed_title" 'map(select(.title == $t)) | .[0]' "$CALIBRE_DB_JSON_FILE")"
+
+  _state_push
+  menu_book_actions
+}
+
+_menu_book_list_explorer() {
+  local other_choices
+  local choice
+
+  other_choices="\
+$TXT_MENU_BACK
+$TXT_MENU_EXIT"
+
+  while true; do
+
+    if [ "$CMD_BOOK_RESULTS_SKIP" = "true" ]; then
+      choice="$(printf '%s' "$STATE_CURRENT_BOOK_TITLES" | head -n 1)"
+      unset -v CMD_BOOK_RESULTS_SKIP
+    else
+      choice="$(printf "%s\n%s" "$STATE_CURRENT_BOOK_TITLES" "$other_choices" | ui_launcher "$TXT_MENU_LIST_EXPLORER_PROMPT")"
+    fi
+
+    case "$choice" in
+    "$TXT_MENU_BACK" | "") _state_pop && break ;;
+    "$TXT_MENU_EXIT") _util_byebye ;;
+    *) __menu_book_list_explorer_select "$choice" ;;
+    esac
+  done
+}
+
+menu_book_list_explorer() {
+  _menu_book_list_explorer
+}
+
+# ==============================================================================
+# Menus: miscellaneous
+# ==============================================================================
+__menu_miscellaneous_add_books_from_folder() {
+  local books_path
+  local custom_args=""
+
+  if [ "$CONFIG_FILE_EXPLORER" = "yazi" ]; then
+    yazi --cwd-file "$CLI_CACHE_DIR/books_path"
+    books_path=$(cat "$CLI_CACHE_DIR/books_path")
+  else
+    books_path=$(find "$HOME" -type d | fzf)
+  fi
+
+  [ -z "$books_path" ] && return
+
+  if ui_confirm "$TXT_MENU_MISC_PROMPT_CUSTOM_ARGS (default: calibredb add '$books_path')"; then
+    custom_args="$(ui_prompt "$TXT_MENU_MISC_PROMPT_ENTER_ARGS")"
+  fi
+
+  if ui_confirm "$TXT_MENU_MISC_PROMPT_PROCEED"; then
+    # shellcheck disable=SC2086
+    calibredb add "$books_path" $custom_args
+    _fetch_calibre_data "true"
+  fi
+}
+
+__menu_miscellaneous_add_books() {
+  local books_path
+  local custom_args=""
+
+  if [ "$CONFIG_FILE_EXPLORER" = "yazi" ]; then
+    yazi --chooser-file "$CLI_CACHE_DIR/books_path"
+    books_path=$(cat "$CLI_CACHE_DIR/books_path")
+  else
+    books_path=$(find "$HOME" -type f | fzf --multi)
+  fi
+
+  [ -z "$books_path" ] && return
+
+  if ui_confirm "$TXT_MENU_MISC_PROMPT_CUSTOM_ARGS"; then
+    custom_args="$(ui_prompt "$TXT_MENU_MISC_PROMPT_ENTER_ARGS")"
+  fi
+
+  if ui_confirm "$TXT_MENU_MISC_PROMPT_PROCEED"; then
+    # shellcheck disable=SC2086
+    printf '%s\n' "$books_path" | xargs -I {} calibredb add "{}" $custom_args
+    _fetch_calibre_data "true"
+  fi
+}
+
+__menu_miscellaneous_reload_data() {
+  _fetch_calibre_data "true"
+}
+
+# shellcheck disable=SC2120
+_menu_miscellaneous() {
+  local actions
+  local sort="$1"
+  local menu_options_filter="$2"
+  local extra_menu_options="$3"
+  local extra_menu_options_handler="$4"
+
+  actions="\
+ ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MISC_ADD_BOOKS}${THEME_RESET}  ${TXT_MENU_MISC_ADD_BOOKS}
+ ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MISC_ADD_BOOKS_FOLDER}${THEME_RESET}  ${TXT_MENU_MISC_ADD_BOOKS_FOLDER}
+ ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MISC_RELOAD_DATA}${THEME_RESET}  ${TXT_MENU_MISC_RELOAD_DATA}
+ ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BACK}${THEME_RESET}  ${TXT_MENU_BACK}
+ ${THEME_FZF_ICON_COLOR_ERROR}${TXT_ICON_MENU_EXIT}${THEME_RESET}  ${TXT_MENU_EXIT}"
+
+  if [ -n "$extra_menu_options" ] && [ -n "$extra_menu_options_handler" ]; then
+    actions="$(printf '%s\n%s' "$actions" "$extra_menu_options")"
+  fi
+  if [ -n "$menu_options_filter" ]; then
+    actions="$(printf '%s' "$actions" | grep --invert-match "$menu_options_filter")"
+  fi
+  if [ -n "$sort" ]; then
+    actions="$(_util_menu_sort "$actions" "$sort")"
+  fi
+
+  while true; do
+    local action
+    if [ -n "$CMD_MISC_ACTION" ]; then
+      action="$CMD_MISC_ACTION"
+      unset -v CMD_MISC_ACTION
+    else
+      action="$(printf "%s" "$actions" | ui_launcher "$TXT_MENU_MISC_PROMPT" | sed 's/.*  //g')"
+    fi
+
+    case "$action" in
+    "$TXT_MENU_MISC_ADD_BOOKS_FOLDER") __menu_miscellaneous_add_books_from_folder ;;
+    "$TXT_MENU_MISC_ADD_BOOKS") __menu_miscellaneous_add_books ;;
+    "$TXT_MENU_MISC_RELOAD_DATA") __menu_miscellaneous_reload_data ;;
+    "$TXT_MENU_BACK" | "") break ;;
+    "$TXT_MENU_EXIT") _util_byebye ;;
+    *)
+      if [ -n "$extra_menu_options" ] && [ -n "$extra_menu_options_handler" ]; then
+        if ! $extra_menu_options_handler "$action"; then
+          _ui_notify_error "${TXT_MENU_INVALID_ACTION}: $action"
+        fi
+      fi
+      ;;
+    esac
+  done
+}
+
+menu_miscellaneous() {
+  _menu_miscellaneous
+}
+#
+# ==============================================================================
+# Menus: main
+# ==============================================================================
+__menu_main_random() {
+  STATE_CURRENT_BOOKS="$(_fetch_calibre_db)"
+  STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title' | shuf -n "$CONFIG_NO_OF_RANDOM_BOOKS")"
+  _state_push
+  menu_book_list_explorer
+}
+
+__menu_main_search() {
+  local query
+
+  if [ -n "$CMD_INPUT" ]; then
+    query="$CMD_INPUT"
+  else
+    query="$(ui_prompt "$TXT_MENU_MAIN_SEARCH_PROMPT")"
+  fi
+
+  STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_title "$query" "title")"
+  STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
+  _state_push
+  menu_book_list_explorer
+}
+
+__menu_main_all() {
+  STATE_CURRENT_BOOKS="$(fetch_calibre_db)"
+  STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
+  _state_push
+  menu_book_list_explorer
+}
+
+__menu_main_series() {
+  local query
+
+  while true; do
+    if [ -n "$CMD_INPUT" ]; then
+      query="$CMD_INPUT"
+    else
+      query="$(
+        {
+          fetch_calibre_category "series"
+          printf '%s' "$TXT_MENU_BACK"
+        } | ui_launcher "$TXT_MENU_MAIN_SERIES_PROMPT"
+      )"
+
+      case "$query" in
+      "$TXT_MENU_BACK" | "") break ;;
+      esac
+    fi
+
+    STATE_CURRENT_CATEGORY="series,$query"
+    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_series "$query" "title")"
+    STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
+    _state_push
+    menu_book_list_explorer
+  done
+}
+
+__menu_main_authors() {
+  local query
+
+  while true; do
+    if [ -n "$CMD_INPUT" ]; then
+      query="$CMD_INPUT"
+    else
+      query="$(
+        {
+          fetch_calibre_category "authors"
+          printf '%s\n' "$TXT_MENU_BACK"
+        } | ui_launcher "$TXT_MENU_MAIN_AUTHORS_PROMPT"
+      )"
+
+      case "$query" in
+      "$TXT_MENU_BACK" | "") break ;;
+      esac
+    fi
+
+    STATE_CURRENT_CATEGORY="authors,$query"
+    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_author "$query" "title")"
+    STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
+    _state_push
+    menu_book_list_explorer
+  done
+}
+
+__menu_main_tags() {
+  local query
+
+  while true; do
+    if [ -n "$CMD_INPUT" ]; then
+      query="$CMD_INPUT"
+    else
+      query="$(
+        {
+          fetch_calibre_category "tags"
+          printf '%s\n' "$TXT_MENU_BACK"
+        } | ui_launcher "$TXT_MENU_MAIN_TAGS_PROMPT"
+      )"
+
+      case "$query" in
+      "$TXT_MENU_BACK" | "") break ;;
+      esac
+    fi
+
+    STATE_CURRENT_CATEGORY="tags,$query"
+    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_tag "$query" "title")"
+    STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
+    _state_push
+    menu_book_list_explorer
+  done
+}
+
+__menu_main_formats() {
+  local query
+
+  while true; do
+    if [ -n "$CMD_INPUT" ]; then
+      query="$CMD_INPUT"
+    else
+      query="$(
+        {
+          fetch_calibre_category "formats"
+          printf '%s\n' "$TXT_MENU_BACK"
+        } | ui_launcher "$TXT_MENU_MAIN_FORMATS_PROMPT"
+      )"
+
+      case "$query" in
+      "$TXT_MENU_BACK" | "") break ;;
+      esac
+    fi
+
+    STATE_CURRENT_CATEGORY="formats,$query"
+    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_format "$query" "title")"
+    STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
+    _state_push
+    menu_book_list_explorer
+  done
+}
+
+__menu_main_languages() {
+  local query
+
+  while true; do
+    if [ -n "$CMD_INPUT" ]; then
+      query="$CMD_INPUT"
+    else
+      query="$(
+        {
+          fetch_calibre_category "languages"
+          printf '%s\n' "$TXT_MENU_BACK"
+        } | ui_launcher "$TXT_MENU_MAIN_LANGUAGES_PROMPT"
+      )"
+
+      case "$query" in
+      "$TXT_MENU_BACK" | "") break ;;
+      esac
+    fi
+
+    STATE_CURRENT_CATEGORY="languages,$query"
+    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_language "$query" "title")"
+    STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
+    _state_push
+    menu_book_list_explorer
+  done
+}
+
+__menu_main_ratings() {
+  local query
+
+  while true; do
+    if [ -n "$CMD_INPUT" ]; then
+      query="$CMD_INPUT"
+    else
+      query="$(
+        {
+          fetch_calibre_category "rating"
+          printf '%s\n' "$TXT_MENU_BACK"
+        } | ui_launcher "$TXT_MENU_MAIN_LANGUAGES_PROMPT"
+      )"
+
+      case "$query" in
+      "$TXT_MENU_BACK" | "") break ;;
+      esac
+    fi
+
+    STATE_CURRENT_CATEGORY="rating,$query"
+    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_rating "$query" "title")"
+    STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
+    _state_push
+    menu_book_list_explorer
+  done
+}
+
+__menu_main_publishers() {
+  local query
+
+  while true; do
+    if [ -n "$CMD_INPUT" ]; then
+      query="$CMD_INPUT"
+    else
+      query="$(
+        {
+          fetch_calibre_category "publisher"
+          printf '%s\n' "$TXT_MENU_BACK"
+        } | ui_launcher "$TXT_MENU_MAIN_PUBLISHER_PROMPT"
+      )"
+
+      case "$query" in
+      "$TXT_MENU_BACK" | "") break ;;
+      esac
+    fi
+
+    STATE_CURRENT_CATEGORY="publisher,$query"
+    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_publisher "$query" "title")"
+    STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
+    _state_push
+    menu_book_list_explorer
+  done
+}
+
+__menu_main_identifiers() {
+  local query
+
+  while true; do
+    if [ -n "$CMD_INPUT" ]; then
+      query="$CMD_INPUT"
+    else
+      query="$(
+        {
+          fetch_calibre_category "identifiers"
+          printf '%s\n' "$TXT_MENU_BACK"
+        } | ui_launcher "$TXT_MENU_MAIN_IDENTIFIER_PROMPT"
+      )"
+
+      case "$query" in
+      "$TXT_MENU_BACK" | "") break ;;
+      esac
+    fi
+
+    STATE_CURRENT_CATEGORY="identifiers,$query"
+    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_identifier "$query" "title")"
+    STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
+    _state_push
+    menu_book_list_explorer
+  done
+}
+
+__menu_main_edit_config() {
+  _util_file_edit "$CLI_CONFIG_FILE"
+  _load_config
+}
+
+# shellcheck disable=SC2120
+_menu_main() {
+  local actions
+  local action
+  local sort="$1"
+  local menu_options_filter="$2"
+  local extra_menu_options="$3"
+  local extra_menu_options_handler="$4"
+
+  actions="\
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_READING_LIST}${THEME_RESET}  ${TXT_MENU_MAIN_READING_LIST}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_RECENT}${THEME_RESET}  ${TXT_MENU_MAIN_RECENT}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_PAUSED}${THEME_RESET}  ${TXT_MENU_MAIN_PAUSED}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_REREADING}${THEME_RESET}  ${TXT_MENU_MAIN_REREADING}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_PLANING}${THEME_RESET}  ${TXT_MENU_MAIN_PLANING}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_COMPLETED}${THEME_RESET}  ${TXT_MENU_MAIN_COMPLETED}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_DOCS}${THEME_RESET}  ${TXT_MENU_MAIN_DOCS}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_RANDOM}${THEME_RESET}  ${TXT_MENU_MAIN_RANDOM}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_SEARCH}${THEME_RESET}  ${TXT_MENU_MAIN_SEARCH}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_ALL}${THEME_RESET}  ${TXT_MENU_MAIN_ALL}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_SERIES}${THEME_RESET}  ${TXT_MENU_MAIN_SERIES}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_AUTHORS}${THEME_RESET}  ${TXT_MENU_MAIN_AUTHORS}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_TAGS}${THEME_RESET}  ${TXT_MENU_MAIN_TAGS}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_FORMATS}${THEME_RESET}  ${TXT_MENU_MAIN_FORMATS}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_LANGUAGES}${THEME_RESET}  ${TXT_MENU_MAIN_LANGUAGES}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_RATINGS}${THEME_RESET}  ${TXT_MENU_MAIN_RATINGS}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_PUBLISHER}${THEME_RESET}  ${TXT_MENU_MAIN_PUBLISHER}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_IDENTIFIERS}${THEME_RESET}  ${TXT_MENU_MAIN_IDENTIFIERS}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_DROPPED}${THEME_RESET}  ${TXT_MENU_MAIN_DROPPED}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_MISC}${THEME_RESET}  ${TXT_MENU_MAIN_MISC}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_EDIT_CONFIG}${THEME_RESET}  ${TXT_MENU_MAIN_EDIT_CONFIG}
+${THEME_FZF_ICON_COLOR_ERROR}${TXT_ICON_MENU_EXIT}${THEME_RESET}  ${TXT_MENU_EXIT}"
+
+  if [ -n "$extra_menu_options" ] && [ -n "$extra_menu_options_handler" ]; then
+    actions="$actions
+$extra_menu_options"
+  fi
+
+  if [ -n "$menu_options_filter" ]; then
+    actions="$(printf '%s' "$actions" | grep --invert-match "$menu_options_filter")"
+  fi
+
+  if [ -n "$sort" ]; then
+    actions="$(printf '%s' "$actions" | _util_menu_sort "$sort")"
+  fi
+
+  while true; do
+    if [ -n "$CMD_MAIN_ACTION" ]; then
+      action="$CMD_MAIN_ACTION"
+      unset -v CMD_MAIN_ACTION
+    else
+      action="$(printf '%s' "$actions" | ui_launcher "$TXT_MENU_MAIN_PROMPT_ACTION" | sed 's/.*  //g')"
+    fi
+
+    case "$action" in
+    "$TXT_MENU_MAIN_READING_LIST") __menu_main_reading_list ;;
+    "$TXT_MENU_MAIN_RECENT") __menu_main_recent ;;
+    "$TXT_MENU_MAIN_PAUSED") __menu_main_paused ;;
+    "$TXT_MENU_MAIN_COMPLETED") __menu_main_completed ;;
+    "$TXT_MENU_MAIN_REREADING") __menu_main_rereading ;;
+    "$TXT_MENU_MAIN_PLANING") __menu_main_planning ;;
+    "$TXT_MENU_MAIN_DOCS") __menu_main_docs ;;
+    "$TXT_MENU_MAIN_RANDOM") __menu_main_random ;;
+    "$TXT_MENU_MAIN_SEARCH") __menu_main_search ;;
+    "$TXT_MENU_MAIN_ALL") __menu_main_all ;;
+    "$TXT_MENU_MAIN_SERIES") __menu_main_series ;;
+    "$TXT_MENU_MAIN_AUTHORS") __menu_main_authors ;;
+    "$TXT_MENU_MAIN_TAGS") __menu_main_tags ;;
+    "$TXT_MENU_MAIN_FORMATS") __menu_main_formats ;;
+    "$TXT_MENU_MAIN_LANGUAGES") __menu_main_languages ;;
+    "$TXT_MENU_MAIN_RATINGS") __menu_main_ratings ;;
+    "$TXT_MENU_MAIN_PUBLISHER") __menu_main_publishers ;;
+    "$TXT_MENU_MAIN_IDENTIFIERS") __menu_main_identifiers ;;
+    "$TXT_MENU_MAIN_DROPPED") __menu_main_dropped ;;
+    "$TXT_MENU_MAIN_EDIT_CONFIG") __menu_main_edit_config ;;
+    "$TXT_MENU_MAIN_MISC") menu_miscellaneous ;;
+    "$TXT_MENU_EXIT" | "") _util_byebye ;;
+    *)
+      if ! __menu_main_category "$action"; then
+        if [ -n "$extra_menu_options" ] && [ -n "$extra_menu_options_handler" ]; then
+          if ! $extra_menu_options_handler "$action"; then
+            _ui_notify_error "${TXT_MENU_INVALID_ACTION}: $action"
+          fi
+        else
+          _ui_notify_error "${TXT_MENU_INVALID_ACTION}: $action"
+        fi
+      fi
+      ;;
+    esac
+  done
+}
+
+menu_main() {
+  _state_init
+  _menu_main
+}
+
+# ==============================================================================
+# APP: utils
+# ==============================================================================
+_app_update_script() {
+  local update
+
+  if ! [ -w "$CLI_PATH" ]; then
+    ui_confirm "$TXT_UPDATE_ROOT_WARNING" || exit 1
+    if _dep_ch sudo; then
+      exec sudo -s "$CLI_PATH" "-u"
+    else
+      ui_notify_critical "$TXT_UPDATE_SUDO_MISSING"
+    fi
+  fi
+
+  update="$1"
+  [ -z "$update" ] && ui_notify_critical "$TXT_UPDATE_FETCH_FAILED"
+
+  if printf "%s\n" "$update" >"$CLI_PATH"; then
+    rm "$CLI_FZF_PREVIEW_SCRIPT" >/dev/null 2>&1
+    if ui_confirm "$TXT_UPDATE_SCRIPT_REEXECUTE"; then
+      # shellcheck disable=SC2086
+      exec "$CLI_PATH" $CLI_ARGS
+    else
+      exit 0
+    fi
+  else
+    ui_notify_critical "$TXT_UPDATE_FAILED"
+  fi
+}
+
+_app_update_check() {
+  local update
+  local update_diff
+  local latest_version
+
+  latest_version=$(curl -s "$CLI_VERSION_URL")
+  [ -z "$latest_version" ] && return 1
+
+  if [ "$latest_version" != "$CLI_VERSION" ]; then
+    update="$(curl -sL "${CLI_RELEASES_BASE}/v${latest_version}/$CLI_NAME")"
+    [ -z "$update" ] && return 1
+
+    if _dep_ch diff; then
+      update_diff="$(printf "%s\n" "$update" | diff -u "$CLI_PATH" -)"
+      ui_confirm "$TXT_UPDATE_FOUND" && printf '%s\n' "$update_diff" | ui_pager
+    else
+      _ui_notify_warning "$TXT_DEP_MISSING_DIFF"
+    fi
+
+    ui_confirm "$TXT_UPDATE_CONFIRM" && _app_update_script "$update"
+  else
+    return 1
+  fi
+}
+
+_app_auto_update() {
+  local timestamp_file
+  local interval
+  local last_check_time
+
+  if [ "$CONFIG_CHECK_FOR_UPDATES" = "true" ]; then
+    timestamp_file="$CLI_CACHE_DIR/.last_update_check"
+
+    interval=$((12 * 60 * 60))
+
+    last_check_time=$(cat "$timestamp_file" 2>/dev/null || printf '0')
+
+    if [ "$((CLI_START_TIME - last_check_time))" -ge "$interval" ]; then
+      _app_cache_clean_up &
+
+      _app_update_check
+      printf '%s' "$CLI_START_TIME" >"$timestamp_file"
+    fi
+  fi
+}
+
+_app_edit_config() {
+  _util_file_edit "$CLI_CONFIG_FILE"
+  _util_byebye
+}
+
+_app_generate_desktop_entry() {
+  local entry
+
+  if ui_confirm "$TXT_DESKTOP_ENTRY_PROMPT" "$TXT_LAUNCHER_LABEL_ROFI" "$TXT_LAUNCHER_LABEL_ROFI" "$TXT_LAUNCHER_LABEL_FZF"; then
+    entry="\
 [Desktop Entry]
 Name=$CLI_NAME
 Type=Application
-version=$CLI_VERSION
+Version=$CLI_VERSION
 Path=$HOME
-Comment=Read and manage your calibre books from the terminal
+Comment=$TXT_DESKTOP_ENTRY_COMMENT
 Terminal=false
-Icon=$CLI_DIR/assets/logo.png
-Exec=$0 --preferred-selector rofi
-Categories=Education
-    "
-    exit 0
-    ;;
-  completions)
-    [ -n "$2" ] || usage 1
-    case "$2" in
-    -f | --fish)
-      echo "\
-# --- functions ---
+Exec=$CLI_PATH --launcher rofi --no-disown-reading-process
+Categories=Entertainment"
+  else
+    entry="\
+[Desktop Entry]
+Name=$CLI_NAME
+Type=Application
+Version=$CLI_VERSION
+Path=$HOME
+Comment=$TXT_DESKTOP_ENTRY_COMMENT
+Terminal=true
+Exec=$CLI_PATH --launcher fzf
+Categories=Entertainment"
+  fi
+
+  printf "%s\n" "$entry"
+  exit 0
+}
+
+_app_core_dep_ch() {
+  ! _dep_ch "calibredb" >/dev/null 2>&1 && ui_notify_critical "$TXT_DEP_MISSING_CALIBREDB"
+  ! _dep_ch "jq" && ui_notify_critical "$TXT_DEP_MISSING_JQ"
+  ! _dep_ch "fzf" && ui_notify_critical "$TXT_DEP_MISSING_FZF"
+}
+
+_app_cache_clean_up() {
+  local retention_days
+  retention_days="${CONFIG_CACHE_RETENTION_DAYS:-3}"
+
+  if [ -d "$CLI_PREVIEW_DIR" ]; then
+    find "$CLI_PREVIEW_DIR" -type f -mtime "+$retention_days" -exec rm {} + 2>/dev/null
+  fi
+
+  if [ -d "$CLI_AUTO_GEN_PLAYLISTS" ]; then
+    find "$CLI_AUTO_GEN_PLAYLISTS" -type f -mtime "+$retention_days" -exec rm {} + 2>/dev/null
+  fi
+
+  if [ -d "$CLI_LOG_DIR" ]; then
+    find "$CLI_LOG_DIR" -type f -mtime "+$retention_days" -exec rm {} + 2>/dev/null
+  fi
+}
+
+_app_runtime_clean_up() {
+  rm -r "$CLI_CURRENT_STATE_DIR" 2>/dev/null
+  job_pids=$(jobs -p)
+
+  # shellcheck disable=SC2086
+  [ -n "$job_pids" ] && kill $job_pids 2>/dev/null
+}
+
+# ==============================================================================
+# APP: usage
+# ==============================================================================
+_app_usage() {
+  cat <<EOF
+Read and manage your calibre books from the terminal.
+
+Usage: $CLI_NAME [OPTIONS]
+       $CLI_NAME completions [--fish|--bash|--zsh|--help]
+
+All options can also be set permanently in the config file ($CLI_CONFIG_FILE).
+Environment variables (LIB_X_*) override the config.
+
+────────────────────────────────────────────────────────────────────
+Options:
+  -h, --help                     Show this help message and exit
+  -v, --version                  Print version information and exit
+  -e, --edit-config              Open the config file in your editor
+  -E, --generate-desktop-entry   Print a .desktop file to stdout and exit
+  -U, --update                   Check for and apply an update for $CLI_NAME
+  -l, --launcher <launcher>      Menu launcher: fzf or rofi or gum
+  --config-write                 Write the current runtime config to the config file
+  --preview                      Enable the preview window (images/text)
+  --no-preview                   Disable the preview window
+  --preview-images               Enable the image preview window
+  --no-preview-images            Disable the image preview window
+  -d, --disown-reading-process   Detach the reading process from the terminal
+  -D, --no-disown-reading-process Keep reading process attached (default)
+  --private                      Do not update the recent history list
+  --rofi-theme-main <path>       Path to the rofi main theme file
+
+────────────────────────────────────────────────────────────────────
+Direct menu shortcuts & Overrides
+  -ce, --cmd-exit                Exit after shortcut menu commandline options
+  -bs, --book-skip               Skip the item selection menu and automatically pick the first entry
+  -be, --book-exit               Exit after performing a book action (read, edit, etc.)
+  -g, --go-directly-to <menu>    Open $CLI_NAME with a sub-menu pre-selected
+  -s, --search <term>            Search for a book based on calibredb search syntax
+  -S, --sort-by <field>          Sort the books on a specified field (e.g. author, size)
+  -r, --no-of-random-books <num> Number of random books to show (opens Random menu)
+  
+  --reading-list                 Open your Reading List directly
+  --recent                       Open your Recent books directly
+  --all                          Browse all books in your library directly
+
+────────────────────────────────────────────────────────────────────
+Sub‑commands:
+  completions                    Generate shell completion definitions
+    --fish                       Fish shell completions
+    --bash                       Bash shell completions
+    --zsh                        Zsh shell completions
+    --help                       Show help for completions
+EOF
+  exit "${1:-0}"
+}
+
+_app_usage_completions() {
+  cat <<EOF
+Generate shell completions for $CLI_NAME
+
+Options:
+  --fish
+    print fish completions and exit
+  --bash
+    print bash completions and exit
+  --zsh
+    print zsh completions and exit
+
+Example:
+  $CLI_NAME completions --fish
+EOF
+  exit "${1:-0}"
+}
+
+# ==============================================================================
+# APP: completions
+# ==============================================================================
+_app_completions_fish() {
+  local ext_dir
+  ext_dir="$HOME/.config/$CLI_NAME/extensions"
+
+  cat <<EOF
+# Fish completions for $CLI_NAME
+
+# ==========================================================================
+# Helpers
+# ==========================================================================
 function _lib_x_complete_search
-  for comp_line in (calibredb list_categories --csv) 
-    echo (echo \$comp_line|cut --delimiter , --fields 1):(echo \$comp_line|cut --delimiter , --fields 2|tr -d '\"')
+  for comp_line in (calibredb list_categories --csv 2>/dev/null)
+    echo (echo \$comp_line | cut -d , -f 1):(echo \$comp_line | cut -d , -f 2 | tr -d '"')
   end
 end
 
-# --- completions ---
-complete -c $CLI_NAME --no-files --arguments \"completions\" --condition 'not __fish_contains_opt search s sort-by S e edit-config p preferred-selector d disown-reading-process D no-disown-reading-process E generate-desktop-entry rofi-theme'
+# ==========================================================================
+# Global options 
+# ==========================================================================
+complete -c $CLI_NAME -n "__fish_use_subcommand" -s h -l help -d "Show help and exit"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -s v -l version -d "Show version and exit"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -s e -l edit-config -d "Edit config file"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -s E -l generate-desktop-entry -d "Print desktop entry info"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -s U -l update -d "Update the script"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l config-write -d "Write current config to file"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l launcher -s l -s p -l preferred-selector -d "Preferred launcher" --require-parameter --no-files -a "fzf rofi gum"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l preview -d "Enable preview window"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l no-preview -d "Disable preview window"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l preview-images -d "Enable image previews"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l no-preview-images -d "Disable image previews"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -s d -l disown-reading-process -d "Disown reading process"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -s D -l no-disown-reading-process -d "Don't disown reading process"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l private -d "Don't update recent history list"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l rofi-theme-main -l rofi-theme -d "Rofi main theme path" --require-parameter
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l rofi-theme-preview -d "Rofi preview theme path" --require-parameter
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l rofi-theme-prompt -d "Rofi prompt theme path" --require-parameter
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l rofi-theme-confirm -d "Rofi confirm theme path" --require-parameter
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l rofi-theme-pager -d "Rofi pager theme path" --require-parameter
 
-complete -c $CLI_NAME --no-files --short-option h --long-option help --description 'Print a short help text and exit'
-complete -c $CLI_NAME --no-files --short-option v --long-option version --description 'Print a short version string and exit' --condition 'not __fish_seen_subcommand_from completions'
+complete -c $CLI_NAME -n "__fish_use_subcommand" -s x -l extension -d "Load extension" --require-parameter --no-files -a '(find $ext_dir -follow -maxdepth 3 -type f 2>/dev/null | string replace "$ext_dir/" "" | sort)'
+complete -c $CLI_NAME -n "__fish_use_subcommand" -o xargs -l extension-arguments -d "The arguments to pass to cmd extension" --require-parameter --no-files
 
-complete -c $CLI_NAME --no-files --short-option U --long-option update --description 'Update lib-x' --condition 'not __fish_seen_subcommand_from completions'
-complete -c $CLI_NAME --no-files --short-option e --long-option edit-config --description 'Edit $CLI_NAME config file' --condition 'not __fish_seen_subcommand_from completions'
-complete -c $CLI_NAME --no-files --short-option p --long-option preferred-selector --description 'your preferred selector' --condition 'not __fish_seen_subcommand_from completions' --exclusive --arguments 'fzf rofi'
-complete -c $CLI_NAME --no-files --short-option d --long-option disown-reading-process --description 'disown the reading process' --condition 'not __fish_seen_subcommand_from completions'
-complete -c $CLI_NAME --no-files --short-option D --long-option no-disown-reading-process --description 'dont disown the reading process' --condition 'not __fish_seen_subcommand_from completions'
-complete -c $CLI_NAME --no-files --short-option E --long-option generate-desktop-entry --description 'generate desktop entry info' --condition 'not __fish_seen_subcommand_from completions' 
-complete -c $CLI_NAME --no-files --short-option r --long-option no-of-random-books --description 'the number of random books to show' --condition 'not __fish_seen_subcommand_from completions' --exclusive --arguments \"(seq 100)\" 
-complete -c $CLI_NAME --no-files --short-option P --long-option private --description 'dont update recent' --condition 'not __fish_seen_subcommand_from completions'
+# ==========================================================================
+# Menu shortcuts & Overrides
+# ==========================================================================
+complete -c $CLI_NAME -n "__fish_use_subcommand" -o ce -l cmd-exit -d "Exit after shortcut menu commandline options"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -o bs -l book-skip -d "Skip item selection and auto‑pick first entry"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -o be -l book-exit -d "Exit after performing a book action"
 
-complete -c $CLI_NAME --no-files --long-option preview --description 'enable preview window' --condition 'not __fish_seen_subcommand_from completions' 
-complete -c $CLI_NAME --no-files --long-option no-preview --description 'disable preview window' --condition 'not __fish_seen_subcommand_from completions' 
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l reading-list -d "Open Reading List directly"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l recent -d "Open Recent books directly"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l paused -d "Open Paused books directly"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l rereading -d "Open Re-reading books directly"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l planing -d "Open Planing books directly"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l completed -d "Open Completed books directly"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l docs -d "Open Docs list directly"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l dropped -d "Open Dropped list directly"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l all -d "Browse all books directly"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l random -d "Browse random books directly"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l misc -l miscellaneous -d "Open Miscellaneous menu directly"
 
-complete -c $CLI_NAME --force-files --long-option rofi-theme --description 'the path to your rofi config file' --condition 'not __fish_seen_subcommand_from completions' 
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l read -d "Read the selected book"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l edit-metadata -d "Edit metadata of the selected book"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l remove-book -d "Remove the selected book"
 
-complete -c $CLI_NAME --no-files --short-option S --long-option sort-by --description 'Sort the books by a field' --condition 'not __fish_seen_subcommand_from completions' --exclusive --arguments 'author_sort authors comments cover formats identifiers isbn languages last_modified pubdate publisher rating series series_index size tags template timestamp title uuid'
-complete -c $CLI_NAME --no-files --short-option g --long-option go-directly-to --description 'Open $CLI_NAME with a sub-menu pre-selected' --condition 'not __fish_seen_subcommand_from completions' --exclusive --arguments 'All Reading-List Paused Planing Re-reading Completed Docs Random authors formats identifiers languages  publisher rating series tags Recent'
-complete -c $CLI_NAME --no-files --short-option s --long-option search --description 'search for a book' --condition 'not __fish_seen_subcommand_from completions' --exclusive --arguments \"(_lib_x_complete_search)\"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -s s -l search -d "Search for a book" --require-parameter --no-files -a "(_lib_x_complete_search)"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -s S -l sort-by -d "Sort books by field" --require-parameter --no-files -a 'author_sort authors comments cover formats identifiers isbn languages last_modified pubdate publisher rating series series_index size tags template timestamp title uuid'
+complete -c $CLI_NAME -n "__fish_use_subcommand" -s g -l go-directly-to -d "Open sub-menu directly" --require-parameter --no-files -a 'All Reading-List Paused Planing Re-reading Completed Docs Random authors formats identifiers languages publisher rating series tags Recent Dropped'
+complete -c $CLI_NAME -n "__fish_use_subcommand" -s r -l no-of-random-books -d "Number of random books to show" --require-parameter --no-files -a "(seq 1 100)"
 
-complete -c $CLI_NAME --no-files --short-option z --long-option zsh --description 'print zsh completions' --condition '__fish_seen_subcommand_from completions'
-complete -c $CLI_NAME --no-files --short-option b --long-option bash --description 'print bash completions' --condition '__fish_seen_subcommand_from completions'
-complete -c $CLI_NAME --no-files --short-option f --long-option fish --description 'print fish completions' --condition '__fish_seen_subcommand_from completions'
-    "
+# ==========================================================================
+# Completions subcommand
+# ==========================================================================
+complete -c $CLI_NAME -f -n "__fish_use_subcommand" -a completions -d "Generate shell completions"
+complete -c $CLI_NAME -n "__fish_seen_subcommand_from completions" -s f -l fish -d "Print fish completions"
+complete -c $CLI_NAME -n "__fish_seen_subcommand_from completions" -s b -l bash -d "Print bash completions"
+complete -c $CLI_NAME -n "__fish_seen_subcommand_from completions" -s z -l zsh -d "Print zsh completions"
+complete -c $CLI_NAME -n "__fish_seen_subcommand_from completions" -s h -l help -d "Show help for completions"
+EOF
+
+  exit 0
+}
+
+# ==============================================================================
+# APP: cmdline parser
+# ==============================================================================
+_app_cmd_line_parser() {
+  local shift_count
+  while [ $# -gt 0 ]; do
+    shift_count=1
+    case "$1" in
+    -h | --help) _app_usage ;;
+    -v | --version) printf '%s v%s MIT Copyright © 2024 %s\n' "$CLI_NAME" "$CLI_VERSION" "$CLI_AUTHOR" && exit 0 ;;
+    -U | --update) _app_update_check || printf '%s\n' "No updates found" && exit 1 ;;
+    -e | --edit-config) __menu_main_edit_config && exit 0 ;;
+    -E | --generate-desktop-entry) _app_generate_desktop_entry ;;
+    -ce | --cmd-exit) CMD_EXIT=true ;;
+    -bs | --book-skip) CMD_BOOK_RESULTS_SKIP=true ;;
+    -be | --book-exit) CMD_EXIT_MENU=true ;;
+    -d | --disown-reading-process) CONFIG_DISOWN_READING_PROCESS="true" ;;
+    -D | --no-disown-reading-process) CONFIG_DISOWN_READING_PROCESS="false" ;;
+    --config-write) _print_config >"$CLI_CONFIG_FILE" && exit 0 ;;
+    --preview) CONFIG_ENABLE_PREVIEW=true ;;
+    --no-preview) CONFIG_ENABLE_PREVIEW=false ;;
+    --preview-images) CONFIG_ENABLE_PREVIEW_IMAGES=true ;;
+    --no-preview-images) CONFIG_ENABLE_PREVIEW_IMAGES=false ;;
+    --private) CONFIG_UPDATE_RECENT="false" ;;
+    -l | --launcher)
+      [ -n "$2" ] || _app_usage 1
+      CONFIG_LAUNCHER="$2"
+      shift_count=2
       ;;
-    -b | --bash)
-      # TODO: write bash completions
-      command ...
+    --rofi-theme-main | --rofi-theme)
+      [ -n "$2" ] || _app_usage 1
+      CONFIG_ROFI_THEME_MAIN="$2"
+      shift_count=2
       ;;
-    -z | --zsh)
-      # TODO: write zsh completions
-      command ...
+    --rofi-theme-preview)
+      [ -n "$2" ] || _app_usage 1
+      CONFIG_ROFI_THEME_PREVIEW="$2"
+      shift_count=2
       ;;
-    -h | --help)
-      echo "\
-Generate shell completions for $CLI_NAME
-
-Options:
-  --fish
-    print fish completions and exit
-  --bash
-    print bash completions and exit
-  --zsh
-    print zsh completions and exit
-
-Example:
-  $CLI_NAME completions --fish
-  $CLI_NAME completions --bash
-  $CLI_NAME completions --zsh
-    "
+    --rofi-theme-prompt)
+      [ -n "$2" ] || _app_usage 1
+      CONFIG_ROFI_THEME_PROMPT="$2"
+      shift_count=2
       ;;
-    *)
-      echo "\
-Generate shell completions for $CLI_NAME
-
-Options:
-  --fish
-    print fish completions and exit
-  --bash
-    print bash completions and exit
-  --zsh
-    print zsh completions and exit
-
-Example:
-  $CLI_NAME completions --fish
-  $CLI_NAME completions --bash
-  $CLI_NAME completions --zsh
-    "
-      exit 1
+    --rofi-theme-confirm)
+      [ -n "$2" ] || _app_usage 1
+      CONFIG_ROFI_THEME_CONFIRM="$2"
+      shift_count=2
       ;;
-
+    -x | --extension)
+      [ -n "$2" ] || _app_usage 1
+      if [ "${2#/}" != "$2" ]; then
+        . "$2"
+      else
+        . "$CLI_EXTENSIONS_DIR/$2"
+      fi
+      shift_count=2
+      ;;
+    -xargs | --extension-arguments)
+      shift
+      readonly CLI_EXTENSION_CMDLINE_ARGS="$*"
+      return
+      ;;
+    --reading-list) CMD_MAIN_ACTION="$TXT_MENU_MAIN_READING_LIST" ;;
+    --recent) CMD_MAIN_ACTION="$TXT_MENU_MAIN_RECENT" ;;
+    --paused) CMD_MAIN_ACTION="$TXT_MENU_MAIN_PAUSED" ;;
+    --rereading) CMD_MAIN_ACTION="$TXT_MENU_MAIN_REREADING" ;;
+    --planing) CMD_MAIN_ACTION="$TXT_MENU_MAIN_PLANING" ;;
+    --completed) CMD_MAIN_ACTION="$TXT_MENU_MAIN_COMPLETED" ;;
+    --docs) CMD_MAIN_ACTION="$TXT_MENU_MAIN_DOCS" ;;
+    --dropped) CMD_MAIN_ACTION="$TXT_MENU_MAIN_DROPPED" ;;
+    --all) CMD_MAIN_ACTION="$TXT_MENU_MAIN_ALL" ;;
+    --random) CMD_MAIN_ACTION="$TXT_MENU_MAIN_RANDOM" ;;
+    --misc | --miscellaneous) CMD_MAIN_ACTION="$TXT_MENU_MAIN_MISC" ;;
+    --read) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_READ" ;;
+    --edit-metadata) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_EDIT_METADATA" ;;
+    --remove-book) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_REMOVE_BOOK" ;;
+    -s | --search)
+      if [ -z "$2" ]; then
+        CMD_SEARCH="$(ui_prompt "Enter search query")"
+        [ -n "$CMD_SEARCH" ] || _app_usage 1
+      else
+        CMD_SEARCH="$2"
+        shift_count=2
+      fi
+      CMD_MAIN_ACTION="${CMD_MAIN_ACTION:-$TXT_MENU_MAIN_ALL}"
+      ;;
+    -S | --sort-by)
+      if [ -z "$2" ]; then
+        CMD_SORT_BY="$(ui_prompt "Sort by field (e.g., author, title, size)")"
+        [ -n "$CMD_SORT_BY" ] || _app_usage 1
+      else
+        CMD_SORT_BY="$2"
+        shift_count=2
+      fi
+      CMD_MAIN_ACTION="${CMD_MAIN_ACTION:-$TXT_MENU_MAIN_ALL}"
+      ;;
+    -r | --no-of-random-books)
+      if [ -z "$2" ]; then
+        CONFIG_NO_OF_RANDOM_BOOKS="$(ui_prompt "Number of random books")"
+        [ -n "$CONFIG_NO_OF_RANDOM_BOOKS" ] || _app_usage 1
+      else
+        CONFIG_NO_OF_RANDOM_BOOKS="$2"
+        shift_count=2
+      fi
+      CMD_MAIN_ACTION="${CMD_MAIN_ACTION:-$TXT_MENU_MAIN_RANDOM}"
+      ;;
+    completions)
+      [ -n "$2" ] || _app_usage_completions 1
+      case "$2" in
+      -f | --fish) _app_completions_fish ;;
+      -b | --bash) printf '%s\n' "Contribute to $CLI_NAME by writing bash completions" && exit 1 ;;
+      -z | --zsh) printf '%s\n' "Contribute to $CLI_NAME by writing zsh completions" && exit 1 ;;
+      -h | --help) _app_usage_completions ;;
+      *) _app_usage_completions 1 ;;
+      esac
+      shift_count=2
+      ;;
+    *) _app_usage 1 ;;
     esac
-    exit 0
-    ;;
-  *)
-    usage 1
-    ;;
-  esac
-  shift
-done
+    shift $shift_count
+  done
+}
 
-reload_calibre_data
+# ==============================================================================
+# APP
+# ==============================================================================
+main() {
+  trap _app_runtime_clean_up EXIT INT TERM
+  _load_config
+  _app_cmd_line_parser "$@"
+  _app_auto_update
+  _app_core_dep_ch
+  menu_main
+}
 
-# setup for ui
-timestamp_file="$CLI_CACHE_DIR/last_update_check"
-
-# Time interval in seconds (6 hours = 21600 seconds)
-interval=$((6 * 60 * 60))
-
-# Determine whether to run the update check
-current_time=$(date +%s)
-last_check_time=$(cat "$timestamp_file" 2>/dev/null || echo 0)
-
-if ((current_time - last_check_time >= interval)); then
-  check_update "A new version of $CLI_NAME has been found would you like to upgrade(y/n)"
-  echo "$current_time" >"$timestamp_file"
-fi
-core_dep_ch
-
-main
+main "$@"

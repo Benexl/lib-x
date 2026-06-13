@@ -1,0 +1,678 @@
+#!/usr/bin/env sh
+# shellcheck disable=SC3043
+# lib-x installer - Read and manage your calibre books from the terminal
+# MIT License - Copyright (c) 2024 Benexl
+
+readonly CLI_HEADER="\
+██╗░░░░░██╗██████╗░░░░░░░██╗░░██╗ ██╗███╗░░██╗░██████╗████████╗░█████╗░██╗░░░░░██╗░░░░░███████╗██████╗░
+██║░░░░░██║██╔══██╗░░░░░░╚██╗██╔╝ ██║████╗░██║██╔════╝╚══██╔══╝██╔══██╗██║░░░░░██║░░░░░██╔════╝██╔══██╗
+██║░░░░░██║██████╦╝█████╗░╚███╔╝░ ██║██╔██╗██║╚█████╗░░░░██║░░░███████║██║░░░░░██║░░░░░█████╗░░██████╔╝
+██║░░░░░██║██╔══██╗╚════╝░██╔██╗░ ██║██║╚████║░╚═══██╗░░░██║░░░██╔══██║██║░░░░░██║░░░░░██╔══╝░░██╔══██╗
+███████╗██║██████╦╝░░░░░░██╔╝╚██╗ ██║██║░╚███║██████╔╝░░░██║░░░██║░░██║███████╗███████╗███████╗██║░░██║
+╚══════╝╚═╝╚═════╝░░░░░░░╚═╝░░╚═╝ ╚═╝╚═╝░░╚══╝╚═════╝░░░░╚═╝░░░╚═╝░░╚═╝╚══════╝╚══════╝╚══════╝╚═╝░░╚═╝"
+
+readonly CLI_NAME="lib-x"
+readonly LIB_X_APP_NAME="${LIB_X_APP_NAME:-"$CLI_NAME"}"
+readonly CLI_REPO_URL="https://github.com/Benexl/lib-x"
+readonly CLI_RELEASE_BASE="https://github.com/Benexl/lib-x/releases/download"
+readonly CLI_VERSION_URL="https://raw.githubusercontent.com/Benexl/lib-x/refs/heads/master/version.txt"
+
+# ==============================================================================
+# SETUP
+# ==============================================================================
+_dep_ch() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+# ==============================================================================
+# SETUP ENVIRONMENT
+# ==============================================================================
+if ! _dep_ch local; then
+  eval 'local() { unset -v $1; }'
+fi
+
+case "$(uname -a)" in
+*ndroid*) readonly CLI_PLATFORM="android" ;;
+*Darwin*) readonly CLI_PLATFORM="mac" ;;
+*WSL* | *microsoft* | *Microsoft*) readonly CLI_PLATFORM="linux" ;;
+*MINGW* | *MSYS* | *CYGWIN*) readonly CLI_PLATFORM="windows" ;;
+*)
+  readonly CLI_PLATFORM="linux"
+  if [ -f "/etc/os-release" ]; then
+    # shellcheck disable=SC2155
+    readonly CLI_LINUX_DISTRO_ID="$(awk -F= '/^ID=/ {gsub(/"/, "", $2); print $2}' /etc/os-release)"
+  fi
+  ;;
+esac
+
+XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
+XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+
+# ==============================================================================
+# INSTALLER CONFIG
+# ==============================================================================
+_installer_default_config() {
+  CONFIG_VALIDATE_INTEGRITY=true
+}
+
+# ==============================================================================
+# LIB_X DEFAULT CONFIG
+# ==============================================================================
+_lib_x_default_config() {
+  readonly LIB_X_CONFIG_DIR="$XDG_CONFIG_HOME/$LIB_X_APP_NAME"
+  readonly LIB_X_DBS_DIR="$LIB_X_CONFIG_DIR/DBS"
+
+  readonly LIB_X_EXTENSIONS_DIR="$LIB_X_CONFIG_DIR/extensions"
+  readonly LIB_X_EXTENSIONS_THEMES_DIR="$LIB_X_EXTENSIONS_DIR/themes"
+  readonly LIB_X_EXTENSIONS_LANGS_DIR="$LIB_X_EXTENSIONS_DIR/langs"
+
+  readonly LIB_X_CONFIG_FILE="$LIB_X_CONFIG_DIR/${CLI_NAME}.conf"
+  readonly LIB_X_PKG_JSON="$LIB_X_CONFIG_DIR/pkg.json"
+  readonly LIB_X_DEFAULT_THEME_FILE="$LIB_X_EXTENSIONS_THEMES_DIR/default.theme"
+  readonly LIB_X_DEFAULT_LANG_FILE="$LIB_X_EXTENSIONS_LANGS_DIR/default.lang"
+
+  mkdir -p \
+    "$LIB_X_DBS_DIR" \
+    "$LIB_X_EXTENSIONS_THEMES_DIR" \
+    "$LIB_X_EXTENSIONS_LANGS_DIR"
+
+  : "${LIB_X_CONFIG_AUTOLOADED_EXTENSIONS:=}"
+  : "${LIB_X_CONFIG_ENABLE_COLORS:=true}"
+  : "${LIB_X_CONFIG_LAUNCHER:=fzf}"
+  : "${LIB_X_CONFIG_ENABLE_PREVIEW:=false}"
+  : "${LIB_X_CONFIG_ENABLE_PREVIEW_IMAGES:=false}"
+  
+  if [ -n "$KITTY_WINDOW_ID" ] || [ -n "$GHOSTTY_BIN_DIR" ]; then
+    : "${LIB_X_CONFIG_IMAGE_RENDERER:=icat}"
+  else
+    : "${LIB_X_CONFIG_IMAGE_RENDERER:=chafa}"
+  fi
+  
+  : "${LIB_X_CONFIG_CHAFA_ARGS:=}"
+  : "${LIB_X_CONFIG_ICAT_ARGS:=}"
+  : "${LIB_X_CONFIG_IMGCAT_ARGS:=}"
+  
+  : "${LIB_X_CONFIG_CALIBRE_LIBRARY_PATH:=$HOME/Calibre Library}"
+  
+  if _dep_ch yazi; then
+    : "${LIB_X_CONFIG_FILE_EXPLORER:=yazi}"
+  else
+    : "${LIB_X_CONFIG_FILE_EXPLORER:=fzf}"
+  fi
+
+  : "${LIB_X_CONFIG_DISOWN_READING_PROCESS:=true}"
+  : "${LIB_X_CONFIG_EDITOR:=${EDITOR:-vi}}"
+  : "${LIB_X_CONFIG_TERMINAL_EXEC:=}"
+  : "${LIB_X_CONFIG_NOTIFICATION_DURATION:=5}"
+
+  : "${LIB_X_CONFIG_CHECK_FOR_UPDATES:=true}"
+  : "${LIB_X_CONFIG_UPDATE_RECENT:=true}"
+  : "${LIB_X_CONFIG_NO_OF_RECENT:=30}"
+  : "${LIB_X_CONFIG_NO_OF_RANDOM_BOOKS:=30}"
+
+  : "${LIB_X_CONFIG_ROFI_THEME_MAIN:=}"
+  : "${LIB_X_CONFIG_ROFI_THEME_PREVIEW:=}"
+  : "${LIB_X_CONFIG_ROFI_THEME_PROMPT:=}"
+  : "${LIB_X_CONFIG_ROFI_THEME_CONFIRM:=}"
+  : "${LIB_X_CONFIG_ROFI_THEME_PAGER:=}"
+
+  : "${LIB_X_CONFIG_GUM_FILTER_OPTS:="--prompt.foreground #2ac3de --indicator.foreground #2ac3de --selected-indicator.foreground #2ac3de --unselected-prefix.foreground #585858 --header.foreground #2ac3de --text.foreground #c0caf5 --cursor-text.foreground #c0caf5 --match.foreground #2ac3de --placeholder.foreground #585858  --prompt  > --indicator ◆ --selected-prefix  ◉  --unselected-prefix  ○  --placeholder Search library..."}"
+  : "${LIB_X_CONFIG_GUM_INPUT_OPTS:="--prompt.foreground #2ac3de --cursor.foreground #c0caf5 --placeholder Search library... --cursor.mode blink"}"
+  : "${LIB_X_CONFIG_GUM_PAGER_OPTS:="--foreground #c0caf5 --line-number.foreground #585858 --match.foreground #2ac3de --match-highlight.foreground #1a1b26 --match-highlight.background #2ac3de --help.foreground #585858 --show-line-numbers --soft-wrap --border-foreground #2ac3de"}"
+  : "${LIB_X_CONFIG_GUM_SPIN_OPTS:="--spinner dot --spinner.foreground #2ac3de --title.foreground #585858  --align left"}"
+  : "${LIB_X_CONFIG_GUM_CONFIRM_OPTS:="--prompt.foreground #2ac3de --selected.foreground #1a1b26 --selected.background #2ac3de --unselected.foreground #585858"}"
+
+  : "${LIB_X_CONFIG_FZF_HEADER:=}"
+  : "${LIB_X_CONFIG_FZF_OPTS:="
+  --color=fg:#d0d0d0,fg+:#d0d0d0,bg:#121212,bg+:#262626
+  --color=hl:#5f87af,hl+:#5fd7ff,info:#afaf87,marker:#87ff00
+  --color=prompt:#d7005f,spinner:#af5fff,pointer:#af5fff,header:#87afaf
+  --color=border:#262626,label:#aeaeae,query:#d9d9d9
+  --border=rounded --border-label='' --preview-window=border-rounded --prompt='> '
+  --marker='>' --pointer='◆' --separator='─' --scrollbar='│'"}"
+}
+
+# ==============================================================================
+# UTILS
+# ==============================================================================
+_util_validate_integrity() {
+  local expected_checksum
+  local file_path
+
+  if [ "$CONFIG_VALIDATE_INTEGRITY" = "true" ]; then
+    expected_checksum="$1"
+    file_path="$2"
+
+    if _dep_ch sha256sum; then
+      actual_checksum="$(sha256sum "$file_path" | awk '{print $1}')"
+    elif _dep_ch shasum; then
+      actual_checksum="$(shasum -a 256 "$file_path" | awk '{print $1}')"
+    else
+      _ui_print "No checksum utility found. Exiting installer"
+      exit 1
+    fi
+
+    if [ "$expected_checksum" = "$actual_checksum" ]; then
+      return 0
+    else
+      return 1
+    fi
+  fi
+}
+
+_util_open() {
+  local target
+  local converted_target
+  target="$1"
+
+  if _dep_ch open; then
+    open "$target" || return 1
+    return 0
+  elif _dep_ch xdg-open; then
+    xdg-open "$target" || return 1
+    return 0
+  else
+    return 1
+  fi
+}
+
+# ==============================================================================
+# UI
+# ==============================================================================
+_ui_print() {
+  command printf "%s\n" "$1" >/dev/stderr
+}
+
+_ui_prompt() {
+  local header
+  local value
+  local default
+
+  header="$2"
+  default="$3"
+
+  if _dep_ch gum; then
+    gum input --header "$header" --value "$default" --prompt "$1: "
+  else
+    printf "%s\n" "$header" >/dev/stderr
+    printf "%s: " "$1" >/dev/stderr
+    read -r value </dev/tty
+    printf "%s" "$value"
+  fi
+}
+
+_ui_confirm() {
+  local yes
+  local no
+  local default
+  local default_index
+
+  yes="${3:-yes}"
+  no="${4:-no}"
+  default="${2:-$no}"
+
+  if [ "$default" = "$yes" ]; then
+    default_index=1
+  else
+    default_index=0
+  fi
+
+  if _dep_ch gum; then
+    gum confirm "$1" --default="$default_index" --affirmative="$yes" --negative="$no"
+  else
+    printf "%s (${yes}[y]/${no}[n]; Default: $default): " "$1" >/dev/stderr
+    read -r CONFIRMED </dev/tty
+    case "$CONFIRMED" in
+    y | "$yes")
+      return 0
+      ;;
+    n | "$no")
+      return 1
+      ;;
+    *)
+      if [ "$default" = "$yes" ]; then
+        return 0
+      else
+        return 1
+      fi
+      ;;
+    esac
+  fi
+}
+
+_ui_choose() {
+  local multi_select
+  local header
+
+  if _dep_ch gum; then
+    [ "$2" = "multi" ] && multi_select="--no-limit"
+    # shellcheck disable=SC2086
+    gum choose --header="${1}" $multi_select
+  else
+    local options
+    local choice
+
+    if _dep_ch tac; then
+      options="$(nl -s '  ' -w 1 | tac)"
+    else
+      options="$(nl -s '  ' -w 1)"
+    fi
+    printf "%s\n" "$options" >/dev/stderr
+    if [ "$2" = "multi" ]; then
+      choice="$(_ui_prompt "$1" "choices to select (comma-separated for multiple; eg 1,4)")"
+    else
+      choice="$(_ui_prompt "$1" "choice to select (eg 1)")"
+    fi
+    case $choice in
+    '' | *[!0-9]*)
+      if [ "$2" = "multi" ]; then
+        choice="$(printf "%s\n" "$options" | grep -E "^[[:space:]]*($(printf "%s\n" "$choice" | tr ',' '|'))" | sed -n "s/[0-9][0-9]*  //;p")"
+        if [ -z "$choice" ]; then
+          return 1
+        fi
+      fi
+      ;;
+    *)
+      choice="$(printf "%s\n" "$options" | sed -n "${choice}"'{ s/[0-9][0-9]* //;p }')"
+      if [ -z "$choice" ]; then
+        return 1
+      fi
+      ;;
+    esac
+    printf "%s" "$choice"
+  fi
+}
+
+# ==============================================================================
+# DATA FETCHING
+# ==============================================================================
+_fetch() {
+  local url="$1"
+  if _dep_ch curl; then
+    curl -sL "$url"
+  elif _dep_ch wget; then
+    wget -qO- "$url"
+  else
+    _ui_print "No supported download utility found (curl or wget). Please install one of them and try again."
+    exit 1
+  fi
+}
+
+_update_pkg_json() {
+  local name="$1"
+  local hash="$2"
+  local resolved_url="$3"
+  local dest_path="$4"
+  local type="$5"
+  local check_for_updates="true"
+  local repo="Benexl/lib-x"
+  local tag="$CLI_LATEST_VERSION"
+  local pkg_json="[]"
+
+  if _dep_ch jq; then
+    [ -s "$LIB_X_PKG_JSON" ] && pkg_json=$(cat "$LIB_X_PKG_JSON")
+
+    printf '%s' "$pkg_json" | jq \
+      --arg name "$name" \
+      --arg hash "$hash" \
+      --arg resolved_url "$resolved_url" \
+      --arg dest_path "$dest_path" \
+      --arg type "$type" \
+      --arg check_for_updates "$check_for_updates" \
+      --arg repo "$repo" \
+      --arg tag "$tag" '
+      .+=[
+        {
+          "name": $name,
+          "hash": $hash,
+          "resolved_url": $resolved_url,
+          "dest_path": $dest_path,
+          "type": $type,
+          "check_for_updates": $check_for_updates,
+          "repo": $repo,
+          "tag": $tag
+        }
+      ]
+    ' >"$LIB_X_PKG_JSON"
+  fi
+}
+
+_get_release_asset() {
+  local asset_name="$1"
+  local dest_path="$2"
+  local type="$3"
+  local asset_url="$LIB_X_RELEASE_TAG/$asset_name"
+
+  if _fetch "$asset_url"; then
+    _update_pkg_json "$asset_name" "" "$asset_url" "$dest_path" "$type"
+  fi
+}
+
+# ==============================================================================
+# INSTALLATION: DEPENDENCIES
+# ==============================================================================
+__install_archlinux() {
+  if _dep_ch yay; then
+    yay -S --noconfirm "$1"
+  elif _dep_ch pacman; then
+    if _dep_ch sudo; then
+      sudo pacman -S --noconfirm "$1"
+    else
+      pacman -S --noconfirm "$1"
+    fi
+  else
+    _ui_print "No supported package manager found (yay or pacman). Please install $1 manually."
+  fi
+}
+
+_install() {
+  case "$CLI_PLATFORM" in
+  linux)
+    case "$CLI_LINUX_DISTRO_ID" in
+    arch)
+      __install_archlinux "$1"
+      ;;
+    *)
+      _ui_print "Unsupported Linux distribution: $CLI_LINUX_DISTRO_ID. Please install $1 manually."
+      ;;
+    esac
+    ;;
+  *)
+    _ui_print "Unsupported platform: $CLI_PLATFORM. Please install $1 manually."
+    ;;
+  esac
+}
+
+_install_dep_calibre() { _install "calibre"; }
+_install_dep_fzf() { _install "fzf"; }
+_install_dep_gum() { _install "gum"; }
+_install_dep_chafa() { _install "chafa"; }
+_install_dep_jq() { _install "jq"; }
+_install_dep_rofi() { _install "rofi"; }
+_install_dep_yazi() { _install "yazi"; }
+
+_install_deps() {
+  while IFS= read -r dep; do
+    case "$dep" in
+    calibre) _install_dep_calibre ;;
+    fzf) _install_dep_fzf ;;
+    gum) _install_dep_gum ;;
+    chafa) _install_dep_chafa ;;
+    jq) _install_dep_jq ;;
+    rofi) _install_dep_rofi ;;
+    yazi) _install_dep_yazi ;;
+    esac
+  done
+}
+
+# ==============================================================================
+# INSTALLATION: ASSETS
+# ==============================================================================
+_install_asset_rofi_themes() {
+  local target_dest="$LIB_X_CONFIG_DIR/rofi-themes.zip"
+
+  if ! _get_release_asset "rofi-themes.zip" "$LIB_X_CONFIG_DIR/rofi-themes" "asset" >"${target_dest}.tmp"; then
+    _ui_print "Failed to download rofi-themes.zip asset"
+    exit 1
+  fi
+
+  mv "${target_dest}.tmp" "$target_dest"
+
+  if ! _dep_ch unzip; then
+    _ui_print "No supported unzip utility found. Please install unzip and try again."
+    exit 1
+  fi
+  unzip -q "$target_dest" -d "$LIB_X_CONFIG_DIR/"
+  rm "$target_dest"
+}
+
+_install_assets() {
+  while IFS= read -r asset; do
+    case "$asset" in
+    "rofi themes") _install_asset_rofi_themes ;;
+    *) ;;
+    esac
+  done
+}
+
+# ==============================================================================
+# INSTALLATION: EXTENSIONS
+# ==============================================================================
+_install_extension_default_lang() {
+  local target_dest="$LIB_X_DEFAULT_LANG_FILE"
+  local lang="$(cat)"
+
+  if ! _get_release_asset "$lang" "$target_dest" "extension" >"${target_dest}.tmp"; then
+    _ui_print "Failed to download $lang asset"
+    exit 1
+  fi
+  mv "${target_dest}.tmp" "$target_dest"
+}
+
+_install_extension_lang() {
+  while IFS= read -r lang; do
+    local target_dest="$LIB_X_EXTENSIONS_LANGS_DIR/$lang"
+    if ! _get_release_asset "$lang" "$target_dest" "extension" >"${target_dest}.tmp"; then
+      _ui_print "Failed to download $lang asset"
+      exit 1
+    fi
+    mv "${target_dest}.tmp" "$target_dest"
+  done
+}
+
+_install_extension_default_theme() {
+  local target_dest="$LIB_X_DEFAULT_THEME_FILE"
+  local theme="$(cat)"
+
+  if ! _get_release_asset "$theme" "$target_dest" "extension" >"${target_dest}.tmp"; then
+    _ui_print "Failed to download $theme asset"
+    exit 1
+  fi
+  mv "${target_dest}.tmp" "$target_dest"
+}
+
+_install_extension_theme() {
+  while IFS= read -r theme; do
+    local target_dest="$LIB_X_EXTENSIONS_THEMES_DIR/$theme"
+    if ! _get_release_asset "$theme" "$target_dest" "extension" >"${target_dest}.tmp"; then
+      _ui_print "Failed to download $theme asset"
+      exit 1
+    fi
+    mv "${target_dest}.tmp" "$target_dest"
+  done
+}
+
+# ==============================================================================
+# INSTALLER
+# ==============================================================================
+_print_lib_x_config() {
+  cat <<EOF
+# ===================================================================================
+# 大きな力には大きな責任が伴う (With great power comes great responsibility)
+# ===================================================================================
+
+# List of extensions to load automatically on startup
+CONFIG_AUTOLOADED_EXTENSIONS="$LIB_X_CONFIG_AUTOLOADED_EXTENSIONS"
+
+# Enable or disable colored/formatted output
+CONFIG_ENABLE_COLORS="$LIB_X_CONFIG_ENABLE_COLORS"
+
+# The menu launcher tool used for the ui
+CONFIG_LAUNCHER="$LIB_X_CONFIG_LAUNCHER"
+
+# Enable book metadata/cover previews within the selector
+CONFIG_ENABLE_PREVIEW="$LIB_X_CONFIG_ENABLE_PREVIEW"
+CONFIG_ENABLE_PREVIEW_IMAGES="$LIB_X_CONFIG_ENABLE_PREVIEW_IMAGES"
+
+# The tool used to render previews in the terminal
+CONFIG_IMAGE_RENDERER="$LIB_X_CONFIG_IMAGE_RENDERER"
+
+CONFIG_CHAFA_ARGS="$LIB_X_CONFIG_CHAFA_ARGS"
+CONFIG_ICAT_ARGS="$LIB_X_CONFIG_ICAT_ARGS"
+CONFIG_IMGCAT_ARGS="$LIB_X_CONFIG_IMGCAT_ARGS"
+
+# The path to your Calibre library database directory
+CONFIG_CALIBRE_LIBRARY_PATH="$LIB_X_CONFIG_CALIBRE_LIBRARY_PATH"
+
+# Preferred file explorer when adding books from folders
+CONFIG_FILE_EXPLORER="$LIB_X_CONFIG_FILE_EXPLORER"
+
+# Disown the reading process so you can close lib-x without closing the book
+CONFIG_DISOWN_READING_PROCESS="$LIB_X_CONFIG_DISOWN_READING_PROCESS"
+
+# Text editor for manual configuration editing
+CONFIG_EDITOR="$LIB_X_CONFIG_EDITOR"
+
+# Duration in seconds for desktop notifications
+CONFIG_NOTIFICATION_DURATION="$LIB_X_CONFIG_NOTIFICATION_DURATION"
+
+# Automatically check for script updates on startup
+CONFIG_CHECK_FOR_UPDATES="$LIB_X_CONFIG_CHECK_FOR_UPDATES"
+
+# Automatically update the Recent List when reading a book
+CONFIG_UPDATE_RECENT="$LIB_X_CONFIG_UPDATE_RECENT"
+
+# Number of items to keep in the recent history
+CONFIG_NO_OF_RECENT="$LIB_X_CONFIG_NO_OF_RECENT"
+
+# Number of items to retrieve when selecting "Random"
+CONFIG_NO_OF_RANDOM_BOOKS="$LIB_X_CONFIG_NO_OF_RANDOM_BOOKS"
+
+# Custom options passed directly to gum
+CONFIG_GUM_OPTS="$LIB_X_CONFIG_GUM_FILTER_OPTS"
+CONFIG_GUM_INPUT_OPTS="$LIB_X_CONFIG_GUM_INPUT_OPTS"
+CONFIG_GUM_PAGER_OPTS="$LIB_X_CONFIG_GUM_PAGER_OPTS"
+CONFIG_GUM_SPIN_OPTS="$LIB_X_CONFIG_GUM_SPIN_OPTS"
+CONFIG_GUM_CONFIRM_OPTS="$LIB_X_CONFIG_GUM_CONFIRM_OPTS"
+
+# Custom options passed directly to fzf
+CONFIG_FZF_HEADER="\\
+$LIB_X_CONFIG_FZF_HEADER"
+CONFIG_FZF_OPTS="$LIB_X_CONFIG_FZF_OPTS"
+
+# Rofi config themes
+CONFIG_ROFI_THEME_MAIN="$LIB_X_CONFIG_ROFI_THEME_MAIN"
+CONFIG_ROFI_THEME_PREVIEW="$LIB_X_CONFIG_ROFI_THEME_PREVIEW"
+CONFIG_ROFI_THEME_PROMPT="$LIB_X_CONFIG_ROFI_THEME_PROMPT"
+CONFIG_ROFI_THEME_CONFIRM="$LIB_X_CONFIG_ROFI_THEME_CONFIRM"
+CONFIG_ROFI_THEME_PAGER="$LIB_X_CONFIG_ROFI_THEME_PAGER"
+EOF
+}
+
+_install_lib_x() {
+  local target_dest="$HOME/.local/bin/lib-x"
+  mkdir -p "$(dirname "$target_dest")"
+
+  if ! _get_release_asset "lib-x" "$target_dest" "binary" >"${target_dest}.tmp"; then
+    _ui_print "Failed to download lib-x asset"
+    exit 1
+  fi
+
+  mv "${target_dest}.tmp" "$target_dest"
+  chmod +x "$target_dest"
+
+  _ui_print "lib-x has been installed to $target_dest"
+}
+
+_lib_x() {
+  readonly DEPENDENCIES="\
+calibre - for managing and interacting with your book database (required)
+jq - for parsing json responses (required)
+fzf - default launcher for browsing and searching books (required)
+rofi - alternative launcher; really cool great for keybinds (optional)
+gum - terminal QoL components for prompts, confirmations, pagers (optional)
+yazi - terminal file explorer for adding books (optional)
+chafa - for rendering book cover previews in the terminal (optional)"
+
+  readonly LANG_EXTENSIONS="\
+es.lang - Spanish language extension
+br.lang - Brazilian Portuguese language extension"
+
+  readonly THEME_EXTENSIONS="\
+catppuchin-mocha.theme - A catppuchin mocha inspired theme"
+
+  readonly ASSETS="\
+rofi themes - A collection of rofi themes optimized for lib-x"
+}
+
+installer() {
+  _lib_x_default_config
+  _installer_default_config
+  _lib_x
+
+  _ui_print "======================================================================================================="
+  _ui_print "$CLI_HEADER"
+  _ui_print "======================================================================================================="
+  _ui_print "Welcome to the interactive $CLI_NAME installer! Lets get you settled in :)"
+  _ui_print "======================================================================================================="
+
+  # shellcheck disable=SC2155
+  readonly CLI_LATEST_VERSION="$(_fetch "$CLI_VERSION_URL")"
+  readonly LIB_X_RELEASE_TAG="$CLI_RELEASE_BASE/v$CLI_LATEST_VERSION"
+
+  local missing_deps
+  missing_deps="$(
+    printf "%s\n" "$DEPENDENCIES" | while read -r dep; do
+      if ! _dep_ch "$(printf "%s\n" "$dep" | awk -F ' - ' '{print $1}')"; then
+        printf "%s\n" "$dep"
+      fi
+    done
+  )"
+  if [ -n "$missing_deps" ]; then
+    printf "%s\n" "$missing_deps" | _ui_choose "There are some dependencies which have not been found. Select dependencies you would like to install" "multi" | awk -F ' - ' '{print $1}' | _install_deps
+  fi
+
+  if _ui_confirm "Would you like to change the default language (English)?" "no"; then
+    printf "%s\n" "$LANG_EXTENSIONS" | _ui_choose "Select language extension to install" | awk -F ' - ' '{print $1}' | _install_extension_default_lang
+  fi
+
+  if _ui_confirm "Would you like to add other languages?" "no"; then
+    printf "%s\n" "$LANG_EXTENSIONS" | _ui_choose "Select language extensions to install" "multi" | awk -F ' - ' '{print $1}' | _install_extension_lang
+  fi
+
+  if _ui_confirm "Would you like to change the default theme (Tokyo Night)?" "no"; then
+    printf "%s\n" "$THEME_EXTENSIONS" | _ui_choose "Select theme extension to install" | awk -F ' - ' '{print $1}' | _install_extension_default_theme
+  fi
+
+  if _ui_confirm "Would you like to add other themes?" "no"; then
+    printf "%s\n" "$THEME_EXTENSIONS" | _ui_choose "Select theme extensions to install" "multi" | awk -F ' - ' '{print $1}' | _install_extension_theme
+  fi
+
+  if _ui_confirm "Would you like to install external assets like rofi themes?" "yes"; then
+    printf "%s\n" "$ASSETS" | _ui_choose "Select assets to install" "multi" | awk -F ' - ' '{print $1}' | _install_assets
+    if [ -d "$LIB_X_CONFIG_DIR/rofi-themes" ]; then
+      LIB_X_CONFIG_ROFI_THEME_MAIN="$LIB_X_CONFIG_DIR/rofi-themes/main.rasi"
+      LIB_X_CONFIG_ROFI_THEME_PREVIEW="$LIB_X_CONFIG_DIR/rofi-themes/preview.rasi"
+      LIB_X_CONFIG_ROFI_THEME_PROMPT="$LIB_X_CONFIG_DIR/rofi-themes/prompt.rasi"
+      LIB_X_CONFIG_ROFI_THEME_CONFIRM="$LIB_X_CONFIG_DIR/rofi-themes/confirm.rasi"
+      LIB_X_CONFIG_ROFI_THEME_PAGER="$LIB_X_CONFIG_DIR/rofi-themes/pager.rasi"
+    fi
+  fi
+
+  if _ui_confirm "Would you like to interactively define your config?" "yes"; then
+    LIB_X_CONFIG_CALIBRE_LIBRARY_PATH="$(_ui_prompt "CALIBRE_LIBRARY_PATH (Path to library)" "$LIB_X_CONFIG_CALIBRE_LIBRARY_PATH" "$LIB_X_CONFIG_CALIBRE_LIBRARY_PATH")"
+    LIB_X_CONFIG_FILE_EXPLORER="$(_ui_prompt "FILE_EXPLORER (yazi/fzf)" "$LIB_X_CONFIG_FILE_EXPLORER" "$LIB_X_CONFIG_FILE_EXPLORER")"
+    LIB_X_CONFIG_DISOWN_READING_PROCESS="$(_ui_prompt "DISOWN_READING_PROCESS (true/false)" "$LIB_X_CONFIG_DISOWN_READING_PROCESS" "$LIB_X_CONFIG_DISOWN_READING_PROCESS")"
+    
+    LIB_X_CONFIG_LAUNCHER="$(_ui_prompt "LAUNCHER (fzf/rofi/gum)" "$LIB_X_CONFIG_LAUNCHER" "$LIB_X_CONFIG_LAUNCHER")"
+    LIB_X_CONFIG_ENABLE_PREVIEW="$(_ui_prompt "ENABLE_PREVIEW (true/false)" "$LIB_X_CONFIG_ENABLE_PREVIEW" "$LIB_X_CONFIG_ENABLE_PREVIEW")"
+    LIB_X_CONFIG_ENABLE_PREVIEW_IMAGES="$(_ui_prompt "ENABLE_PREVIEW_IMAGES (true/false)" "$LIB_X_CONFIG_ENABLE_PREVIEW_IMAGES" "$LIB_X_CONFIG_ENABLE_PREVIEW_IMAGES")"
+
+    LIB_X_CONFIG_IMAGE_RENDERER="$(_ui_prompt "IMAGE_RENDERER (chafa/icat/imgcat)" "$LIB_X_CONFIG_IMAGE_RENDERER" "$LIB_X_CONFIG_IMAGE_RENDERER")"
+    LIB_X_CONFIG_EDITOR="$(_ui_prompt "EDITOR" "$LIB_X_CONFIG_EDITOR" "$LIB_X_CONFIG_EDITOR")"
+  fi
+  
+  _print_lib_x_config >"$LIB_X_CONFIG_FILE"
+
+  if _install_lib_x; then
+    _ui_print "Installation complete 🥳! Enjoy $CLI_NAME!"
+    if _ui_confirm "Would you like to open the github repo page?" "yes"; then
+      _util_open "$CLI_REPO_URL"
+    fi
+  else
+    _ui_print "Installation failed. Please try again or report the issue on GitHub."
+  fi
+}
+
+installer

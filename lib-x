@@ -1434,6 +1434,8 @@ __state_clean_prev() {
 _state_init() {
   STATE_CURRENT=0
 
+  STATE_CURRENT_CATEGORY=""
+
   STATE_CURRENT_BOOKS=""
   STATE_CURRENT_BOOK_TITLES=""
 
@@ -1449,6 +1451,8 @@ _state_push() {
   mkdir -p "$current_state_dir"
 
   cat <<EOF >"$current_state_dir/state.env"
+STATE_CURRENT_CATEGORY='$(printf "%s" "$STATE_CURRENT_CATEGORY" | sed "s/'/'\\\\''/g")'
+
 STATE_CURRENT_BOOKS='$(printf "%s" "$STATE_CURRENT_BOOKS" | sed "s/'/'\\\\''/g")'
 STATE_CURRENT_BOOK_TITLES='$(printf "%s" "$STATE_CURRENT_BOOK_TITLES" | sed "s/'/'\\\\''/g")'
 

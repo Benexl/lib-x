@@ -60,16 +60,23 @@ XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 
 readonly CLI_CONFIG_DIR="$XDG_CONFIG_HOME/$CLI_APP_NAME"
-readonly CLI_DBS_DIR="$CLI_CONFIG_DIR/DBS"
-readonly CLI_CACHE_DIR="$XDG_CACHE_HOME/$CLI_APP_NAME"
+readonly CLI_USER_LISTS="$CLI_CONFIG_DIR/my-lists"
+readonly CLI_EXTENSIONS_DIR="$CLI_CONFIG_DIR/extensions"
 
+readonly CLI_CONFIG_FILE="$CLI_CONFIG_DIR/config"
+readonly CLI_USER_LIST_READING="$CLI_USER_LISTS/reading"
+readonly CLI_USER_LIST_PAUSED="$CLI_USER_LISTS/paused"
+readonly CLI_USER_LIST_PLANNING="$CLI_USER_LISTS/planning"
+readonly CLI_USER_LIST_REREADING="$CLI_USER_LISTS/REREADING"
+readonly CLI_USER_LIST_COMPLETED="$CLI_USER_LISTS/completed"
+readonly CLI_USER_LIST_DROPPED="$CLI_USER_LISTS/dropped"
+
+readonly CLI_CACHE_DIR="$XDG_CACHE_HOME/$CLI_APP_NAME"
 readonly CLI_STATE_DIR="$CLI_CACHE_DIR/state"
 readonly CLI_CURRENT_STATE_DIR="$CLI_STATE_DIR/${CLI_START_TIME}-$$"
 
 readonly CLI_PREVIEW_SCRIPTS_DIR="$CLI_CACHE_DIR/previews"
 readonly CLI_FZF_PREVIEW_SCRIPT="$CLI_PREVIEW_SCRIPTS_DIR/fzf-preview.sh"
-
-readonly CLI_CONFIG_FILE="$CLI_CONFIG_DIR/config"
 
 readonly CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE="$CLI_CACHE_DIR/.calibre_library_timestamp"
 readonly CALIBRE_DB_JSON_FILE="$CLI_CACHE_DIR/calibre_db.json"
@@ -78,7 +85,8 @@ readonly CLI_LAST_DB_TIMESTAMP="$CLI_CACHE_DIR/last_db_timestamp"
 
 mkdir -p \
   "$CLI_CONFIG_DIR" \
-  "$CLI_DBS_DIR" \
+  "$CLI_USER_LISTS" \
+  "$CLI_EXTENSIONS_DIR" \
   "$CLI_CURRENT_STATE_DIR" \
   "$CLI_PREVIEW_SCRIPTS_DIR"
 
@@ -247,11 +255,11 @@ __load_default_lang() {
   TXT_FZF_PREVIEW_PUBDATE="Published"
 
   TXT_MENU_MAIN_PROMPT_ACTION="Select Action"
-  TXT_MENU_MAIN_READING_LIST="Reading"
+  TXT_MENU_MAIN_READING="Reading"
   TXT_MENU_MAIN_RECENT="Recent"
   TXT_MENU_MAIN_PAUSED="Paused"
   TXT_MENU_MAIN_REREADING="Re-reading"
-  TXT_MENU_MAIN_PLANING="Planing"
+  TXT_MENU_MAIN_PLANNING="Planing"
   TXT_MENU_MAIN_COMPLETED="Completed"
   TXT_MENU_MAIN_DOCS="Docs"
   TXT_MENU_MAIN_RANDOM="Random"
@@ -283,23 +291,23 @@ __load_default_lang() {
   TXT_MENU_LIST_EMPTY="List is empty."
 
   TXT_MENU_BOOK_ACTIONS_PROMPT="Select Book Action"
-  TXT_MENU_BOOK_ACTIONS_PROMPT_LIST="Select List"
+  TXT_MENU_BOOK_ACTIONS_USER_LISTS_PROMPT="Select List"
   TXT_MENU_BOOK_ACTIONS_PROMPT_FIELD="Select field to edit"
   TXT_MENU_BOOK_ACTIONS_PROMPT_NEW_VAL="Enter new value for"
   TXT_MENU_BOOK_ACTIONS_READ="Read"
-  TXT_MENU_BOOK_ACTIONS_ADD_LIST="Add To List"
-  TXT_MENU_BOOK_ACTIONS_REMOVE_LIST="Remove From List"
+  TXT_MENU_BOOK_ACTIONS_ADD_TO_USER_LIST="Add To List"
+  TXT_MENU_BOOK_ACTIONS_REMOVE_FROM_USER_LIST="Remove From List"
   TXT_MENU_BOOK_ACTIONS_REMOVE_BOOK="Remove Book"
   TXT_MENU_BOOK_ACTIONS_REMOVE_CONFIRM="Are you sure you want to remove"
   TXT_MENU_BOOK_ACTIONS_EDIT_METADATA="Edit Metadata"
   TXT_MENU_BOOK_ACTIONS_REMOVED_SUCCESS="Successfully removed"
 
   # Icons
-  TXT_ICON_MENU_MAIN_READING_LIST=""
+  TXT_ICON_MENU_MAIN_READING=""
   TXT_ICON_MENU_MAIN_RECENT=""
   TXT_ICON_MENU_MAIN_PAUSED=""
   TXT_ICON_MENU_MAIN_REREADING=""
-  TXT_ICON_MENU_MAIN_PLANING=""
+  TXT_ICON_MENU_MAIN_PLANNING=""
   TXT_ICON_MENU_MAIN_COMPLETED=""
   TXT_ICON_MENU_MAIN_DOCS="󰈙"
   TXT_ICON_MENU_MAIN_RANDOM=""
@@ -1572,6 +1580,7 @@ _fetch_calibre_db_all() {
 fetch_calibre_db_all() {
   _fetch_calibre_db_all "$@"
 }
+
 # ==============================================================================
 # Calibre: search functions
 # ==============================================================================
@@ -1610,8 +1619,12 @@ fetch_calibre_db_search_series() {
 _fetch_calibre_db_search_author() {
   _fetch_calibre_db | jq -r --arg author "$1" --arg sort_by "$2" "
   map(select((.authors | split(\",\") | index(\$author)) != null))
-    | $CALIBRE_SORT_JQ
-    sort_calibre_db(\$sort_by)
+  | if \$sort_by != \"\" then
+      $CALIBRE_SORT_JQ
+      sort_calibre_db(\$sort_by)
+      else
+      .
+    end
   "
 }
 
@@ -1622,12 +1635,12 @@ fetch_calibre_db_search_author() {
 _fetch_calibre_db_search_tag() {
   _fetch_calibre_db | jq -r --arg tag "$1" --arg sort_by "$2" "
   map(select((.tags | index(\$tag)) != null))
-    | if \$sort_by != \"\" then
-        $CALIBRE_SORT_JQ
-        sort_calibre_db(\$sort_by)
-       else
-        .
-      end
+  | if \$sort_by != \"\" then
+      $CALIBRE_SORT_JQ
+      sort_calibre_db(\$sort_by)
+      else
+      .
+    end
   "
 }
 
@@ -1638,12 +1651,12 @@ fetch_calibre_db_search_tag() {
 _fetch_calibre_db_search_format() {
   _fetch_calibre_db | jq -r --arg format "$1" --arg sort_by "$2" "
   map(select(.formats[] | ascii_downcase | endswith(\".\\(\$format | ascii_downcase)\")))
-    | if \$sort_by != \"\" then
-        $CALIBRE_SORT_JQ
-        sort_calibre_db(\$sort_by)
-       else
-        .
-      end
+  | if \$sort_by != \"\" then
+      $CALIBRE_SORT_JQ
+      sort_calibre_db(\$sort_by)
+      else
+      .
+    end
   "
 }
 
@@ -1654,12 +1667,12 @@ fetch_calibre_db_search_format() {
 _fetch_calibre_db_search_language() {
   _fetch_calibre_db | jq -r --arg lang "$1" --arg sort_by "$2" "
   map(select(any(.languages[]; \$lang | test(.; \"i\"))))
-    | if \$sort_by != \"\" then
-        $CALIBRE_SORT_JQ
-        sort_calibre_db(\$sort_by)
-       else
-        .
-      end
+  | if \$sort_by != \"\" then
+      $CALIBRE_SORT_JQ
+      sort_calibre_db(\$sort_by)
+      else
+      .
+    end
   "
 }
 
@@ -1702,8 +1715,12 @@ fetch_calibre_db_search_publisher() {
 _fetch_calibre_db_search_identifier() {
   _fetch_calibre_db | jq -r --arg identifier "$1" --arg sort_by "$2" "
   map(select((.identifiers | to_entries[].key) == \$identifier))
-    | $CALIBRE_SORT_JQ
-    sort_calibre_db(\$sort_by)
+  | if \$sort_by != \"\" then
+      $CALIBRE_SORT_JQ
+      sort_calibre_db(\$sort_by)
+      else
+      .
+    end
   "
 }
 
@@ -1714,43 +1731,48 @@ fetch_calibre_db_search_identifier() {
 # ==============================================================================
 # User Lists
 # ==============================================================================
-_manage_user_list() {
-  local list_name="$1"
-  local action="$2"
-  local title="$3"
-  local file="$CLI_DBS_DIR/${list_name}"
+__manage_user_list() {
+  local user_list_path
+  local action
+  local limit
+
+  user_list_path="$1"
+  action="$2"
+  limit="${3}"
+
+  if [ -s "$user_list_path" ]; then
+    user_list="$(cat "$user_list_path")"
+  fi
 
   case "$action" in
   add)
-    if grep -Fqx "$title" "$file" 2>/dev/null; then
-      ui_notify_warning "Already in $list_name List"
-    else
-      ui_notify "Adding to $list_name list..."
-      printf "%s\n" "$title" >>"$file"
-    fi
+    printf '%s\n' "$user_list" | awk -v book="$STATE_CURRENT_BOOK_TITLE" -v limit="$limit" '
+      $0 != book
+      {
+        books[NR]=$0
+      }
+      END {
+        limit = limit == "" ? NR : limit
+        for (i=(NR+1)-limit; i<=NR; i++) {
+          print books[i]
+        }
+        print book
+      }
+      ' >"$user_list_path"
     ;;
   remove)
-    if grep -Fqx "$title" "$file" 2>/dev/null; then
-      if ui_confirm "Are you sure you want to remove '$title' from $list_name List?"; then
-        ui_notify "Removing from $list_name List..."
-        grep -Fv "$title" "$file" >"${file}.tmp"
-        mv "${file}.tmp" "$file"
-      fi
-    else
-      ui_notify_warning "$title is not in your $list_name List"
+    if [ -z "$user_list" ]; then
+      ui_notify_warning "$TXT_WARNING_USER_LIST_EMPTY"
+      return
     fi
+    printf '%s\n' "$user_list" | awk -v book="$STATE_CURRENT_BOOK_TITLE" '
+      $0 != book
+      {
+        print $0
+      }
+      ' >"$user_list_path"
     ;;
   esac
-}
-
-_update_recent() {
-  local title="$1"
-  local file="$CLI_DBS_DIR/recent"
-  grep -Fv "$title" "$file" >"${file}.tmp" 2>/dev/null || true
-  mv "${file}.tmp" "$file" 2>/dev/null || true
-  printf "%s\n" "$title" >>"$file"
-  tail -n "$CONFIG_NO_OF_RECENT" "$file" >"${file}.tmp"
-  mv "${file}.tmp" "$file"
 }
 
 # ==============================================================================
@@ -1771,38 +1793,33 @@ __menu_book_actions_read() {
   fi
 }
 
-__menu_book_actions_add_to_list() {
+__menu_book_actions_manage_user_lists() {
   local list
 
-  list="$(printf "%s\n%s\n%s\n%s\n%s\n%s\n%s" \
-    "$TXT_MENU_MAIN_READING_LIST" \
-    "$TXT_MENU_MAIN_PAUSED" \
-    "$TXT_MENU_MAIN_PLANING" \
-    "$TXT_MENU_MAIN_REREADING" \
-    "$TXT_MENU_MAIN_DOCS" \
-    "$TXT_MENU_MAIN_COMPLETED" \
-    "$TXT_MENU_MAIN_DROPPED" | ui_launcher "$TXT_MENU_BOOK_ACTIONS_PROMPT_LIST")"
+  while true; do
+    lists="\
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_READING}${THEME_RESET}  $TXT_MENU_MAIN_READING
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_PAUSED}${THEME_RESET}  $TXT_MENU_MAIN_PAUSED
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_PLANNING}${THEME_RESET}  $TXT_MENU_MAIN_PLANNING
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_REREADING}${THEME_RESET}  $TXT_MENU_MAIN_REREADING
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_DOCS}${THEME_RESET}  $TXT_MENU_MAIN_DOCS
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_COMPLETED}${THEME_RESET}  $TXT_MENU_MAIN_COMPLETED
+${THEME_FZF_ICON_COLOR_ERROR}${TXT_ICON_MENU_MAIN_DROPPED}${THEME_RESET}  $TXT_MENU_MAIN_DROPPED
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BACK}${THEME_RESET}  $TXT_MENU_BACK"
 
-  if [ -n "$list" ]; then
-    _manage_user_list "$(printf '%s' "$list" | tr ' ' '_' | tr '[:upper:]' '[:lower:]')" "add" "$STATE_CURRENT_BOOK_TITLE"
-  fi
-}
+    list="$(printf '%s' "$lists" | ui_launcher "$TXT_MENU_BOOK_ACTIONS_USER_LISTS_PROMPT" | sed 's/.*  //g')"
 
-__menu_book_actions_remove_from_list() {
-  local list
-
-  list="$(printf "%s\n%s\n%s\n%s\n%s\n%s\n%s" \
-    "$TXT_MENU_MAIN_READING_LIST" \
-    "$TXT_MENU_MAIN_PAUSED" \
-    "$TXT_MENU_MAIN_PLANING" \
-    "$TXT_MENU_MAIN_REREADING" \
-    "$TXT_MENU_MAIN_DOCS" \
-    "$TXT_MENU_MAIN_COMPLETED" \
-    "$TXT_MENU_MAIN_DROPPED" | ui_launcher "$TXT_MENU_BOOK_ACTIONS_PROMPT_LIST")"
-
-  if [ -n "$list" ]; then
-    _manage_user_list "$(printf '%s' "$list" | tr ' ' '_' | tr '[:upper:]' '[:lower:]')" "remove" "$STATE_CURRENT_BOOK_TITLE"
-  fi
+    case "$list" in
+    "$TXT_MENU_MAIN_READING") __manage_user_list "$CLI_USER_LIST_READING" "$1" ;;
+    "$TXT_MENU_MAIN_PAUSED") __manage_user_list "$CLI_USER_LIST_PAUSED" "$1" ;;
+    "$TXT_MENU_MAIN_PLANNING") __manage_user_list "$CLI_USER_LIST_PLANNING" "$1" ;;
+    "$TXT_MENU_MAIN_REREADING") __manage_user_list "$CLI_USER_LIST_REREADING" "$1" ;;
+    "$TXT_MENU_MAIN_DOCS") __manage_user_list "$CLI_USER_LIST_DOCS" "$1" ;;
+    "$TXT_MENU_MAIN_COMPLETED") __manage_user_list "$CLI_USER_LIST_COMPLETED" "$1" ;;
+    "$TXT_MENU_MAIN_DROPPED") __manage_user_list "$CLI_USER_LIST_DROPPED" "$1" ;;
+    "$TXT_MENU_BACK" | "") break ;;
+    esac
+  done
 }
 
 __menu_book_actions_remove_book() {
@@ -1855,8 +1872,8 @@ _menu_book_actions() {
 
   actions="\
  ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_READ}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_READ}
- ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_ADD_LIST}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_ADD_LIST}
- ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_REMOVE_LIST}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_REMOVE_LIST}
+ ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_ADD_LIST}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_ADD_TO_USER_LIST}
+ ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_REMOVE_LIST}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_REMOVE_FROM_USER_LIST}
  ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_REMOVE_BOOK}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_REMOVE_BOOK}
  ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_EDIT_METADATA}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_EDIT_METADATA}
  ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BACK}${THEME_RESET}  ${TXT_MENU_BACK}
@@ -1885,8 +1902,8 @@ $extra_menu_options"
 
     case "$action" in
     "$TXT_MENU_BOOK_ACTIONS_READ") __menu_book_actions_read ;;
-    "$TXT_MENU_BOOK_ACTIONS_ADD_LIST") __menu_book_actions_add_to_list ;;
-    "$TXT_MENU_BOOK_ACTIONS_REMOVE_LIST") __menu_book_actions_remove_from_list ;;
+    "$TXT_MENU_BOOK_ACTIONS_ADD_TO_USER_LIST") __menu_book_actions_manage_user_lists "add" ;;
+    "$TXT_MENU_BOOK_ACTIONS_REMOVE_FROM_USER_LIST") __menu_book_actions_manage_user_lists "remove" ;;
     "$TXT_MENU_BOOK_ACTIONS_REMOVE_BOOK") __menu_book_actions_remove_book ;;
     "$TXT_MENU_BOOK_ACTIONS_EDIT_METADATA") __menu_book_actions_edit_metadata ;;
     "$TXT_MENU_BACK" | "") _state_pop && break ;;
@@ -2330,11 +2347,11 @@ _menu_main() {
   local extra_menu_options_handler="$4"
 
   actions="\
-${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_READING_LIST}${THEME_RESET}  ${TXT_MENU_MAIN_READING_LIST}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_READING}${THEME_RESET}  ${TXT_MENU_MAIN_READING}
 ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_RECENT}${THEME_RESET}  ${TXT_MENU_MAIN_RECENT}
 ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_PAUSED}${THEME_RESET}  ${TXT_MENU_MAIN_PAUSED}
 ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_REREADING}${THEME_RESET}  ${TXT_MENU_MAIN_REREADING}
-${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_PLANING}${THEME_RESET}  ${TXT_MENU_MAIN_PLANING}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_PLANNING}${THEME_RESET}  ${TXT_MENU_MAIN_PLANNING}
 ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_COMPLETED}${THEME_RESET}  ${TXT_MENU_MAIN_COMPLETED}
 ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_DOCS}${THEME_RESET}  ${TXT_MENU_MAIN_DOCS}
 ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_RANDOM}${THEME_RESET}  ${TXT_MENU_MAIN_RANDOM}
@@ -2375,12 +2392,12 @@ $extra_menu_options"
     fi
 
     case "$action" in
-    "$TXT_MENU_MAIN_READING_LIST") __menu_main_reading_list ;;
+    "$TXT_MENU_MAIN_READING") __menu_main_reading_list ;;
     "$TXT_MENU_MAIN_RECENT") __menu_main_recent ;;
     "$TXT_MENU_MAIN_PAUSED") __menu_main_paused ;;
     "$TXT_MENU_MAIN_COMPLETED") __menu_main_completed ;;
     "$TXT_MENU_MAIN_REREADING") __menu_main_rereading ;;
-    "$TXT_MENU_MAIN_PLANING") __menu_main_planning ;;
+    "$TXT_MENU_MAIN_PLANNING") __menu_main_planning ;;
     "$TXT_MENU_MAIN_DOCS") __menu_main_docs ;;
     "$TXT_MENU_MAIN_RANDOM") __menu_main_random ;;
     "$TXT_MENU_MAIN_SEARCH") __menu_main_search ;;
@@ -2784,11 +2801,11 @@ _app_cmd_line_parser() {
       readonly CLI_EXTENSION_CMDLINE_ARGS="$*"
       return
       ;;
-    --reading-list) CMD_MAIN_ACTION="$TXT_MENU_MAIN_READING_LIST" ;;
+    --reading-list) CMD_MAIN_ACTION="$TXT_MENU_MAIN_READING" ;;
     --recent) CMD_MAIN_ACTION="$TXT_MENU_MAIN_RECENT" ;;
     --paused) CMD_MAIN_ACTION="$TXT_MENU_MAIN_PAUSED" ;;
     --rereading) CMD_MAIN_ACTION="$TXT_MENU_MAIN_REREADING" ;;
-    --planing) CMD_MAIN_ACTION="$TXT_MENU_MAIN_PLANING" ;;
+    --planing) CMD_MAIN_ACTION="$TXT_MENU_MAIN_PLANNING" ;;
     --completed) CMD_MAIN_ACTION="$TXT_MENU_MAIN_COMPLETED" ;;
     --docs) CMD_MAIN_ACTION="$TXT_MENU_MAIN_DOCS" ;;
     --dropped) CMD_MAIN_ACTION="$TXT_MENU_MAIN_DROPPED" ;;

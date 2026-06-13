@@ -1558,14 +1558,32 @@ def sort_calibre_db($key):
   end;
 '
 
+_fetch_calibre_db_all() {
+  _fetch_calibre_db | jq -r --arg sort_by "$1" "
+    if \$sort_by != \"\" then
+      $CALIBRE_SORT_JQ
+      sort_calibre_db(\$sort_by)
+      else
+      .
+    end
+  "
+}
+
+fetch_calibre_db_all() {
+  _fetch_calibre_db_all "$@"
+}
 # ==============================================================================
 # Calibre: search functions
 # ==============================================================================
 _fetch_calibre_db_search_title() {
   _fetch_calibre_db | jq -r --arg title "$1" --arg sort_by "$2" "
     map(select(.title | test(\$title; \"i\")))
-    | $CALIBRE_SORT_JQ
-    sort_calibre_db(\$sort_by)
+    | if \$sort_by != \"\" then
+        $CALIBRE_SORT_JQ
+        sort_calibre_db(\$sort_by)
+       else
+        .
+      end
   "
 }
 
@@ -1576,8 +1594,12 @@ fetch_calibre_db_search_title() {
 _fetch_calibre_db_search_series() {
   _fetch_calibre_db | jq -r --arg series "$1" --arg sort_by "$2" "
     map(select(.series == \$series))
-    | $CALIBRE_SORT_JQ
-    sort_calibre_db(\$sort_by)
+    | if \$sort_by != \"\" then
+        $CALIBRE_SORT_JQ
+        sort_calibre_db(\$sort_by)
+       else
+        .
+      end
   "
 }
 
@@ -1600,8 +1622,12 @@ fetch_calibre_db_search_author() {
 _fetch_calibre_db_search_tag() {
   _fetch_calibre_db | jq -r --arg tag "$1" --arg sort_by "$2" "
   map(select((.tags | index(\$tag)) != null))
-    | $CALIBRE_SORT_JQ
-    sort_calibre_db(\$sort_by)
+    | if \$sort_by != \"\" then
+        $CALIBRE_SORT_JQ
+        sort_calibre_db(\$sort_by)
+       else
+        .
+      end
   "
 }
 
@@ -1612,8 +1638,12 @@ fetch_calibre_db_search_tag() {
 _fetch_calibre_db_search_format() {
   _fetch_calibre_db | jq -r --arg format "$1" --arg sort_by "$2" "
   map(select(.formats[] | ascii_downcase | endswith(\".\\(\$format | ascii_downcase)\")))
-    | $CALIBRE_SORT_JQ
-    sort_calibre_db(\$sort_by)
+    | if \$sort_by != \"\" then
+        $CALIBRE_SORT_JQ
+        sort_calibre_db(\$sort_by)
+       else
+        .
+      end
   "
 }
 
@@ -1624,8 +1654,12 @@ fetch_calibre_db_search_format() {
 _fetch_calibre_db_search_language() {
   _fetch_calibre_db | jq -r --arg lang "$1" --arg sort_by "$2" "
   map(select(any(.languages[]; \$lang | test(.; \"i\"))))
-    | $CALIBRE_SORT_JQ
-    sort_calibre_db(\$sort_by)
+    | if \$sort_by != \"\" then
+        $CALIBRE_SORT_JQ
+        sort_calibre_db(\$sort_by)
+       else
+        .
+      end
   "
 }
 
@@ -1636,8 +1670,12 @@ fetch_calibre_db_search_language() {
 _fetch_calibre_db_search_rating() {
   _fetch_calibre_db | jq -r --argjson rating "$1" --arg sort_by "$2" "
     map(select(.rating == \$rating ))
-    | $CALIBRE_SORT_JQ
-    sort_calibre_db(\$sort_by)
+    | if \$sort_by != \"\" then
+        $CALIBRE_SORT_JQ
+        sort_calibre_db(\$sort_by)
+       else
+        .
+      end
   "
 }
 
@@ -1648,8 +1686,12 @@ fetch_calibre_db_search_rating() {
 _fetch_calibre_db_search_publisher() {
   _fetch_calibre_db | jq -r --arg publisher "$1" --arg sort_by "$2" "
   map(select((.publisher // \"\" | split(\",\") | index(\$publisher)) != null))
-    | $CALIBRE_SORT_JQ
-    sort_calibre_db(\$sort_by)
+    | if \$sort_by != \"\" then
+        $CALIBRE_SORT_JQ
+        sort_calibre_db(\$sort_by)
+       else
+        .
+      end
   "
 }
 
@@ -2036,6 +2078,7 @@ __menu_main_random() {
 
 __menu_main_search() {
   local query
+  local sort
 
   if [ -n "$CMD_INPUT" ]; then
     query="$CMD_INPUT"
@@ -2043,14 +2086,14 @@ __menu_main_search() {
     query="$(ui_prompt "$TXT_MENU_MAIN_SEARCH_PROMPT")"
   fi
 
-  STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_title "$query" "title")"
+  STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_title "$query" "$CONFIG_SORT_BY")"
   STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
   _state_push
   menu_book_list_explorer
 }
 
 __menu_main_all() {
-  STATE_CURRENT_BOOKS="$(fetch_calibre_db)"
+  STATE_CURRENT_BOOKS="$(fetch_calibre_db_all "$CONFIG_SORT_BY")"
   STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
   _state_push
   menu_book_list_explorer
@@ -2076,7 +2119,7 @@ __menu_main_series() {
     fi
 
     STATE_CURRENT_CATEGORY="series,$query"
-    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_series "$query" "title")"
+    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_series "$query" "$CONFIG_SORT_BY")"
     STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
     _state_push
     menu_book_list_explorer
@@ -2103,7 +2146,7 @@ __menu_main_authors() {
     fi
 
     STATE_CURRENT_CATEGORY="authors,$query"
-    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_author "$query" "title")"
+    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_author "$query" "$CONFIG_SORT_BY")"
     STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
     _state_push
     menu_book_list_explorer
@@ -2130,7 +2173,7 @@ __menu_main_tags() {
     fi
 
     STATE_CURRENT_CATEGORY="tags,$query"
-    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_tag "$query" "title")"
+    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_tag "$query" "$CONFIG_SORT_BY")"
     STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
     _state_push
     menu_book_list_explorer
@@ -2157,7 +2200,7 @@ __menu_main_formats() {
     fi
 
     STATE_CURRENT_CATEGORY="formats,$query"
-    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_format "$query" "title")"
+    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_format "$query" "$CONFIG_SORT_BY")"
     STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
     _state_push
     menu_book_list_explorer
@@ -2184,7 +2227,7 @@ __menu_main_languages() {
     fi
 
     STATE_CURRENT_CATEGORY="languages,$query"
-    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_language "$query" "title")"
+    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_language "$query" "$CONFIG_SORT_BY")"
     STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
     _state_push
     menu_book_list_explorer
@@ -2211,7 +2254,7 @@ __menu_main_ratings() {
     fi
 
     STATE_CURRENT_CATEGORY="rating,$query"
-    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_rating "$query" "title")"
+    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_rating "$query" "$CONFIG_SORT_BY")"
     STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
     _state_push
     menu_book_list_explorer
@@ -2238,7 +2281,7 @@ __menu_main_publishers() {
     fi
 
     STATE_CURRENT_CATEGORY="publisher,$query"
-    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_publisher "$query" "title")"
+    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_publisher "$query" "$CONFIG_SORT_BY")"
     STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
     _state_push
     menu_book_list_explorer
@@ -2265,7 +2308,7 @@ __menu_main_identifiers() {
     fi
 
     STATE_CURRENT_CATEGORY="identifiers,$query"
-    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_identifier "$query" "title")"
+    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_identifier "$query" "$CONFIG_SORT_BY")"
     STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
     _state_push
     menu_book_list_explorer

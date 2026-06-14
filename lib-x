@@ -1769,7 +1769,7 @@ __manage_user_list() {
       return
     fi
     printf '%s' "$user_list" | awk -v book="$STATE_CURRENT_BOOK_TITLE" '
-      $0 != book
+      NF && $0 != book
       {
         print $0
       }

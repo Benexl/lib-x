@@ -70,6 +70,7 @@ readonly CLI_USER_LIST_PLANNING="$CLI_USER_LISTS/planning.txt"
 readonly CLI_USER_LIST_REREADING="$CLI_USER_LISTS/re-reading.txt"
 readonly CLI_USER_LIST_COMPLETED="$CLI_USER_LISTS/completed.txt"
 readonly CLI_USER_LIST_DROPPED="$CLI_USER_LISTS/dropped.txt"
+readonly CLI_USER_LIST_DOCS="$CLI_USER_LISTS/docs.txt"
 
 readonly CLI_CACHE_DIR="$XDG_CACHE_HOME/$CLI_APP_NAME"
 readonly CLI_STATE_DIR="$CLI_CACHE_DIR/state"
@@ -78,10 +79,10 @@ readonly CLI_CURRENT_STATE_DIR="$CLI_STATE_DIR/${CLI_START_TIME}-$$"
 readonly CLI_PREVIEW_SCRIPTS_DIR="$CLI_CACHE_DIR/previews"
 readonly CLI_FZF_PREVIEW_SCRIPT="$CLI_PREVIEW_SCRIPTS_DIR/fzf-preview.sh"
 
+readonly CLI_USER_LIST_RECENT="$CLI_CACHE_DIR/recent.txt"
 readonly CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE="$CLI_CACHE_DIR/.calibre_library_timestamp"
 readonly CALIBRE_DB_JSON_FILE="$CLI_CACHE_DIR/calibre_db.json"
 readonly CALIBRE_CATEGORIES_CSV_FILE="$CLI_CACHE_DIR/calibre_categories.csv"
-readonly CLI_LAST_DB_TIMESTAMP="$CLI_CACHE_DIR/last_db_timestamp"
 
 mkdir -p \
   "$CLI_CONFIG_DIR" \
@@ -254,7 +255,7 @@ __load_default_lang() {
   TXT_FZF_PREVIEW_RATING="Rating"
   TXT_FZF_PREVIEW_PUBDATE="Published"
 
-  TXT_MENU_MAIN_PROMPT_ACTION="Select Action"
+  TXT_MENU_MAIN_PROMPT="Select Action"
   TXT_MENU_MAIN_READING="Reading"
   TXT_MENU_MAIN_RECENT="Recent"
   TXT_MENU_MAIN_PAUSED="Paused"
@@ -288,7 +289,7 @@ __load_default_lang() {
   TXT_MENU_MISC_PROMPT_PROCEED="Proceed adding books?"
 
   TXT_MENU_LIST_EXPLORER_PROMPT="Select Book"
-  TXT_MENU_LIST_EMPTY="List is empty."
+  TXT_WARNING_USER_LIST_EMPTY="User list is empty."
 
   TXT_MENU_BOOK_ACTIONS_PROMPT="Select Book Action"
   TXT_MENU_BOOK_ACTIONS_USER_LISTS_PROMPT="Select List"
@@ -1782,7 +1783,7 @@ __menu_book_actions_read() {
   local book_path
 
   if [ "$CONFIG_UPDATE_RECENT" = "true" ]; then
-    _update_recent "$STATE_CURRENT_BOOK_TITLE"
+    __manage_user_list "$CLI_USER_LIST_RECENT" "add" "$CONFIG_RECENT_LIST_LIMIT"
   fi
 
   book_path="$(printf '%s' "$STATE_CURRENT_BOOK" | jq -r '.formats[0]')"
@@ -2081,10 +2082,65 @@ _menu_miscellaneous() {
 menu_miscellaneous() {
   _menu_miscellaneous
 }
-#
+
 # ==============================================================================
 # Menus: main
 # ==============================================================================
+__menu_main_user_list_browser() {
+  local user_list_path="$1"
+  local user_list
+
+  if [ ! -s "$user_list_path" ]; then
+    ui_notify_warning "$TXT_WARNING_USER_LIST_EMPTY"
+    return
+  fi
+
+  user_list="$(cat "$user_list_path")"
+
+  STATE_CURRENT_BOOKS="$(
+    _fetch_calibre_db | jq -r --arg user_list "$user_list" '
+      ($user_list | split("\n")) as $titles |
+    map(select(.title as $t | $titles | index($t) != null))
+    '
+  )"
+
+  STATE_CURRENT_BOOK_TITLES="$user_list"
+  _state_push
+  menu_book_list_explorer
+}
+
+__menu_main_reading() {
+  __menu_main_user_list_browser "$CLI_USER_LIST_READING" "$TXT_MENU_MAIN_READING"
+}
+
+__menu_main_recent() {
+  __menu_main_user_list_browser "$CLI_USER_LIST_RECENT" "$TXT_MENU_MAIN_RECENT"
+}
+
+__menu_main_paused() {
+  __menu_main_user_list_browser "$CLI_USER_LIST_PAUSED" "$TXT_MENU_MAIN_PAUSED"
+}
+
+__menu_main_planning() {
+  __menu_main_user_list_browser "$CLI_USER_LIST_PLANNING" "$TXT_MENU_MAIN_PLANNING"
+}
+
+__menu_main_rereading() {
+  __menu_main_user_list_browser "$CLI_USER_LIST_REREADING" "$TXT_MENU_MAIN_REREADING"
+}
+
+__menu_main_completed() {
+  __menu_main_user_list_browser "$CLI_USER_LIST_COMPLETED" "$TXT_MENU_MAIN_COMPLETED"
+}
+
+__menu_main_docs() {
+  __menu_main_user_list_browser "$CLI_USER_LIST_DOCS" "$TXT_MENU_MAIN_DOCS"
+}
+
+__menu_main_dropped() {
+  __menu_main_user_list_browser "$CLI_USER_LIST_DROPPED" "$TXT_MENU_MAIN_DROPPED"
+}
+
 __menu_main_random() {
   STATE_CURRENT_BOOKS="$(_fetch_calibre_db)"
   STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title' | shuf -n "$CONFIG_NO_OF_RANDOM_BOOKS")"
@@ -2387,11 +2443,11 @@ $extra_menu_options"
       action="$CMD_MAIN_ACTION"
       unset -v CMD_MAIN_ACTION
     else
-      action="$(printf '%s' "$actions" | ui_launcher "$TXT_MENU_MAIN_PROMPT_ACTION" | sed 's/.*  //g')"
+      action="$(printf '%s' "$actions" | ui_launcher "$TXT_MENU_MAIN_PROMPT" | sed 's/.*  //g')"
     fi
 
     case "$action" in
-    "$TXT_MENU_MAIN_READING") __menu_main_reading_list ;;
+    "$TXT_MENU_MAIN_READING") __menu_main_reading ;;
     "$TXT_MENU_MAIN_RECENT") __menu_main_recent ;;
     "$TXT_MENU_MAIN_PAUSED") __menu_main_paused ;;
     "$TXT_MENU_MAIN_COMPLETED") __menu_main_completed ;;
@@ -2414,14 +2470,12 @@ $extra_menu_options"
     "$TXT_MENU_MAIN_MISC") menu_miscellaneous ;;
     "$TXT_MENU_EXIT" | "") _util_byebye ;;
     *)
-      if ! __menu_main_category "$action"; then
-        if [ -n "$extra_menu_options" ] && [ -n "$extra_menu_options_handler" ]; then
-          if ! $extra_menu_options_handler "$action"; then
-            _ui_notify_error "${TXT_MENU_INVALID_ACTION}: $action"
-          fi
-        else
+      if [ -n "$extra_menu_options" ] && [ -n "$extra_menu_options_handler" ]; then
+        if ! $extra_menu_options_handler "$action"; then
           _ui_notify_error "${TXT_MENU_INVALID_ACTION}: $action"
         fi
+      else
+        _ui_notify_error "${TXT_MENU_INVALID_ACTION}: $action"
       fi
       ;;
     esac

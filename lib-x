@@ -1825,7 +1825,7 @@ ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BACK}${THEME_RESET}  $TXT_MENU_BA
 __menu_book_actions_remove_book() {
   local book_id
 
-  book_id="$(printf '%s' "$STATE_CURRENT_BOOK_JSON" | jq -r '.id')"
+  book_id="$(printf '%s' "$STATE_CURRENT_BOOK" | jq -r '.id')"
 
   if ui_confirm "$TXT_MENU_BOOK_ACTIONS_REMOVE_CONFIRM $STATE_CURRENT_BOOK_TITLE?"; then
     if calibredb remove "$book_id"; then
@@ -1833,7 +1833,6 @@ __menu_book_actions_remove_book() {
     fi
     _fetch_calibre_db
     _state_pop
-    CMD_EXIT_MENU=true
   fi
 }
 
@@ -1846,7 +1845,7 @@ __menu_book_actions_edit_metadata() {
 
   [ -z "$field" ] && return
 
-  book_id="$(printf '%s' "$STATE_CURRENT_BOOK_JSON" | jq -r '.id')"
+  book_id="$(printf '%s' "$STATE_CURRENT_BOOK" | jq -r '.id')"
   calibredb show_metadata "$book_id"
 
   val="$(ui_prompt "$TXT_MENU_BOOK_ACTIONS_PROMPT_NEW_VAL $field")"
@@ -1919,7 +1918,7 @@ $extra_menu_options"
 
     if [ "$CMD_EXIT" = "true" ]; then
       _util_byebye
-    elif [ "$CMD_EXIT_MENU" = "true" ]; then
+    elif [ "$CMD_EXIT" = "true" ]; then
       break
     fi
   done
@@ -2753,7 +2752,7 @@ _app_cmd_line_parser() {
     -E | --generate-desktop-entry) _app_generate_desktop_entry ;;
     -ce | --cmd-exit) CMD_EXIT=true ;;
     -bs | --book-skip) CMD_BOOK_RESULTS_SKIP=true ;;
-    -be | --book-exit) CMD_EXIT_MENU=true ;;
+    -be | --book-exit) CMD_EXIT=true ;;
     -d | --disown-reading-process) CONFIG_DISOWN_READING_PROCESS="true" ;;
     -D | --no-disown-reading-process) CONFIG_DISOWN_READING_PROCESS="false" ;;
     --config-write) _print_config >"$CLI_CONFIG_FILE" && exit 0 ;;

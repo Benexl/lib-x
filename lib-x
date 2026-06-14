@@ -67,7 +67,7 @@ readonly CLI_CONFIG_FILE="$CLI_CONFIG_DIR/config"
 readonly CLI_USER_LIST_READING="$CLI_USER_LISTS/reading.txt"
 readonly CLI_USER_LIST_PAUSED="$CLI_USER_LISTS/paused.txt"
 readonly CLI_USER_LIST_PLANNING="$CLI_USER_LISTS/planning.txt"
-readonly CLI_USER_LIST_REREADING="$CLI_USER_LISTS/REREADING.txt"
+readonly CLI_USER_LIST_REREADING="$CLI_USER_LISTS/re-reading.txt"
 readonly CLI_USER_LIST_COMPLETED="$CLI_USER_LISTS/completed.txt"
 readonly CLI_USER_LIST_DROPPED="$CLI_USER_LISTS/dropped.txt"
 
@@ -1748,8 +1748,7 @@ __manage_user_list() {
   case "$action" in
   add)
     printf '%s' "$user_list" | awk -v book="$STATE_CURRENT_BOOK_TITLE" -v limit="$limit" '
-      NF
-      {
+      NF {
         books[NR]=$0
       }
       END {
@@ -1768,12 +1767,7 @@ __manage_user_list() {
       ui_notify_warning "$TXT_WARNING_USER_LIST_EMPTY"
       return
     fi
-    printf '%s' "$user_list" | awk -v book="$STATE_CURRENT_BOOK_TITLE" '
-      NF && $0 != book
-      {
-        print $0
-      }
-      ' >"$user_list_path"
+    printf '%s' "$user_list" | awk -v book="$STATE_CURRENT_BOOK_TITLE" 'NF && $0 != book' >"$user_list_path"
     ;;
   *)
     ui_notify_error "$TXT_ERROR_INVALID_ACTION: $action"

@@ -1746,8 +1746,8 @@ __manage_user_list() {
 
   case "$action" in
   add)
-    printf '%s\n' "$user_list" | awk -v book="$STATE_CURRENT_BOOK_TITLE" -v limit="$limit" '
-      $0 != book
+    printf '%s' "$user_list" | awk -v book="$STATE_CURRENT_BOOK_TITLE" -v limit="$limit" '
+      NF && $0 != book
       {
         books[NR]=$0
       }
@@ -1765,12 +1765,15 @@ __manage_user_list() {
       ui_notify_warning "$TXT_WARNING_USER_LIST_EMPTY"
       return
     fi
-    printf '%s\n' "$user_list" | awk -v book="$STATE_CURRENT_BOOK_TITLE" '
+    printf '%s' "$user_list" | awk -v book="$STATE_CURRENT_BOOK_TITLE" '
       $0 != book
       {
         print $0
       }
       ' >"$user_list_path"
+    ;;
+  *)
+    ui_notify_error "$TXT_ERROR_INVALID_ACTION: $action"
     ;;
   esac
 }

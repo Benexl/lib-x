@@ -1735,6 +1735,7 @@ __manage_user_list() {
   local user_list_path
   local action
   local limit
+  local user_list
 
   user_list_path="$1"
   action="$2"
@@ -1747,14 +1748,16 @@ __manage_user_list() {
   case "$action" in
   add)
     printf '%s' "$user_list" | awk -v book="$STATE_CURRENT_BOOK_TITLE" -v limit="$limit" '
-      NF && $0 != book
+      NF
       {
         books[NR]=$0
       }
       END {
         limit = limit == "" ? NR : limit
         for (i=(NR+1)-limit; i<=NR; i++) {
-          print books[i]
+          if (books[i] != book) {
+            print books[i]
+          }
         }
         print book
       }

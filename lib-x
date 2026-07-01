@@ -62,6 +62,7 @@ XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 readonly CLI_CONFIG_DIR="$XDG_CONFIG_HOME/$CLI_APP_NAME"
 readonly CLI_USER_LISTS="$CLI_CONFIG_DIR/my-lists"
 readonly CLI_EXTENSIONS_DIR="$CLI_CONFIG_DIR/extensions"
+readonly CLI_DEFAULT_LANG_FILE="$CLI_EXTENSIONS_DIR/langs/default.lang"
 
 readonly CLI_CONFIG_FILE="$CLI_CONFIG_DIR/config"
 readonly CLI_USER_LIST_RECENT="$CLI_CONFIG_DIR/recent.json"
@@ -233,7 +234,11 @@ __load_env_config() {
 
 __load_default_lang() {
   TXT_BYEBYE="Have a good day"
-  TXT_NO_TERMINAL_EXEC="No supported terminal emulator found for executing commands. Please set CONFIG_TERMINAL_EXEC to a valid terminal command."
+  TXT_YES="y"
+  TXT_NO="n"
+  TXT_CONFIRM_DEFAULT="Default"
+  TXT_LOADING="Loading..."
+  TXT_EDITOR_NOT_FOUND="No editor found. Please set CONFIG_EDITOR or EDITOR."
 
   TXT_MENU_NEXT="Next"
   TXT_MENU_PREVIOUS="Previous"
@@ -241,27 +246,19 @@ __load_default_lang() {
   TXT_MENU_EXIT="Exit"
   TXT_MENU_INVALID_ACTION="Invalid Action"
 
-  TXT_YES="y"
-  TXT_NO="n"
-  TXT_CONFIRM_DEFAULT="Default"
-
-  TXT_LOADING="Loading..."
-
-  TXT_PREVIEW_INSTALL_VIEWER="Please install a terminal image viewer (icat for kitty/wezterm, imgcat, or chafa)"
-
-  TXT_FZF_PREVIEW_AUTHORS="Authors"
-  TXT_FZF_PREVIEW_TAGS="Tags"
-  TXT_FZF_PREVIEW_PUBLISHER="Publisher"
-  TXT_FZF_PREVIEW_LANGUAGES="Languages"
-  TXT_FZF_PREVIEW_RATING="Rating"
-  TXT_FZF_PREVIEW_PUBDATE="Published"
+  TXT_NO_TERMINAL_EXEC="No supported terminal emulator found for executing commands. Please set CONFIG_TERMINAL_EXEC to a valid terminal command."
+  TXT_LAUNCHER_UNKNOWN="Unknown launcher"
+  TXT_ROFI_NOT_CONFIGURED="Rofi theme not configured"
+  TXT_STATE_MALFORMED_CURRENT="State malformed"
+  TXT_ERROR_INVALID_ACTION="Invalid action"
+  TXT_WARNING_USER_LIST_EMPTY="User list is empty."
 
   TXT_MENU_MAIN_PROMPT="Select Action"
   TXT_MENU_MAIN_READING="Reading"
   TXT_MENU_MAIN_RECENT="Recent"
   TXT_MENU_MAIN_PAUSED="Paused"
   TXT_MENU_MAIN_REREADING="Re-reading"
-  TXT_MENU_MAIN_PLANNING="Planing"
+  TXT_MENU_MAIN_PLANNING="Planning"
   TXT_MENU_MAIN_COMPLETED="Completed"
   TXT_MENU_MAIN_DOCS="Docs"
   TXT_MENU_MAIN_RANDOM="Random"
@@ -281,6 +278,15 @@ __load_default_lang() {
 
   TXT_MENU_MAIN_SEARCH_PROMPT="Enter search query"
 
+  TXT_MENU_MAIN_SERIES_PROMPT="Select Series"
+  TXT_MENU_MAIN_AUTHORS_PROMPT="Select Author"
+  TXT_MENU_MAIN_TAGS_PROMPT="Select Tag"
+  TXT_MENU_MAIN_FORMATS_PROMPT="Select Format"
+  TXT_MENU_MAIN_LANGUAGES_PROMPT="Select Language"
+  TXT_MENU_MAIN_RATINGS_PROMPT="Select Rating"
+  TXT_MENU_MAIN_PUBLISHER_PROMPT="Select Publisher"
+  TXT_MENU_MAIN_IDENTIFIER_PROMPT="Select Identifier"
+
   TXT_MENU_MISC_PROMPT="Select Action"
   TXT_MENU_MISC_ADD_BOOKS="Add Books"
   TXT_MENU_MISC_ADD_BOOKS_FOLDER="Add Books From Folder"
@@ -290,7 +296,6 @@ __load_default_lang() {
   TXT_MENU_MISC_PROMPT_PROCEED="Proceed adding books?"
 
   TXT_MENU_LIST_EXPLORER_PROMPT="Select Book"
-  TXT_WARNING_USER_LIST_EMPTY="User list is empty."
 
   TXT_MENU_BOOK_ACTIONS_PROMPT="Select Book Action"
   TXT_MENU_BOOK_ACTIONS_USER_LISTS_PROMPT="Select List"
@@ -303,7 +308,46 @@ __load_default_lang() {
   TXT_MENU_BOOK_ACTIONS_EDIT_METADATA="Edit Metadata"
   TXT_MENU_BOOK_ACTIONS_REMOVED_SUCCESS="Successfully removed"
 
-  # Icons
+  TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_READING="Add to reading list"
+  TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_PAUSED="Add to paused list"
+  TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_PLANNING="Add to planning list"
+  TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_RE_READING="Add to re-reading list"
+  TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_DOCS="Add to docs list"
+  TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_COMPLETED="Add to completed list"
+  TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_DROPPED="Add to dropped list"
+  TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_REMOVE="Remove from my lists"
+
+  TXT_PREVIEW_INSTALL_VIEWER="Please install a terminal image viewer (icat for kitty/wezterm, imgcat, or chafa)"
+  TXT_FZF_PREVIEW_IMAGE_LOADING="Loading image..."
+
+  TXT_FZF_PREVIEW_AUTHORS="Authors"
+  TXT_FZF_PREVIEW_TAGS="Tags"
+  TXT_FZF_PREVIEW_PUBLISHER="Publisher"
+  TXT_FZF_PREVIEW_LANGUAGES="Languages"
+  TXT_FZF_PREVIEW_RATING="Rating"
+  TXT_FZF_PREVIEW_PUBDATE="Published"
+
+  TXT_UPDATE_ROOT_WARNING="Updating requires root privileges. Continue as root?"
+  TXT_UPDATE_SUDO_MISSING="sudo not available, cannot update."
+  TXT_UPDATE_FETCH_FAILED="Failed to download the update."
+  TXT_UPDATE_SCRIPT_REEXECUTE="Re-execute the script with the new version?"
+  TXT_UPDATE_FAILED="Failed to install the update."
+  TXT_UPDATE_FOUND="New version available. Show the diff?"
+  TXT_UPDATE_CONFIRM="Apply the update?"
+
+  TXT_DEP_MISSING_DIFF="diff is not installed. Skipping update diff display."
+  TXT_DEP_MISSING_CALIBREDB="calibredb is required but not found in PATH."
+  TXT_DEP_MISSING_JQ="jq is required but not found in PATH."
+  TXT_DEP_MISSING_FZF="fzf is required but not found in PATH."
+
+  TXT_DESKTOP_ENTRY_PROMPT="Create desktop entry?"
+  TXT_DESKTOP_ENTRY_COMMENT="Read and manage your calibre books from the terminal"
+  TXT_LAUNCHER_LABEL_ROFI="Rofi"
+  TXT_LAUNCHER_LABEL_FZF="Fzf"
+
+  TXT_ROFI_PAGER_MESSAGE="Scroll with arrow keys, press ENTER to dismiss"
+  TXT_ROFI_PAGER_PROMPT="Pager"
+
   TXT_ICON_MENU_MAIN_READING=""
   TXT_ICON_MENU_MAIN_RECENT=""
   TXT_ICON_MENU_MAIN_PAUSED=""
@@ -322,33 +366,22 @@ __load_default_lang() {
   TXT_ICON_MENU_MAIN_PUBLISHER=""
   TXT_ICON_MENU_MAIN_IDENTIFIERS="󰁱"
   TXT_ICON_MENU_MAIN_AUTHORS=""
-  TXT_ICON_MENU_EXIT=""
   TXT_ICON_MENU_MAIN_DROPPED=""
   TXT_ICON_MENU_MAIN_EDIT_CONFIG=""
   TXT_ICON_MENU_MAIN_MISC=""
   TXT_ICON_MENU_MAIN_CATEGORY=""
+  TXT_ICON_MENU_EXIT="󰈆"
 
+  TXT_ICON_MENU_BACK="󰌍"
   TXT_ICON_MENU_MISC_ADD_BOOKS="󰗛"
   TXT_ICON_MENU_MISC_ADD_BOOKS_FOLDER="󰉗"
   TXT_ICON_MENU_MISC_SYNC="󰑓"
-  TXT_ICON_MENU_BOOK_ACTIONS_READ=""
 
+  TXT_ICON_MENU_BOOK_ACTIONS_READ=""
   TXT_ICON_MENU_BOOK_ACTIONS_ADD_LIST="󰐒"
   TXT_ICON_MENU_BOOK_ACTIONS_REMOVE_LIST="󰐐"
   TXT_ICON_MENU_BOOK_ACTIONS_REMOVE_BOOK="󰗙"
   TXT_ICON_MENU_BOOK_ACTIONS_EDIT_METADATA="󱚌"
-
-  TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_READING="Add to reading list"
-  TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_PAUSED="Add to paused list"
-  TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_PLANNING="Add to planning list"
-  TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_RE_READING="Add to re-reading list"
-  TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_DOCS="Add to docs list"
-  TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_COMPLETED="Add to completed list"
-  TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_DROPPED="Add to dropped list"
-  TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_REMOVE="Remove from my lists"
-
-  TXT_ICON_MENU_BACK="󰌍"
-  TXT_ICON_MENU_EXIT="󰈆"
 
   [ -s "$CLI_DEFAULT_LANG_FILE" ] && . "$CLI_DEFAULT_LANG_FILE"
 }
@@ -2348,7 +2381,7 @@ __menu_main_ratings() {
         {
           fetch_calibre_category "rating"
           printf '%s\n' "$TXT_MENU_BACK"
-        } | ui_launcher "$TXT_MENU_MAIN_LANGUAGES_PROMPT"
+        } | ui_launcher "$TXT_MENU_MAIN_RATINGS_PROMPT"
       )"
 
       case "$query" in

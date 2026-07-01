@@ -1144,6 +1144,22 @@ __preview_fzf_generate_script_for_item() {
   data_item="$1"
 
   eval "$(printf "%s" "$data_item" | jq -r '
+    def format_timestamp:
+      if . != "" then
+        sub("[+]00:00$"; "Z") | fromdateiso8601 | strflocaltime("%B %d, %Y at %I:%M %p")
+      end;
+
+    def format_size:
+      if . >= 1073741824 then
+      "\((. / 1073741824 * 100 | round) / 100) GB"
+      elif . >= 1048576 then
+        "\((. / 1048576 * 100 | round) / 100) MB"
+      elif . >= 1024 then
+        "\((. / 1024 * 100 | round) / 100) KB"
+      else
+        "\(.) Bytes"
+      end;
+
     [
       "id=" + (.id // "" | @sh),
       "uuid=" + (.uuid // "" | @sh),
@@ -1154,15 +1170,15 @@ __preview_fzf_generate_script_for_item() {
       "languages=" + (.languages | join(", ") // "" | @sh),
       "tags=" + (.tags | join(", ") // "" | @sh),
       "authors=" + (.authors // "" | @sh),
-      "size=" + (.size // "" | @sh),
+      "size=" + (.size // "" | format_size | @sh),
       "series=" + (.series // "" | @sh),
       "publisher=" + (.publisher // "" | @sh),
-      "publish_date=" + (.publish_date // "" | @sh),
+      "publish_date=" + (.publish_date // "" | format_timestamp | @sh),
       "series_index=" + (.series_index // "" | @sh),
       "comments=" + (.comments // "" | @sh),
       "isbn=" + (.isbn // "" | @sh),
       "formats=" + (.formats[] | sub("^.+\\."; "") // "" | @sh),
-      "last_modified=" + (.last_modified // "" | @sh)
+      "last_modified=" + (.last_modified // "" | format_timestamp | @sh)
     ] | join("\n")
 ')"
 

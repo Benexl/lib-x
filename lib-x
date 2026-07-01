@@ -1166,7 +1166,7 @@ __preview_fzf_generate_script_for_item() {
       "title=" + (.title // "" | sub("^[0-9]+ "; "") | @sh),
       "raw_title=" + (.title // "" | @sh),
       "cover=" + (.cover // "" | @sh),
-      "identifiers=" + (.identifiers | to_entries | .[].value // "" | @sh),
+      "identifiers=" + ([.identifiers | to_entries | .[] | (.key) + " " + (.value)] | join(", ") // "" | @sh),
       "languages=" + (.languages | join(", ") // "" | @sh),
       "tags=" + (.tags | join(", ") // "" | @sh),
       "authors=" + (.authors // "" | @sh),

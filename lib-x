@@ -835,8 +835,8 @@ __ui_rofi_launcher_with_preview() {
 _ui_launcher_with_preview() {
   if [ "$CONFIG_ENABLE_PREVIEW" = "true" ]; then
     case "$CONFIG_LAUNCHER" in
-    rofi) __ui_rofi_launcher_with_preview "$@" ;;
     fzf) __ui_fzf_launcher_with_preview "$@" ;;
+    rofi) __ui_rofi_launcher_with_preview "$@" ;;
     gum) __ui_gum_launcher "$@" ;;
     *) ui_notify_critical "$TXT_LAUNCHER_UNKNOWN: $CONFIG_LAUNCHER" ;;
     esac
@@ -1115,106 +1115,49 @@ EOF
 
 __preview_fzf_generate_script_for_item() {
   local data_item
-  local title
-  local raw_title
   local id
-  local image_path
-  local view_count
-  local live_status
-  local description
-  local channel
-  local channel_follower_count
-  local duration
-  local timestamp
-  local preview_script_path
-  local script
-  local img_url
+  local raw_title
+  local cover
+  local identifiers
+  local languages
+  local tags
+  local authors
+  local size
+  local publisher
+  local publish_date
+  local series_index
+  local series
+  local comments
+  local isbn
+  local formats
+  local last_modified
 
   data_item="$1"
 
   eval "$(printf "%s" "$data_item" | jq -r '
-    def format_number:
-      tostring | split("") | reverse | join("") |
-      gsub("(?<thousands>[0-9]{3})(?=[0-9])"; "\(.thousands),") |
-      split("") | reverse | join("");
-
-    def format_duration:
-      try(
-        if . >= 3600 then
-          (./3600|floor) as $h | if $h == 1 then "\($h) hour" else "\($h) hours" end
-        elif . >= 60 then
-          (./60|floor) as $m | if $m == 1 then "\($m) min" else "\($m) mins" end
-        else
-          (./1|floor) as $s | if $s == 1 then "\($s) sec" else "\($s) secs" end
-        end
-      ) catch null;
-
-    def format_timestamp:
-      if .timestamp then
-        (now - .timestamp) as $diff
-        | if $diff < 60 then "Just now"
-          elif $diff < 3600 then
-            ($diff/60 | floor) as $mins
-            | if $mins == 1 then "1 minute ago" else "\($mins) minutes ago" end
-          elif $diff < 86400 then
-            ($diff/3600 | floor) as $hours
-            | if $hours == 1 then "1 hour ago" else "\($hours) hours ago" end
-          elif $diff < 2592000 then
-            ($diff/86400 | floor) as $days
-            | if $days == 1 then "1 day ago" else "\($days) days ago" end
-          elif $diff < 31536000 then
-            ($diff/2592000 | floor) as $months
-            | if $months == 1 then "1 month ago" else "\($months) months ago" end
-          else
-            ($diff/31536000 | floor) as $years
-            | if $years == 1 then "1 year ago" else "\($years) years ago" end
-          end
-      elif .upload_date then
-        (try (.upload_date | strptime("%Y%m%d") | mktime) catch null) as $epoch
-        | if $epoch then
-            (now - $epoch) as $diff
-            | if $diff < 60 then "Just now"
-              elif $diff < 3600 then
-                ($diff/60 | floor) as $mins
-                | if $mins == 1 then "1 minute ago" else "\($mins) minutes ago" end
-              elif $diff < 86400 then
-                ($diff/3600 | floor) as $hours
-                | if $hours == 1 then "1 hour ago" else "\($hours) hours ago" end
-              elif $diff < 2592000 then
-                ($diff/86400 | floor) as $days
-                | if $days == 1 then "1 day ago" else "\($days) days ago" end
-              elif $diff < 31536000 then
-                ($diff/2592000 | floor) as $months
-                | if $months == 1 then "1 month ago" else "\($months) months ago" end
-              else
-                ($diff/31536000 | floor) as $years
-                | if $years == 1 then "1 year ago" else "\($years) years ago" end
-              end
-          else null end
-      else null
-      end;
     [
       "id=" + (.id // "" | @sh),
-      "title=" + (.title // "" | sub("^[0-9]+ "; "") | @sh | @sh),
+      "uuid=" + (.uuid // "" | @sh),
+      "title=" + (.title // "" | sub("^[0-9]+ "; "") | @sh),
       "raw_title=" + (.title // "" | @sh),
-      "img_url=" + (.thumbnails[-1].url // "" | @sh),
-      "view_count=" + (.view_count | if . == null then "null" else (format_number | @sh) end),
-      "live_status=" + (if .live_status == "is_live" then ("Online" | @sh) elif .live_status == "was_live" then ("Offline" | @sh) else "null" end),
-      "description=" + (.description | if . == null then "null" else (@sh | @sh) end),
-      "channel=" + (.channel | if . == null then "null" else (@sh | @sh) end),
-      "channel_follower_count=" + (.channel_follower_count | if . == null then "null" else (format_number | @sh) end),
-      "duration=" + (.duration | format_duration | if . == null then "null" else @sh end),
-      "timestamp=" + (format_timestamp | if . == null then "null" else @sh end)
+      "cover=" + (.cover // "" | @sh),
+      "identifiers=" + (.identifiers | to_entries | .[].value // "" | @sh),
+      "languages=" + (.languages | join(", ") // "" | @sh),
+      "tags=" + (.tags | join(", ") // "" | @sh),
+      "authors=" + (.authors // "" | @sh),
+      "size=" + (.size // "" | @sh),
+      "series=" + (.series // "" | @sh),
+      "publisher=" + (.publisher // "" | @sh),
+      "publish_date=" + (.publish_date // "" | @sh),
+      "series_index=" + (.series_index // "" | @sh),
+      "comments=" + (.comments // "" | @sh),
+      "isbn=" + (.isbn // "" | @sh),
+      "formats=" + (.formats[] | sub("^.+\\."; "") // "" | @sh),
+      "last_modified=" + (.last_modified // "" | @sh)
     ] | join("\n")
 ')"
 
-  preview_script_path="$CLI_PREVIEW_SCRIPTS_DIR/$(printf "%s" "$raw_title" | _util_generate_hash).sh"
-
-  case "$img_url" in
-  //*) img_url="https:$img_url" ;;
-  esac
-
-  image_path="$CLI_PREVIEW_IMGS_DIR/$(printf "%s" "$img_url" | _util_generate_hash).jpg"
+  preview_script_path="$CLI_PREVIEW_SCRIPTS_DIR/$(_util_generate_hash "$raw_title").sh"
 
   cat <<EOF >"$preview_script_path"
 #!/usr/bin/env sh
@@ -1236,8 +1179,8 @@ else
 fi
 
 if [ '$CONFIG_ENABLE_PREVIEW_IMAGES' = 'true' ];then
-  if [ -s "$image_path" ];then
-    fzf_preview "$image_path" 2>/dev/null;
+  if [ -s "$cover" ];then
+    fzf_preview "$cover" 2>/dev/null;
   else
     printf '%s\n' "$TXT_FZF_PREVIEW_IMAGE_LOADING";
   fi
@@ -1246,119 +1189,116 @@ fi
 
 draw_divider
 
-title="\$(printf $title | fold -s -w "\$FZF_PREVIEW_COLUMNS")"
-printf "${THEME_FZF_PREVIEW_TITLE}%s${THEME_FZF_PREVIEW_TITLE}\n" "\$title"
+title="\$(printf "$title" | fold -s -w "\$FZF_PREVIEW_COLUMNS")"
+printf "${THEME_FZF_PREVIEW_TITLE}%s${THEME_RESET}\n" "\$title"
 
 draw_divider
 
-if ! [ $channel = "null" ];then
-channel="\$(printf $channel | fold -s -w \$FZF_PREVIEW_COLUMNS)"
-printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}${TXT_FZF_PREVIEW_CHANNEL}: ${THEME_RESET}%s\n" "${THEME_FZF_PREVIEW_VALUE}\$channel${THEME_RESET}";
+if [ -n "$authors" ];then
+  authors="\$(printf "$authors" | fold -s -w "\$FZF_PREVIEW_COLUMNS")"
+  printf "${THEME_FZF_PREVIEW_KEY}Authors: ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$authors"
 fi
 
-if ! [ "$channel_follower_count" = "null" ];then
-channel_follower_count="\$(printf "$channel_follower_count" | fold -s -w \$FZF_PREVIEW_COLUMNS)"
-printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}${TXT_FZF_PREVIEW_CHANNEL_FOLLOWERS}: ${THEME_RESET}%s\n" "${THEME_FZF_PREVIEW_VALUE}\$channel_follower_count${THEME_RESET}";
+if [ -n "$publisher" ]; then
+  publisher="\$(printf "$publisher" | fold -s -w "\$FZF_PREVIEW_COLUMNS")"
+  printf "${THEME_FZF_PREVIEW_KEY}Publisher: ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$publisher"
 fi
 
-if ! [ $channel = "null" ] && ! [ "$duration" = "null" ];then
+if [ -n "$series" ]; then
+  series="\$(printf "$series" | fold -s -w "\$FZF_PREVIEW_COLUMNS")"
+  printf "${THEME_FZF_PREVIEW_KEY}Series: ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$series"
+fi
+
+if [ -n "$authors" ] || [ -n "$publisher" ] || [ -n "$series" ]; then
+  draw_divider
+fi
+
+if [ -n "$tags" ]; then
+  tags="\$(printf "$tags" | fold -s -w "\$FZF_PREVIEW_COLUMNS")"
+  printf "${THEME_FZF_PREVIEW_KEY}Tags: ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$tags"
+fi
+
+if [ -n "$formats" ]; then
+  formats="\$(printf "$formats" | fold -s -w "\$FZF_PREVIEW_COLUMNS")"
+  printf "${THEME_FZF_PREVIEW_KEY}Formats: ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$formats"
+fi
+
+if [ -n "$languages" ]; then
+  languages="\$(printf "$languages" | fold -s -w "\$FZF_PREVIEW_COLUMNS")"
+  printf "${THEME_FZF_PREVIEW_KEY}Languages: ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$languages"
+fi
+
+if [ -n "$tags" ] || [ -n "$formats" ] || [ -n "$languages" ]; then
 draw_divider
 fi
 
-if ! [ "$duration" = "null" ];then
-duration="\$(printf "$duration" | fold -s -w \$FZF_PREVIEW_COLUMNS)"
-printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}${TXT_FZF_PREVIEW_DURATION}: ${THEME_RESET}%s\n" "${THEME_FZF_PREVIEW_VALUE}\$duration${THEME_RESET}";
+if [ -n "$identifiers" ]; then
+  identifiers="\$(printf "$identifiers" | fold -s -w "\$FZF_PREVIEW_COLUMNS")"
+  printf "${THEME_FZF_PREVIEW_KEY}Identifiers: ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$identifiers"
 fi
 
-if ! [ "$view_count" = "null" ];then
-view_count="\$(printf "$view_count" | fold -s -w \$FZF_PREVIEW_COLUMNS)"
-printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}${TXT_FZF_PREVIEW_VIEW_COUNT}: ${THEME_RESET}%s\n" "${THEME_FZF_PREVIEW_VALUE}\$view_count views${THEME_RESET}";
+if [ -n "$isbn" ]; then
+  isbn="\$(printf "$isbn" | fold -s -w "\$FZF_PREVIEW_COLUMNS")"
+  printf "${THEME_FZF_PREVIEW_KEY}Isbn: ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$isbn"
 fi
 
-if ! [ "$live_status" = "null" ];then
-live_status="\$(printf "$live_status" | fold -s -w \$FZF_PREVIEW_COLUMNS)"
-printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}${TXT_FZF_PREVIEW_LIVE_STATUS}: ${THEME_RESET}%s\n" "${THEME_FZF_PREVIEW_VALUE}\$live_status${THEME_RESET}";
+if [ -n "$identifiers" ] || [ -n "$isbn" ]; then
+  draw_divider
 fi
 
-if ! [ "$timestamp" = "null" ];then
-timestamp="\$(printf "$timestamp" | fold -s -w \$FZF_PREVIEW_COLUMNS)"
-printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}${TXT_FZF_PREVIEW_TIMESTAMP}: ${THEME_RESET}%s\n" "${THEME_FZF_PREVIEW_VALUE}\$timestamp${THEME_RESET}";
-fi
-if ! [ $channel = "null" ] || ! [ "$channel_follower_count" = "null" ] || ! [ "$duration" = "null" ] || ! [ "$view_count" = "null" ] || ! [ "$live_status" = "null" ] || ! [ "$timestamp" = "null" ];then
-draw_divider
+if [ -n "$size" ]; then
+  size="\$(printf "$size" | fold -s -w "\$FZF_PREVIEW_COLUMNS")"
+  printf "${THEME_FZF_PREVIEW_KEY}Size: ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$size"
 fi
 
-if ! [ $description = "null" ];then
-  printf "%s\n" $description|fold -s -w "\$FZF_PREVIEW_COLUMNS"
+if [ -n "$publish_date" ]; then
+  publish_date="\$(printf "$publish_date" | fold -s -w "\$FZF_PREVIEW_COLUMNS")"
+  printf "${THEME_FZF_PREVIEW_KEY}Publish Date: ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$publish_date"
+fi
+
+if [ -n "$last_modified" ]; then
+  last_modified="\$(printf "$last_modified" | fold -s -w "\$FZF_PREVIEW_COLUMNS")"
+  printf "${THEME_FZF_PREVIEW_KEY}Last Modified: ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$last_modified"
+fi
+
+if [ -n "$size" ] || [ -n "$publish_date" ] || [ -n "$last_modified" ]; then
+  draw_divider
+fi
+
+if [ -n "$comments" ]; then
+  comments="\$(printf "$comments" | fold -s -w "\$FZF_PREVIEW_COLUMNS")"
+  printf "${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$comments"
 fi
 EOF
 }
 
 _preview_fzf_generate_script() {
   local data_to_preview
-  local i
   local data_item
 
-  i=0
   data_to_preview="$1"
 
   __preview_fzf_create_shared_script
 
-  printf "%s" "$data_to_preview" | jq -c '.entries[]' | while IFS= read -r data_item; do
+  printf "%s" "$data_to_preview" | jq -c '.[]' | while IFS= read -r data_item; do
     __preview_fzf_generate_script_for_item "$data_item"
   done
 }
 
-__preview_download_image() {
-  local url
-  local output_path
-  local images_to_download_file
-  url="$1"
-  output_path="$2"
-  images_to_download_file="$3"
-
-  if ! [ -s "$output_path" ]; then
-    printf 'url=%s\n' "$url" >>"$images_to_download_file"
-    printf 'output=%s\n' "$output_path" >>"$images_to_download_file"
-  fi
-}
-
-_preview_fzf_download_imgs() {
+_preview_fzf() {
   local data_to_preview
-  local images_to_download_file
-  local url
-  local output_path
-  images_to_download_file="$CLI_CURRENT_STATE_DIR/images-to-download-$(date +%s)"
   data_to_preview="$1"
 
-  printf "%s" "$data_to_preview" | jq -r '.entries[].thumbnails[-1].url' | while IFS= read -r url; do
-    case "$url" in
-    //*) url="https:$url" ;;
-    esac
-
-    output_path="$CLI_PREVIEW_IMGS_DIR/$(printf "%s" "$url" | _util_generate_hash).jpg"
-    __preview_download_image "$url" "$output_path" "$images_to_download_file"
-  done
-  [ -s "$images_to_download_file" ] && curl -sL --parallel --parallel-max 5 --config "$images_to_download_file" >/dev/null 2>&1 && rm "$images_to_download_file" 2>/dev/null
-}
-
-_preview_fzf() {
   while IFS= read -r line; do
     if [ "$CONFIG_ENABLE_PREVIEW" = "true" ]; then
-      printf '%s/%s.sh|%s\n' "$CLI_PREVIEW_SCRIPTS_DIR" "$(printf '%s' "$line" | _util_generate_hash)" "$line"
+      printf '%s/%s.sh|%s\n' "$CLI_PREVIEW_SCRIPTS_DIR" "$(_util_generate_hash "$line")" "$line"
     else
       printf '%s\n' "$line"
     fi
   done
 
-  local data_to_preview
-  data_to_preview="$1"
-
   if [ "$CONFIG_ENABLE_PREVIEW" = "true" ]; then
     _preview_fzf_generate_script "$data_to_preview" &
-    if [ "$CONFIG_ENABLE_PREVIEW_IMAGES" = "true" ]; then
-      _preview_fzf_download_imgs "$data_to_preview" &
-    fi
   fi
 }
 
@@ -1368,44 +1308,39 @@ preview_fzf() {
 
 _preview_rofi() {
   local data_to_preview
-  local images_to_download_file
   local input_titles
   local input_count
   local output_count
   local others
   local output
-  data_to_preview="$1"
   output="$CLI_CURRENT_STATE_DIR/rofi-preview-output-$(date +%s)"
-  images_to_download_file="$CLI_CURRENT_STATE_DIR/images-to-download-$(date +%s)"
+
+  data_to_preview="$1"
 
   if [ "$CONFIG_ENABLE_PREVIEW" = "true" ] && [ -n "$data_to_preview" ]; then
     input_titles="$(cat)"
 
     # shellcheck disable=SC2141
-    printf "%s" "$data_to_preview" | jq --compact-output -r '.entries[]' | while IFS='\n' read -r entry; do
-      url=$(printf '%s' "$entry" | jq -r '.thumbnails[-1].url')
-      title=$(printf '%s' "$entry" | jq -r '.title')
-      if [ -n "$url" ] && [ "$url" != "null" ]; then
-        case "$url" in
-        //*) url="https:$url" ;;
-        esac
-        url_hash="$(printf "%s" "$url" | _util_generate_hash)"
-        img_path="$CLI_PREVIEW_IMGS_DIR/${url_hash}.jpg"
+    printf "%s" "$data_to_preview" | jq --compact-output '.[]' | while IFS='\n' read -r entry; do
+      local title
+      local cover
 
-        __preview_download_image "$url" "$img_path" "$images_to_download_file"
-        printf '%s\0icon\x1f%s\n' "$title" "$img_path"
+      eval "$(printf '%s' "$entry" | jq -r '[
+        "title=" + (.title // "" | @sh),
+        "cover=" + (.cover // "" | @sh)
+        ] | join("\n")')"
+
+      if [ -n "$cover" ] && [ "$cover" != "null" ]; then
+        printf '%s\0icon\x1f%s\n' "$title" "$cover"
       else
         printf '%s\n' "$title"
       fi
-    done >"$output"
+    done | tee "$output"
 
-    [ -s "$images_to_download_file" ] && curl -sL --parallel --parallel-max 5 --config "$images_to_download_file" >/dev/null 2>&1 && rm "$images_to_download_file" 2>/dev/null
+    input_count="$(printf "%s" "$input_titles" | wc -l)"
+    output_count="$(wc -l <"$output")"
+    others="$((input_count + 1 - output_count))"
 
-    input_count=$(printf "%s" "$input_titles" | wc -l)
-    output_count=$(wc -l <"$output")
-    others=$((input_count + 1 - output_count))
-
-    cat "$output"
     if [ "$others" -gt 0 ]; then
       printf '%s' "$input_titles" | tail -n "$others"
     fi
@@ -1958,7 +1893,7 @@ $TXT_MENU_EXIT"
       choice="$(printf '%s' "$STATE_CURRENT_BOOK_TITLES" | head -n 1)"
       unset -v CMD_BOOK_RESULTS_SKIP
     else
-      choice="$(printf "%s\n%s" "$STATE_CURRENT_BOOK_TITLES" "$other_choices" | ui_launcher "$TXT_MENU_LIST_EXPLORER_PROMPT")"
+      choice="$(printf "%s\n%s" "$STATE_CURRENT_BOOK_TITLES" "$other_choices" | preview "$STATE_CURRENT_BOOKS" | ui_launcher_with_preview "$TXT_MENU_LIST_EXPLORER_PROMPT")"
     fi
 
     case "$choice" in

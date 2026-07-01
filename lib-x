@@ -64,13 +64,15 @@ readonly CLI_USER_LISTS="$CLI_CONFIG_DIR/my-lists"
 readonly CLI_EXTENSIONS_DIR="$CLI_CONFIG_DIR/extensions"
 
 readonly CLI_CONFIG_FILE="$CLI_CONFIG_DIR/config"
-readonly CLI_USER_LIST_READING="$CLI_USER_LISTS/reading.txt"
-readonly CLI_USER_LIST_PAUSED="$CLI_USER_LISTS/paused.txt"
-readonly CLI_USER_LIST_PLANNING="$CLI_USER_LISTS/planning.txt"
-readonly CLI_USER_LIST_REREADING="$CLI_USER_LISTS/re-reading.txt"
-readonly CLI_USER_LIST_COMPLETED="$CLI_USER_LISTS/completed.txt"
-readonly CLI_USER_LIST_DROPPED="$CLI_USER_LISTS/dropped.txt"
-readonly CLI_USER_LIST_DOCS="$CLI_USER_LISTS/docs.txt"
+readonly CLI_USER_LIST_RECENT="$CLI_CONFIG_DIR/recent.json"
+
+readonly CLI_USER_LIST_READING="$CLI_USER_LISTS/reading.json"
+readonly CLI_USER_LIST_PAUSED="$CLI_USER_LISTS/paused.json"
+readonly CLI_USER_LIST_PLANNING="$CLI_USER_LISTS/planning.json"
+readonly CLI_USER_LIST_REREADING="$CLI_USER_LISTS/re-reading.json"
+readonly CLI_USER_LIST_COMPLETED="$CLI_USER_LISTS/completed.json"
+readonly CLI_USER_LIST_DROPPED="$CLI_USER_LISTS/dropped.json"
+readonly CLI_USER_LIST_DOCS="$CLI_USER_LISTS/docs.json"
 
 readonly CLI_CACHE_DIR="$XDG_CACHE_HOME/$CLI_APP_NAME"
 readonly CLI_STATE_DIR="$CLI_CACHE_DIR/state"
@@ -79,7 +81,6 @@ readonly CLI_CURRENT_STATE_DIR="$CLI_STATE_DIR/${CLI_START_TIME}-$$"
 readonly CLI_PREVIEW_SCRIPTS_DIR="$CLI_CACHE_DIR/previews"
 readonly CLI_FZF_PREVIEW_SCRIPT="$CLI_PREVIEW_SCRIPTS_DIR/fzf-preview.sh"
 
-readonly CLI_USER_LIST_RECENT="$CLI_CACHE_DIR/recent.txt"
 readonly CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE="$CLI_CACHE_DIR/.calibre_library_timestamp"
 readonly CALIBRE_DB_JSON_FILE="$CLI_CACHE_DIR/calibre_db.json"
 readonly CALIBRE_CATEGORIES_CSV_FILE="$CLI_CACHE_DIR/calibre_categories.csv"
@@ -283,7 +284,7 @@ __load_default_lang() {
   TXT_MENU_MISC_PROMPT="Select Action"
   TXT_MENU_MISC_ADD_BOOKS="Add Books"
   TXT_MENU_MISC_ADD_BOOKS_FOLDER="Add Books From Folder"
-  TXT_MENU_MISC_RELOAD_DATA="Reload Data"
+  TXT_MENU_MISC_SYNC="Sync Data"
   TXT_MENU_MISC_PROMPT_CUSTOM_ARGS="Input custom args?"
   TXT_MENU_MISC_PROMPT_ENTER_ARGS="Enter args"
   TXT_MENU_MISC_PROMPT_PROCEED="Proceed adding books?"
@@ -296,8 +297,7 @@ __load_default_lang() {
   TXT_MENU_BOOK_ACTIONS_PROMPT_FIELD="Select field to edit"
   TXT_MENU_BOOK_ACTIONS_PROMPT_NEW_VAL="Enter new value for"
   TXT_MENU_BOOK_ACTIONS_READ="Read"
-  TXT_MENU_BOOK_ACTIONS_ADD_TO_USER_LIST="Add To List"
-  TXT_MENU_BOOK_ACTIONS_REMOVE_FROM_USER_LIST="Remove From List"
+  TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS="Manage My Lists"
   TXT_MENU_BOOK_ACTIONS_REMOVE_BOOK="Remove Book"
   TXT_MENU_BOOK_ACTIONS_REMOVE_CONFIRM="Are you sure you want to remove"
   TXT_MENU_BOOK_ACTIONS_EDIT_METADATA="Edit Metadata"
@@ -328,15 +328,24 @@ __load_default_lang() {
   TXT_ICON_MENU_MAIN_MISC=""
   TXT_ICON_MENU_MAIN_CATEGORY=""
 
+  TXT_ICON_MENU_MISC_ADD_BOOKS="󰗛"
+  TXT_ICON_MENU_MISC_ADD_BOOKS_FOLDER="󰉗"
+  TXT_ICON_MENU_MISC_SYNC="󰑓"
   TXT_ICON_MENU_BOOK_ACTIONS_READ=""
+
   TXT_ICON_MENU_BOOK_ACTIONS_ADD_LIST="󰐒"
   TXT_ICON_MENU_BOOK_ACTIONS_REMOVE_LIST="󰐐"
   TXT_ICON_MENU_BOOK_ACTIONS_REMOVE_BOOK="󰗙"
   TXT_ICON_MENU_BOOK_ACTIONS_EDIT_METADATA="󱚌"
 
-  TXT_ICON_MENU_MISC_ADD_BOOKS="󰗛"
-  TXT_ICON_MENU_MISC_ADD_BOOKS_FOLDER="󰉗"
-  TXT_ICON_MENU_MISC_RELOAD_DATA="󰑓"
+  TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_READING="Add to reading list"
+  TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_PAUSED="Add to paused list"
+  TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_PLANNING="Add to planning list"
+  TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_RE_READING="Add to re-reading list"
+  TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_DOCS="Add to docs list"
+  TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_COMPLETED="Add to completed list"
+  TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_DROPPED="Add to dropped list"
+  TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_REMOVE="Remove from my lists"
 
   TXT_ICON_MENU_BACK="󰌍"
   TXT_ICON_MENU_EXIT="󰈆"
@@ -1395,6 +1404,12 @@ _state_push() {
   mkdir -p "$current_state_dir"
 
   cat <<EOF >"$current_state_dir/state.env"
+#!/usr/bin/env sh
+# ==============================================================================
+# This file contains the state of $CLI_NAME at the current time or sometime in
+# the past.
+# ==============================================================================
+
 STATE_CURRENT_CATEGORY='$(printf "%s" "$STATE_CURRENT_CATEGORY" | sed "s/'/'\\\\''/g")'
 
 STATE_CURRENT_BOOKS='$(printf "%s" "$STATE_CURRENT_BOOKS" | sed "s/'/'\\\\''/g")'
@@ -1432,8 +1447,36 @@ _state_pop() {
 # ==============================================================================
 # Calibre
 # ==============================================================================
+__update_user_lists() {
+  local user_list_paths
+  local calibredb
+
+  user_list_paths="\
+$CLI_USER_LIST_READING
+$CLI_USER_LIST_PLANNING
+$CLI_USER_LIST_PAUSED
+$CLI_USER_LIST_REREADING
+$CLI_USER_LIST_DOCS
+$CLI_USER_LIST_COMPLETED
+$CLI_USER_LIST_DROPPED"
+
+  calibredb="$(cat "$CALIBRE_DB_JSON_FILE")"
+
+  printf '%s' "$user_list_paths" | while IFS= read -r user_list_path; do
+    if ! [ -s "$user_list_path" ]; then
+      continue
+    fi
+
+    user_list="$(cat "$user_list_path")"
+    printf '%s' "$calibredb" | jq --argjson user_list "$user_list" '
+    map(select(.id as $id | any($user_list[].id; . == $id)))
+    ' >"$user_list_path"
+  done
+}
+
 __fetch_calibre_db() {
   calibredb list --for-machine --fields all >"$CALIBRE_DB_JSON_FILE"
+  __update_user_lists
 }
 
 _fetch_calibre_db() {
@@ -1667,7 +1710,7 @@ fetch_calibre_db_search_identifier() {
 # ==============================================================================
 # User Lists
 # ==============================================================================
-__manage_user_list() {
+_manage_user_list_add() {
   local user_list_path
   local action
   local limit
@@ -1679,36 +1722,73 @@ __manage_user_list() {
 
   if [ -s "$user_list_path" ]; then
     user_list="$(cat "$user_list_path")"
+  else
+    user_list="[]"
   fi
 
+  printf '%s' "$user_list" | jq --argjson book "$STATE_CURRENT_BOOK" --arg limit "$limit" '
+    map(select(.id != $book.id))
+    | . + [$book]
+    | if ($limit | type) == "number" and (. | length) > $limit then
+        .[((. | length) - $limit):]
+      end
+    ' >"$user_list_path"
+}
+
+manage_user_list_add() {
+  _manage_user_list_add "$@"
+}
+
+_manage_user_list_remove() {
+  local user_list_paths
+
+  user_list_paths="\
+$CLI_USER_LIST_READING
+$CLI_USER_LIST_PLANNING
+$CLI_USER_LIST_PAUSED
+$CLI_USER_LIST_REREADING
+$CLI_USER_LIST_DOCS
+$CLI_USER_LIST_COMPLETED
+$CLI_USER_LIST_DROPPED"
+
+  printf '%s' "$user_list_paths" | while IFS= read -r user_list_path; do
+
+    if ! [ -s "$user_list_path" ]; then
+      continue
+    fi
+
+    user_list="$(cat "$user_list_path")"
+    printf '%s' "$user_list" | jq --argjson book "$STATE_CURRENT_BOOK" '
+    map(select(.id != $book.id))
+    ' >"$user_list_path"
+  done
+}
+
+manage_user_list_remove() {
+  _manage_user_list_remove
+}
+
+_manage_user_list() {
+  local action
+
+  action="$1"
+
   case "$action" in
-  add)
-    printf '%s' "$user_list" | awk -v book="$STATE_CURRENT_BOOK_TITLE" -v limit="$limit" '
-      NF {
-        books[NR]=$0
-      }
-      END {
-        limit = limit == "" ? NR : limit
-        for (i=(NR+1)-limit; i<=NR; i++) {
-          if (books[i] != book) {
-            print books[i]
-          }
-        }
-        print book
-      }
-      ' >"$user_list_path"
+  "$CLI_USER_LIST_READING" | "$CLI_USER_LIST_PLANNING" | "$CLI_USER_LIST_PAUSED" | "$CLI_USER_LIST_REREADING" | "$CLI_USER_LIST_DOCS" | "$CLI_USER_LIST_COMPLETED" | "$CLI_USER_LIST_DROPPED")
+    manage_user_list_remove
+    manage_user_list_add "$action"
     ;;
   remove)
-    if [ -z "$user_list" ]; then
-      ui_notify_warning "$TXT_WARNING_USER_LIST_EMPTY"
-      return
-    fi
-    printf '%s' "$user_list" | awk -v book="$STATE_CURRENT_BOOK_TITLE" 'NF && $0 != book' >"$user_list_path"
+    manage_user_list_remove
     ;;
   *)
     ui_notify_error "$TXT_ERROR_INVALID_ACTION: $action"
     ;;
   esac
+}
+
+manage_user_list() {
+  _manage_user_list "$@"
 }
 
 # ==============================================================================
@@ -1718,7 +1798,7 @@ __menu_book_actions_read() {
   local book_path
 
   if [ "$CONFIG_UPDATE_RECENT" = "true" ]; then
-    __manage_user_list "$CLI_USER_LIST_RECENT" "add" "$CONFIG_RECENT_LIST_LIMIT"
+    manage_user_list_add "$CLI_USER_LIST_RECENT" "$CONFIG_RECENT_LIST_LIMIT"
   fi
 
   book_path="$(printf '%s' "$STATE_CURRENT_BOOK" | jq -r '.formats[0]')"
@@ -1729,30 +1809,32 @@ __menu_book_actions_read() {
   fi
 }
 
-__menu_book_actions_manage_user_lists() {
+__menu_book_actions_manage_my_lists() {
   local list
 
   while true; do
     lists="\
-${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_READING}${THEME_RESET}  $TXT_MENU_MAIN_READING
-${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_PAUSED}${THEME_RESET}  $TXT_MENU_MAIN_PAUSED
-${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_PLANNING}${THEME_RESET}  $TXT_MENU_MAIN_PLANNING
-${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_REREADING}${THEME_RESET}  $TXT_MENU_MAIN_REREADING
-${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_DOCS}${THEME_RESET}  $TXT_MENU_MAIN_DOCS
-${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_COMPLETED}${THEME_RESET}  $TXT_MENU_MAIN_COMPLETED
-${THEME_FZF_ICON_COLOR_ERROR}${TXT_ICON_MENU_MAIN_DROPPED}${THEME_RESET}  $TXT_MENU_MAIN_DROPPED
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_READING}${THEME_RESET}  $TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_READING
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_REREADING}${THEME_RESET}  $TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_RE_READING
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_PAUSED}${THEME_RESET}  $TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_PAUSED
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_PLANNING}${THEME_RESET}  $TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_PLANNING
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_DOCS}${THEME_RESET}  $TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_DOCS
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_DROPPED}${THEME_RESET}  $TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_DROPPED
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_COMPLETED}${THEME_RESET}  $TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_COMPLETED
+${THEME_FZF_ICON_COLOR_ERROR}${TXT_ICON_MENU_MAIN_DROPPED}${THEME_RESET}  $TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_REMOVE
 ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BACK}${THEME_RESET}  $TXT_MENU_BACK"
 
     list="$(printf '%s' "$lists" | ui_launcher "$TXT_MENU_BOOK_ACTIONS_USER_LISTS_PROMPT" | sed 's/.*  //g')"
 
     case "$list" in
-    "$TXT_MENU_MAIN_READING") __manage_user_list "$CLI_USER_LIST_READING" "$1" ;;
-    "$TXT_MENU_MAIN_PAUSED") __manage_user_list "$CLI_USER_LIST_PAUSED" "$1" ;;
-    "$TXT_MENU_MAIN_PLANNING") __manage_user_list "$CLI_USER_LIST_PLANNING" "$1" ;;
-    "$TXT_MENU_MAIN_REREADING") __manage_user_list "$CLI_USER_LIST_REREADING" "$1" ;;
-    "$TXT_MENU_MAIN_DOCS") __manage_user_list "$CLI_USER_LIST_DOCS" "$1" ;;
-    "$TXT_MENU_MAIN_COMPLETED") __manage_user_list "$CLI_USER_LIST_COMPLETED" "$1" ;;
-    "$TXT_MENU_MAIN_DROPPED") __manage_user_list "$CLI_USER_LIST_DROPPED" "$1" ;;
+    "$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_READING") manage_user_list "$CLI_USER_LIST_READING" ;;
+    "$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_PAUSED") manage_user_list "$CLI_USER_LIST_PAUSED" ;;
+    "$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_PLANNING") manage_user_list "$CLI_USER_LIST_PLANNING" ;;
+    "$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_RE_READING") manage_user_list "$CLI_USER_LIST_REREADING" ;;
+    "$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_DOCS") manage_user_list "$CLI_USER_LIST_DOCS" ;;
+    "$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_COMPLETED") manage_user_list "$CLI_USER_LIST_COMPLETED" ;;
+    "$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_DROPPED") manage_user_list "$CLI_USER_LIST_DROPPED" ;;
+    "$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_REMOVE") manage_user_list "remove" ;;
     "$TXT_MENU_BACK" | "") break ;;
     esac
   done
@@ -1807,8 +1889,7 @@ _menu_book_actions() {
 
   actions="\
  ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_READ}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_READ}
- ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_ADD_LIST}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_ADD_TO_USER_LIST}
- ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_REMOVE_LIST}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_REMOVE_FROM_USER_LIST}
+ ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_ADD_LIST}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS}
  ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_REMOVE_BOOK}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_REMOVE_BOOK}
  ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_EDIT_METADATA}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_EDIT_METADATA}
  ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BACK}${THEME_RESET}  ${TXT_MENU_BACK}
@@ -1837,8 +1918,7 @@ $extra_menu_options"
 
     case "$action" in
     "$TXT_MENU_BOOK_ACTIONS_READ") __menu_book_actions_read ;;
-    "$TXT_MENU_BOOK_ACTIONS_ADD_TO_USER_LIST") __menu_book_actions_manage_user_lists "add" ;;
-    "$TXT_MENU_BOOK_ACTIONS_REMOVE_FROM_USER_LIST") __menu_book_actions_manage_user_lists "remove" ;;
+    "$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS") __menu_book_actions_manage_my_lists ;;
     "$TXT_MENU_BOOK_ACTIONS_REMOVE_BOOK") __menu_book_actions_remove_book ;;
     "$TXT_MENU_BOOK_ACTIONS_EDIT_METADATA") __menu_book_actions_edit_metadata ;;
     "$TXT_MENU_BACK" | "") _state_pop && break ;;
@@ -1959,8 +2039,9 @@ __menu_miscellaneous_add_books() {
   fi
 }
 
-__menu_miscellaneous_reload_data() {
-  _fetch_calibre_data "true"
+__menu_miscellaneous_sync() {
+  __fetch_calibre_db
+  __fetch_calibre_categories
 }
 
 # shellcheck disable=SC2120
@@ -1974,7 +2055,7 @@ _menu_miscellaneous() {
   actions="\
  ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MISC_ADD_BOOKS}${THEME_RESET}  ${TXT_MENU_MISC_ADD_BOOKS}
  ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MISC_ADD_BOOKS_FOLDER}${THEME_RESET}  ${TXT_MENU_MISC_ADD_BOOKS_FOLDER}
- ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MISC_RELOAD_DATA}${THEME_RESET}  ${TXT_MENU_MISC_RELOAD_DATA}
+ ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MISC_SYNC}${THEME_RESET}  ${TXT_MENU_MISC_SYNC}
  ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BACK}${THEME_RESET}  ${TXT_MENU_BACK}
  ${THEME_FZF_ICON_COLOR_ERROR}${TXT_ICON_MENU_EXIT}${THEME_RESET}  ${TXT_MENU_EXIT}"
 
@@ -2000,7 +2081,7 @@ _menu_miscellaneous() {
     case "$action" in
     "$TXT_MENU_MISC_ADD_BOOKS_FOLDER") __menu_miscellaneous_add_books_from_folder ;;
     "$TXT_MENU_MISC_ADD_BOOKS") __menu_miscellaneous_add_books ;;
-    "$TXT_MENU_MISC_RELOAD_DATA") __menu_miscellaneous_reload_data ;;
+    "$TXT_MENU_MISC_SYNC") __menu_miscellaneous_sync ;;
     "$TXT_MENU_BACK" | "") break ;;
     "$TXT_MENU_EXIT") _util_byebye ;;
     *)
@@ -2025,21 +2106,20 @@ __menu_main_user_list_browser() {
   local user_list_path="$1"
   local user_list
 
-  if [ ! -s "$user_list_path" ]; then
+  if ! [ -s "$user_list_path" ]; then
     ui_notify_warning "$TXT_WARNING_USER_LIST_EMPTY"
     return
   fi
 
-  user_list="$(cat "$user_list_path")"
+  STATE_CURRENT_BOOKS="$(cat "$user_list_path")"
 
-  STATE_CURRENT_BOOKS="$(
-    _fetch_calibre_db | jq -r --arg user_list "$user_list" '
-      ($user_list | split("\n")) as $titles |
-    map(select(.title as $t | $titles | index($t) != null))
-    '
-  )"
+  if [ "$STATE_CURRENT_BOOKS" == "[]" ]; then
+    ui_notify_warning "$TXT_WARNING_USER_LIST_EMPTY"
+    return
+  fi
 
-  STATE_CURRENT_BOOK_TITLES="$user_list"
+  STATE_CURRENT_BOOK_TITLES="$(printf '%s' "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
+
   _state_push
   menu_book_list_explorer
 }

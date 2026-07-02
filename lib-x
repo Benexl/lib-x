@@ -188,8 +188,9 @@ __load_default_config() {
   -i
   --exact
   --tabstop=1
-  --preview-window=border-rounded,left,35%,wrap
-  --wrap=word"}"
+  --preview-window=border-rounded,left,35%,wrap-word
+  --wrap-word
+  --wrap-sign=''"}"
 }
 
 __load_env_config() {

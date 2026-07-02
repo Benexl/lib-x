@@ -1177,15 +1177,6 @@ __preview_fzf_generate_script_for_item() {
 
   data_item="$1"
 
-  raw_title=$(printf "%s" "$data_item" | jq -r '.title')
-  preview_script_path="$CLI_PREVIEW_SCRIPTS_DIR/$(_util_generate_hash "$raw_title").sh"
-
-  if [ -s "$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE" ] &&
-    [ -s "$preview_script_path" ] &&
-    [ "$(date -r "$preview_script_path" +%s 2>/dev/null)" -ge "$(cat "$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE")" ]; then
-    return
-  fi
-
   eval "$(printf "%s" "$data_item" | jq -r '
     def format_timestamp:
       if . != "" then
@@ -1207,6 +1198,7 @@ __preview_fzf_generate_script_for_item() {
       "id=" + (.id // "" | @sh),
       "uuid=" + (.uuid // "" | @sh),
       "title=" + (.title // "" | sub("^[0-9]+ "; "") | @sh),
+      "raw_title=" + (.title // "" | @sh),
       "cover=" + (.cover // "" | @sh),
       "identifiers=" + ([.identifiers | to_entries | .[] | (.key) + " " + (.value)] | join(", ") // "" | @sh),
       "languages=" + (.languages | join(", ") // "" | @sh),
@@ -1223,7 +1215,9 @@ __preview_fzf_generate_script_for_item() {
       "last_modified=" + (.last_modified // "" | format_timestamp | @sh),
       "date_added=" + (.timestamp // "" | format_timestamp | @sh)
     ] | join("\n")
-  ')"
+')"
+
+  preview_script_path="$CLI_PREVIEW_SCRIPTS_DIR/$(_util_generate_hash "$raw_title").sh"
 
   cat <<EOF >"$preview_script_path"
 #!/usr/bin/env sh

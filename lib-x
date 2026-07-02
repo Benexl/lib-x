@@ -1172,6 +1172,7 @@ __preview_fzf_generate_script_for_item() {
   local isbn
   local formats
   local last_modified
+  local date_added
 
   data_item="$1"
 
@@ -1205,12 +1206,13 @@ __preview_fzf_generate_script_for_item() {
       "size=" + (.size // "" | format_size | @sh),
       "series=" + (.series // "" | @sh),
       "publisher=" + (.publisher // "" | @sh),
-      "publish_date=" + (.publish_date // "" | format_timestamp | @sh),
+      "publish_date=" + (.pubdate // "" | if . == "0101-01-01T00:00:00+00:00" then "" end | format_timestamp | @sh),
       "series_index=" + (.series_index // "" | @sh),
       "comments=" + (.comments // "" | @sh),
       "isbn=" + (.isbn // "" | @sh),
       "formats=" + (.formats[] | sub("^.+\\."; "") // "" | @sh),
-      "last_modified=" + (.last_modified // "" | format_timestamp | @sh)
+      "last_modified=" + (.last_modified // "" | format_timestamp | @sh),
+      "date_added=" + (.timestamp // "" | format_timestamp | @sh)
     ] | join("\n")
 ')"
 
@@ -1219,14 +1221,13 @@ __preview_fzf_generate_script_for_item() {
   cat <<EOF >"$preview_script_path"
 #!/usr/bin/env sh
 # ==============================================================================
-# This script is generated dynamically for each preview item and is executed 
-# by fzf when that item is previewed. You can customize the content and layout 
-# of the preview by modifying the way this script is generated in 
-# __preview_fzf_generate_script_for_item function. The script has access to the 
-# item's data through the variables defined at the beginning (title, image_path,
-# view_count, live_status, description, channel, duration, timestamp).
-# You can also use any utilities or functions defined in the shared script 
-# ($CLI_FZF_PREVIEW_SCRIPT) to render images or format text.
+# This script is generated dynamically for each preview item and is executed
+# by fzf when that item is previewed. You can customize the content and layout
+# of the preview by modifying the way this script is generated in
+# __preview_fzf_generate_script_for_item function.
+# You can also use any utilities or functions defined in the shared script
+# ($CLI_FZF_PREVIEW_SCRIPT)
+# to render images or format text.
 # ==============================================================================
 
 if [ -s "$CLI_FZF_PREVIEW_SCRIPT" ];then
@@ -1318,7 +1319,12 @@ if [ -n "$last_modified" ]; then
   printf "${THEME_FZF_PREVIEW_KEY}Last Modified: ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$last_modified"
 fi
 
-if [ -n "$size" ] || [ -n "$publish_date" ] || [ -n "$last_modified" ]; then
+if [ -n "$date_added" ]; then
+  date_added="\$(printf "$date_added" | fold -s -w "\$FZF_PREVIEW_COLUMNS")"
+  printf "${THEME_FZF_PREVIEW_KEY}Date Added: ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$date_added"
+fi
+
+if [ -n "$size" ] || [ -n "$publish_date" ] || [ -n "$last_modified" ] || [ -n "$last_modified" ]; then
   draw_divider
 fi
 

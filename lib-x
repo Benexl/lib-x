@@ -2121,7 +2121,8 @@ __menu_miscellaneous_add_books_from_folder() {
   if ui_confirm "$TXT_MENU_MISC_PROMPT_PROCEED"; then
     # shellcheck disable=SC2086
     calibredb add "$books_path" $custom_args
-    _fetch_calibre_data "true"
+    __fetch_calibre_db
+    __fetch_calibre_categories
   fi
 }
 
@@ -2145,7 +2146,8 @@ __menu_miscellaneous_add_books() {
   if ui_confirm "$TXT_MENU_MISC_PROMPT_PROCEED"; then
     # shellcheck disable=SC2086
     printf '%s\n' "$books_path" | xargs -I {} calibredb add "{}" $custom_args
-    _fetch_calibre_data "true"
+    __fetch_calibre_db
+    __fetch_calibre_categories
   fi
 }
 

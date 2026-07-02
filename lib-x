@@ -1488,7 +1488,7 @@ _state_pop() {
 # ==============================================================================
 __update_user_lists() {
   local user_list_paths
-  local calibredb
+  local calibredb_data
 
   user_list_paths="\
 $CLI_USER_LIST_READING
@@ -1499,7 +1499,7 @@ $CLI_USER_LIST_DOCS
 $CLI_USER_LIST_COMPLETED
 $CLI_USER_LIST_DROPPED"
 
-  calibredb="$(cat "$CALIBRE_DB_JSON_FILE")"
+  calibredb_data="$(cat "$CALIBRE_DB_JSON_FILE")"
 
   printf '%s' "$user_list_paths" | while IFS= read -r user_list_path; do
     if ! [ -s "$user_list_path" ]; then
@@ -1507,15 +1507,21 @@ $CLI_USER_LIST_DROPPED"
     fi
 
     user_list="$(cat "$user_list_path")"
-    printf '%s' "$calibredb" | jq --argjson user_list "$user_list" '
+    printf '%s' "$calibredb_data" | jq --argjson user_list "$user_list" '
     map(select(.id as $id | any($user_list[].id; . == $id)))
     ' >"$user_list_path"
   done
 }
 
 __fetch_calibre_db() {
-  calibredb list --for-machine --fields all >"$CALIBRE_DB_JSON_FILE"
-  __update_user_lists
+  if calibredb list --for-machine --fields all >"${CALIBRE_DB_JSON_FILE}.tmp"; then
+    mv "${CALIBRE_DB_JSON_FILE}.tmp" "$CALIBRE_DB_JSON_FILE"
+    __update_user_lists
+  else
+    # ui_notify_error "$TXT_CALIBRE_DB_FETCH_FAILED"
+    rm -f "${CALIBRE_DB_JSON_FILE}.tmp"
+    return 1
+  fi
 }
 
 _fetch_calibre_db() {
@@ -1536,7 +1542,13 @@ fetch_calibre_db() {
 }
 
 __fetch_calibre_categories() {
-  calibredb list_categories --csv >"$CALIBRE_CATEGORIES_CSV_FILE"
+  if calibredb list_categories --csv >"${CALIBRE_CATEGORIES_CSV_FILE}.tmp"; then
+    mv "${CALIBRE_CATEGORIES_CSV_FILE}.tmp" "$CALIBRE_CATEGORIES_CSV_FILE"
+  else
+    # ui_notify_error "$TXT_CALIBRE_DB_FETCH_FAILED"
+    rm -f "${CALIBRE_CATEGORIES_CSV_FILE}.tmp"
+    return 1
+  fi
 }
 
 _fetch_calibre_categories() {

@@ -1240,8 +1240,6 @@ fi
 if [ '$CONFIG_ENABLE_PREVIEW_IMAGES' = 'true' ];then
   if [ -s "$cover" ];then
     fzf_preview "$cover" 2>/dev/null;
-  else
-    printf '%s\n' "$TXT_FZF_PREVIEW_IMAGE_LOADING";
   fi
 fi
 
@@ -1380,7 +1378,7 @@ _preview_rofi() {
         "cover=" + (.cover // "" | @sh)
         ] | join("\n")')"
 
-      if [ -n "$cover" ] && [ "$cover" != "null" ]; then
+      if [ -s "$cover" ]; then
         printf '%s\0icon\x1f%s\n' "$title" "$cover"
       else
         printf '%s\n' "$title"

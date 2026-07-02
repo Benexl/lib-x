@@ -1529,7 +1529,7 @@ __fetch_calibre_db() {
 _fetch_calibre_db() {
   local calibre_library_current_timestamp
 
-  calibre_library_current_timestamp="$(stat -c %Y "$CONFIG_CALIBRE_LIBRARY_PATH/metadata.db")"
+  calibre_library_current_timestamp="$(date -r "$CONFIG_CALIBRE_LIBRARY_PATH/metadata.db" +%s)"
 
   if ! [ -s "$CALIBRE_DB_JSON_FILE" ] || ! [ -s "$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE" ] || [ "$calibre_library_current_timestamp" -gt "$(cat "$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE")" ]; then
     if __fetch_calibre_db; then

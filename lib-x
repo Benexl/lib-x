@@ -1593,6 +1593,9 @@ _fetch_calibre_db_all() {
       else
       .
     end
+    | to_entries
+    | map(.value.title=\"\(.key+1|tostring| if (.|length) < 2 then \"0\" + . else . end) \" + .value.title)
+    | map(.value)
   "
 }
 
@@ -1612,6 +1615,9 @@ _fetch_calibre_db_search_title() {
        else
         .
       end
+      | to_entries
+      | map(.value.title=\"\(.key+1|tostring| if (.|length) < 2 then \"0\" + . else . end) \" + .value.title)
+      | map(.value)
   "
 }
 
@@ -1628,6 +1634,9 @@ _fetch_calibre_db_search_series() {
        else
         .
       end
+      | to_entries
+      | map(.value.title=\"\(.key+1|tostring| if (.|length) < 2 then \"0\" + . else . end) \" + .value.title)
+      | map(.value)
   "
 }
 
@@ -1644,6 +1653,9 @@ _fetch_calibre_db_search_author() {
       else
       .
     end
+    | to_entries
+    | map(.value.title=\"\(.key+1|tostring| if (.|length) < 2 then \"0\" + . else . end) \" + .value.title)
+    | map(.value)
   "
 }
 
@@ -1660,6 +1672,9 @@ _fetch_calibre_db_search_tag() {
       else
       .
     end
+    | to_entries
+    | map(.value.title=\"\(.key+1|tostring| if (.|length) < 2 then \"0\" + . else . end) \" + .value.title)
+    | map(.value)
   "
 }
 
@@ -1676,6 +1691,9 @@ _fetch_calibre_db_search_format() {
       else
       .
     end
+    | to_entries
+    | map(.value.title=\"\(.key+1|tostring| if (.|length) < 2 then \"0\" + . else . end) \" + .value.title)
+    | map(.value)
   "
 }
 
@@ -1708,6 +1726,9 @@ _fetch_calibre_db_search_rating() {
        else
         .
       end
+      | to_entries
+      | map(.value.title=\"\(.key+1|tostring| if (.|length) < 2 then \"0\" + . else . end) \" + .value.title)
+      | map(.value)
   "
 }
 
@@ -1724,6 +1745,9 @@ _fetch_calibre_db_search_publisher() {
        else
         .
       end
+      | to_entries
+      | map(.value.title=\"\(.key+1|tostring| if (.|length) < 2 then \"0\" + . else . end) \" + .value.title)
+      | map(.value)
   "
 }
 
@@ -1740,6 +1764,9 @@ _fetch_calibre_db_search_identifier() {
       else
       .
     end
+    | to_entries
+    | map(.value.title=\"\(.key+1|tostring| if (.|length) < 2 then \"0\" + . else . end) \" + .value.title)
+    | map(.value)
   "
 }
 
@@ -2144,16 +2171,22 @@ menu_miscellaneous() {
 # ==============================================================================
 __menu_main_user_list_browser() {
   local user_list_path="$1"
-  local user_list
 
   if ! [ -s "$user_list_path" ]; then
     ui_notify_warning "$TXT_WARNING_USER_LIST_EMPTY"
     return
   fi
 
-  STATE_CURRENT_BOOKS="$(cat "$user_list_path")"
+  STATE_CURRENT_BOOKS="$(
+    jq '
+      reverse
+      | to_entries
+      | map(.value.title="\(.key+1|tostring| if (.|length) < 2 then "0" + . else . end) " + .value.title) 
+      | map(.value)
+    ' "$user_list_path"
+  )"
 
-  if [ "$STATE_CURRENT_BOOKS" == "[]" ]; then
+  if [ "$STATE_CURRENT_BOOKS" = "[]" ]; then
     ui_notify_warning "$TXT_WARNING_USER_LIST_EMPTY"
     return
   fi
@@ -2197,8 +2230,20 @@ __menu_main_dropped() {
 }
 
 __menu_main_random() {
-  STATE_CURRENT_BOOKS="$(_fetch_calibre_db)"
-  STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title' | shuf -n "$CONFIG_NO_OF_RANDOM_BOOKS")"
+  local randoms
+
+  randoms="$(od -An -N$((CONFIG_NO_OF_RANDOM_BOOKS * 3 * 4)) -tu4 /dev/urandom)"
+
+  STATE_CURRENT_BOOKS="$(
+    fetch_calibre_db | jq --argjson no_of_random_books "$CONFIG_NO_OF_RANDOM_BOOKS" --arg randoms "$randoms" '
+      . as $db
+      | $randoms | sub("\n"; " "; "g") | split(" ") | map(select(. != "")) | map(tonumber? // empty) | unique | .[:($no_of_random_books)] as $random_list
+      | $random_list | map($db[. % ($db | length)])
+      | to_entries
+      | map(.value.title="\(.key+1|tostring| if (.|length) < 2 then "0" + . else . end) " + .value.title)
+      | map(.value)'
+  )"
+  STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
   _state_push
   menu_book_list_explorer
 }

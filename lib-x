@@ -1928,7 +1928,7 @@ __menu_book_actions_remove_book() {
     if calibredb remove "$book_id"; then
       ui_notify "$TXT_MENU_BOOK_ACTIONS_REMOVED_SUCCESS"
     fi
-    _fetch_calibre_db
+    __fetch_calibre_db
     _state_pop
   fi
 }

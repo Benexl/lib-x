@@ -302,6 +302,7 @@ __load_default_lang() {
   TXT_MENU_BOOK_ACTIONS_USER_LISTS_PROMPT="Select List"
   TXT_MENU_BOOK_ACTIONS_PROMPT_FIELD="Select field to edit"
   TXT_MENU_BOOK_ACTIONS_PROMPT_NEW_VAL="Enter new value for"
+  TXT_MENU_BOOK_ACTIONS_CONFIRM_UPDATE="Are you sure you want to update"
   TXT_MENU_BOOK_ACTIONS_READ="Read"
   TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS="Manage My Lists"
   TXT_MENU_BOOK_ACTIONS_REMOVE_BOOK="Remove Book"
@@ -1933,22 +1934,53 @@ __menu_book_actions_remove_book() {
 }
 
 __menu_book_actions_edit_metadata() {
+  local fields
   local field
   local book_id
   local val
 
-  field="$(printf "author_sort\nauthors\ncomments\ncover\nid\nidentifiers\nlanguages\npubdate\npublisher\nrating\nseries\nseries_index\nsize\nsort\ntags\ntimestamp\ntitle\ntitle_sort" | ui_launcher "$TXT_MENU_BOOK_ACTIONS_PROMPT_FIELD")"
+  fields="\
+author_sort
+authors
+comments
+cover
+id
+identifiers
+languages
+pubdate
+publisher
+rating
+series
+series_index
+size
+sort
+tags
+timestamp
+title
+title_sort
+cover"
 
-  [ -z "$field" ] && return
+  while true; do
+    field="$(printf '%s\n%s' "$fields" "$TXT_MENU_BACK" | ui_launcher "$TXT_MENU_BOOK_ACTIONS_PROMPT_FIELD")"
 
-  book_id="$(printf '%s' "$STATE_CURRENT_BOOK" | jq -r '.id')"
-  calibredb show_metadata "$book_id"
+    case "$field" in
+    "$TXT_MENU_BACK" | "") break ;;
+    *)
+      book_id="$(printf '%s' "$STATE_CURRENT_BOOK" | jq -r '.id')"
+      calibredb show_metadata "$book_id"
+      val="$(ui_prompt "$TXT_MENU_BOOK_ACTIONS_PROMPT_NEW_VAL $field")"
 
-  val="$(ui_prompt "$TXT_MENU_BOOK_ACTIONS_PROMPT_NEW_VAL $field")"
+      if [ -n "$val" ] && ui_confirm "$TXT_MENU_BOOK_ACTIONS_CONFIRM_UPDATE $field to $val?"; then
+        calibredb set_metadata "$book_id" --field "$field:$val"
+        calibredb embed_metadata "$book_id"
+        calibredb backup_metadata
+        __fetch_calibre_db
+        __fetch_calibre_categories
+      fi
+      ;;
+    esac
+  done
 
-  calibredb set_metadata "$book_id" --field "$field:$val"
-  calibredb backup_metadata
-  _fetch_calibre_data "true"
 }
 
 # shellcheck disable=SC2120

@@ -1631,8 +1631,16 @@ fetch_calibre_db_all() {
 # Calibre: search functions
 # ==============================================================================
 _fetch_calibre_db_search() {
-  _fetch_calibre_db | jq -c '.[]' | grep "$1" -i | jq --slurp --arg sort_by "$2" "
-    if \$sort_by != \"\" then
+  _fetch_calibre_db | jq --arg query "$1" --arg sort_by "$2" "
+    map(select(
+      (.title // \"\" | test(\$query; \"i\")) or
+      (.authors // \"\" | test(\$query; \"i\")) or
+      any(.tags[]?; test(\$query; \"i\")) or
+      (.series // \"\" | test(\$query; \"i\")) or
+      (.comments // \"\" | test(\$query; \"i\")) or
+      (.publisher // \"\" | test(\$query; \"i\"))
+    ))
+    | if \$sort_by != \"\" then
         $CALIBRE_SORT_JQ
         sort_calibre_db(\$sort_by)
        else

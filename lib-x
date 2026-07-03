@@ -2330,7 +2330,7 @@ __menu_main_search() {
     if [ -z "$search_history" ]; then
       query="$(ui_prompt "$TXT_MENU_MAIN_SEARCH_PROMPT")"
     else
-      choice=$(printf "%s\n%s\n%s" "$TXT_MENU_MAIN_NEW_SEARCH" "$(printf '%s' "$search_history" | _util_reverse)" "$TXT_MENU_BACK" | ui_launcher "$TXT_MENU_MAIN_SEARCH_OR_HISTORY_PROMPT")
+      choice=$(printf "%s\n%s\n%s" "$TXT_MENU_MAIN_NEW_SEARCH" "$(printf '%s\n' "$search_history" | _util_reverse)" "$TXT_MENU_BACK" | ui_launcher "$TXT_MENU_MAIN_SEARCH_OR_HISTORY_PROMPT")
       case "$choice" in
       "$TXT_MENU_MAIN_NEW_SEARCH")
         query="$(ui_prompt "$TXT_MENU_MAIN_SEARCH_PROMPT")"
@@ -2345,12 +2345,11 @@ __menu_main_search() {
   fi
 
   if [ "$CONFIG_ENABLE_SEARCH_HISTORY" = "true" ]; then
-    printf '%s' "$search_history" | awk -v query="$query" '
-    $0 != "" && $0 != query && !history[$0]++
+    printf '%s\n' "$search_history" | awk -v query="$query" '
+    $0 != "" && $0 != query && !seen[$0]++ {
+      print $0
+    }
     END {
-      for (q in history) {
-        print q
-      }
       print query
     }
     ' >"$CLI_SEARCH_HISTORY_FILE"

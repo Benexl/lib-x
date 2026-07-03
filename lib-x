@@ -2318,34 +2318,38 @@ __menu_main_search() {
   local search_history
   local choice
 
-  if [ "$CONFIG_ENABLE_SEARCH_HISTORY" = "true" ] && [ -s "$CLI_SEARCH_HISTORY_FILE" ]; then
-    search_history="$(cat "$CLI_SEARCH_HISTORY_FILE")"
-  else
-    search_history=""
-  fi
-
-  if [ -n "$CMD_INPUT" ]; then
-    query="$CMD_INPUT"
-  else
-    if [ -z "$search_history" ]; then
-      query="$(ui_prompt "$TXT_MENU_MAIN_SEARCH_PROMPT")"
+  while true; do
+    if [ "$CONFIG_ENABLE_SEARCH_HISTORY" = "true" ] && [ -s "$CLI_SEARCH_HISTORY_FILE" ]; then
+      search_history="$(cat "$CLI_SEARCH_HISTORY_FILE")"
     else
-      choice=$(printf "%s\n%s\n%s" "$TXT_MENU_MAIN_NEW_SEARCH" "$(printf '%s\n' "$search_history" | _util_reverse)" "$TXT_MENU_BACK" | ui_launcher "$TXT_MENU_MAIN_SEARCH_OR_HISTORY_PROMPT")
-      case "$choice" in
-      "$TXT_MENU_MAIN_NEW_SEARCH")
-        query="$(ui_prompt "$TXT_MENU_MAIN_SEARCH_PROMPT")"
-        ;;
-      "$TXT_MENU_BACK" | "") return ;;
-      *)
-        query="$choice"
-        ;;
-      esac
+      search_history=""
     fi
 
-  fi
+    if [ -n "$CMD_INPUT" ]; then
+      query="$CMD_INPUT"
+    else
+      if [ -z "$search_history" ]; then
+        query="$(ui_prompt "$TXT_MENU_MAIN_SEARCH_PROMPT")"
+      else
+        choice=$(printf "%s\n%s\n%s" "$TXT_MENU_MAIN_NEW_SEARCH" "$(printf '%s\n' "$search_history" | _util_reverse)" "$TXT_MENU_BACK" | ui_launcher "$TXT_MENU_MAIN_SEARCH_OR_HISTORY_PROMPT")
+        case "$choice" in
+        "$TXT_MENU_MAIN_NEW_SEARCH")
+          query="$(ui_prompt "$TXT_MENU_MAIN_SEARCH_PROMPT")"
+          ;;
+        "$TXT_MENU_BACK" | "") break ;;
+        *)
+          query="$choice"
+          ;;
+        esac
+      fi
 
-  if [ "$CONFIG_ENABLE_SEARCH_HISTORY" = "true" ]; then
-    printf '%s\n' "$search_history" | awk -v query="$query" '
+    fi
+    if [ -z "$query" ]; then
+      continue
+    fi
+
+    if [ "$CONFIG_ENABLE_SEARCH_HISTORY" = "true" ]; then
+      printf '%s\n' "$search_history" | awk -v query="$query" '
     $0 != "" && $0 != query && !seen[$0]++ {
       print $0
     }
@@ -2353,12 +2357,13 @@ __menu_main_search() {
       print query
     }
     ' >"$CLI_SEARCH_HISTORY_FILE"
-  fi
+    fi
 
-  STATE_CURRENT_BOOKS="$(fetch_calibre_db_search "$query" "$CONFIG_SORT_BY")"
-  STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
-  _state_push
-  menu_book_list_explorer
+    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search "$query" "$CONFIG_SORT_BY")"
+    STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
+    _state_push
+    menu_book_list_explorer
+  done
 }
 
 __menu_main_all() {

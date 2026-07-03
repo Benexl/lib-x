@@ -820,7 +820,7 @@ __ui_rofi_launcher() {
   # shellcheck disable=SC2086
   selection=$(
     sed -E "s/$THEME_ESC(\[[0-9;]*[a-zA-Z]|\(B)//g" |
-      rofi -no-config -theme "$CONFIG_ROFI_THEME_MAIN" -dmenu -i $custom_opts -p "$1"
+      rofi -no-config -theme "$CONFIG_ROFI_THEME_MAIN" -dmenu -i $custom_opts -p "$1" -matching fuzzy
   )
   printf '%s' "$selection"
 }
@@ -884,7 +884,7 @@ __ui_rofi_launcher_with_preview() {
   # shellcheck disable=SC2086
   selection=$(
     sed -E "s/$THEME_ESC(\[[0-9;]*[a-zA-Z]|\(B)//g" |
-      rofi -no-config -theme "$CONFIG_ROFI_THEME_PREVIEW" -dmenu -i $custom_opts -p "$1"
+      rofi -no-config -theme "$CONFIG_ROFI_THEME_PREVIEW" -dmenu -i $custom_opts -p "$1" -matching fuzzy
   )
   printf '%s' "$selection"
 }

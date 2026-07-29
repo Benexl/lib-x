@@ -18,6 +18,7 @@ readonly CLI_RELEASES_BASE="https://github.com/Benexl/lib-x/releases/download"
 # ==============================================================================
 # SETUP
 # ==============================================================================
+# shellcheck disable=SC2155
 readonly CLI_START_TIME="$(date +%s)"
 
 _dep_ch() {
@@ -28,6 +29,7 @@ if ! _dep_ch local; then
   eval 'local() { unset -v $1; }'
 fi
 
+# shellcheck disable=SC2155
 if _dep_ch realpath; then
   readonly CLI_DIR="$(dirname "$(realpath "$0")")"
 else

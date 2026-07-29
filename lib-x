@@ -2677,9 +2677,9 @@ $extra_menu_options"
     "$TXT_MENU_MAIN_RATINGS") __menu_main_ratings ;;
     "$TXT_MENU_MAIN_PUBLISHER") __menu_main_publishers ;;
     "$TXT_MENU_MAIN_IDENTIFIERS") __menu_main_identifiers ;;
-    "$THEME_FZF_ICON_COLOR_ACCENT") THEME_FZF_ICON_COLOR_SECONDARY ;;
-    "$TXT_MENU_MAIN_EDIT_CONFIG") THEME_FZF_ICON_COLOR_SECONDARY__menu_main_edit_config ;;
-    "$TXT_MENU_MAIN_MISC") THEME_FZF_ICON_COLOR_SECONDARY ;;
+    "$TXT_MENU_MAIN_DROPPED") __menu_main_dropped ;;
+    "$TXT_MENU_MAIN_EDIT_CONFIG") __menu_main_edit_config ;;
+    "$TXT_MENU_MAIN_MISC") menu_miscellaneous ;;
     "$TXT_MENU_EXIT" | "") _util_byebye ;;
     *)
       if [ -n "$extra_menu_options" ] && [ -n "$extra_menu_options_handler" ]; then

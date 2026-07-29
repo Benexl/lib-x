@@ -319,9 +319,11 @@ __load_default_lang() {
   TXT_MENU_MISC_ADD_BOOKS="Add Books"
   TXT_MENU_MISC_ADD_BOOKS_FOLDER="Add Books From Folder"
   TXT_MENU_MISC_SYNC="Sync Data"
-  TXT_MENU_MISC_PROMPT_CUSTOM_ARGS="Input custom args?"
-  TXT_MENU_MISC_PROMPT_ENTER_ARGS="Enter args"
-  TXT_MENU_MISC_PROMPT_PROCEED="Proceed adding books?"
+  TXT_MENU_MISC_ADD_BOOKS_OPTIONS_PROMPT="Enter args"
+
+  TXT_MENU_ACTION_CONFIRM="Are you sure you would like to proceed?"
+  TXT_UNSUPPORTED_FILE_EXPLORER="The current file explorer ($CONFIG_FILE_EXPLORER) is unsupported"
+  TXT_MENU_MISC_ADD_BOOKS_FROM_FOLDER_OPTIONS_PROMPT="Enter custom options"
 
   TXT_MENU_LIST_EXPLORER_PROMPT="Select Book"
 
@@ -399,8 +401,76 @@ __load_default_lang() {
 
   TXT_ICON_MENU_BOOK_ACTIONS_READ=""
   TXT_ICON_MENU_BOOK_ACTIONS_ADD_LIST="󰐒"
+  TXT_ICON_MENU_BOOK_ACTIONS_ADD_LIST="󰐒"
   TXT_ICON_MENU_BOOK_ACTIONS_REMOVE_BOOK="󰗙"
   TXT_ICON_MENU_BOOK_ACTIONS_EDIT_METADATA="󱚌"
+  TXT_MISC_ADD_BOOKS_OPTIONS='Options:
+  -d, --duplicates      Add books to database even if they already exist.
+                        Comparison is done based on book titles and authors.
+                        Note that the --automerge option takes precedence.
+
+  -m AUTOMERGE, --automerge=AUTOMERGE
+                        If books with similar titles and authors are found,
+                        merge the incoming formats (files) automatically into
+                        existing book records. A value of "ignore" means
+                        duplicate formats are discarded. A value of
+                        "overwrite" means duplicate formats in the library are
+                        overwritten with the newly added files. A value of
+                        "new_record" means duplicate formats are placed into a
+                        new book record.
+
+  -e, --empty           Add an empty book (a book with no formats)
+
+  -t TITLE, --title=TITLE
+                        Set the title of the added book(s)
+
+  -a AUTHORS, --authors=AUTHORS
+                        Set the authors of the added book(s)
+
+  -i ISBN, --isbn=ISBN  Set the ISBN of the added book(s)
+
+  -I IDENTIFIER, --identifier=IDENTIFIER
+                        Set the identifiers for this book, e.g. -I asin:XXX -I
+                        isbn:YYY
+
+  -T TAGS, --tags=TAGS  Set the tags of the added book(s)
+
+  -s SERIES, --series=SERIES
+                        Set the series of the added book(s)
+
+  -S SERIES_INDEX, --series-index=SERIES_INDEX
+                        Set the series number of the added book(s)
+
+  -c COVER, --cover=COVER
+                        Path to the cover to use for the added book
+
+  -l LANGUAGES, --languages=LANGUAGES
+                        A comma separated list of languages (best to use
+                        ISO639 language codes, though some language names may
+                        also be recognized)'
+
+  TXT_MISC_ADD_BOOKS_FROM_FOLDER_OPTIONS=$TXT_MISC_ADD_BOOKS_OPTIONS'
+ADDING FROM FOLDERS:
+    Options to control the adding of books from folders. By default only
+    files that have extensions of known e-book file types are added.
+
+    -1, --one-book-per-directory
+                        Assume that each folder has only a single logical book
+                        and that all files in it are different e-book formats
+                        of that book
+
+    -r, --recurse       Process folders recursively
+
+    --ignore=GLOB PATTERN
+                        A filename (glob) pattern, files matching this pattern
+                        will be ignored when scanning folders for files. Can
+                        be specified multiple times for multiple patterns. For
+                        example: *.pdf will ignore all PDF files
+
+    --add=GLOB PATTERN  A filename (glob) pattern, files matching this pattern
+                        will be added when scanning folders for files, even if
+                        they are not of a known e-book file type. Can be
+                        specified multiple times for multiple patterns.'
 
   [ -s "$CLI_DEFAULT_LANG_FILE" ] && . "$CLI_DEFAULT_LANG_FILE"
 }
@@ -700,6 +770,10 @@ _util_menu_sort() {
     for(o in sort_array)
       print input_array[sort_array[o]]
     }'
+}
+
+_util_transform_lines() {
+  awk -v ORS="${1:-'\n'}" -v OFS="${2:-"  "}" '{print $0 }'
 }
 
 _util_byebye() {
@@ -2131,52 +2205,79 @@ menu_book_list_explorer() {
 # Menus: miscellaneous
 # ==============================================================================
 __menu_miscellaneous_add_books_from_folder() {
-  local books_path
-  local custom_args=""
+  local books_dir
+  local custom_args
 
-  if [ "$CONFIG_FILE_EXPLORER" = "yazi" ]; then
-    yazi --cwd-file "$CLI_CACHE_DIR/books_path"
-    books_path=$(cat "$CLI_CACHE_DIR/books_path")
-  else
-    books_path=$(find "$HOME" -type d | fzf)
-  fi
+  case "$CONFIG_FILE_EXPLORER" in
+  yazi)
+    _util_terminal_exec yazi --cwd-file "$CLI_CURRENT_STATE_DIR/books_dir"
+    [ -s "$CLI_CURRENT_STATE_DIR/books_dir" ] && books_dir="$(cat "$CLI_CURRENT_STATE_DIR/books_dir")"
+    ;;
+  fzf)
+    books_dir="$(find "$HOME" -type d | ui_launcher "$TXT_MENU_MISC_ADD_BOOKS_FROM_FOLDER_PROMPT")"
+    ;;
+  *)
+    ui_notify_error "$TXT_UNSUPPORTED_FILE_EXPLORER"
+    return
+    ;;
+  esac
 
-  [ -z "$books_path" ] && return
+  ! [ -d "$books_dir" ] && return
 
-  if ui_confirm "$TXT_MENU_MISC_PROMPT_CUSTOM_ARGS (default: calibredb add '$books_path')"; then
-    custom_args="$(ui_prompt "$TXT_MENU_MISC_PROMPT_ENTER_ARGS")"
-  fi
+  clear
+  printf "================================================================================\n"
+  printf '%s' "$TXT_MISC_ADD_BOOKS_FROM_FOLDER_OPTIONS"
+  printf "\n================================================================================\n"
+  custom_args="$(ui_prompt "$TXT_MENU_MISC_ADD_BOOKS_FROM_FOLDER_OPTIONS_PROMPT")"
 
-  if ui_confirm "$TXT_MENU_MISC_PROMPT_PROCEED"; then
+  printf 'calibredb add %s %s\n' "$custom_args" "$books_dir"
+  if ui_confirm "$TXT_MENU_ACTION_CONFIRM"; then
     # shellcheck disable=SC2086
-    calibredb add "$books_path" $custom_args
-    __fetch_calibre_db
-    __fetch_calibre_categories
+    if calibredb add $custom_args "$books_dir"; then
+      __fetch_calibre_db
+      __fetch_calibre_categories
+    else
+      ui_notify_error "$TXT_MENU_MISC_ADD_BOOKS_FROM_FOLDER_FAILED"
+    fi
   fi
 }
 
 __menu_miscellaneous_add_books() {
-  local books_path
-  local custom_args=""
+  local book_paths
+  local custom_args
 
-  if [ "$CONFIG_FILE_EXPLORER" = "yazi" ]; then
-    yazi --chooser-file "$CLI_CACHE_DIR/books_path"
-    books_path=$(cat "$CLI_CACHE_DIR/books_path")
-  else
-    books_path=$(find "$HOME" -type f | fzf --multi)
-  fi
+  case "$CONFIG_FILE_EXPLORER" in
+  yazi)
+    _util_terminal_exec yazi --chooser-file "$CLI_CURRENT_STATE_DIR/book_paths"
+    [ -s "$CLI_CURRENT_STATE_DIR/book_paths" ] && book_paths="$(cat "$CLI_CURRENT_STATE_DIR/book_paths" | _util_transform_lines '\t')"
+    ;;
+  fzf)
+    book_paths="$(find "$HOME" -type f | ui_launcher "$TXT_MENU_MISC_ADD_BOOKS_PROMPT" "multi" | _util_transform_lines '\t')"
+    ;;
+  *)
+    ui_notify_error "$TXT_UNSUPPORTED_FILE_EXPLORER"
+    return
+    ;;
+  esac
 
-  [ -z "$books_path" ] && return
+  [ -z "$book_paths" ] && return
 
-  if ui_confirm "$TXT_MENU_MISC_PROMPT_CUSTOM_ARGS"; then
-    custom_args="$(ui_prompt "$TXT_MENU_MISC_PROMPT_ENTER_ARGS")"
-  fi
+  clear
+  printf "================================================================================\n"
+  printf '%s' "$TXT_MISC_ADD_BOOKS_OPTIONS"
+  printf "\n================================================================================\n"
+  custom_args="$(ui_prompt "$TXT_MENU_MISC_ADD_BOOKS_OPTIONS_PROMPT" | tr " " '\t')"
 
-  if ui_confirm "$TXT_MENU_MISC_PROMPT_PROCEED"; then
+  printf 'calibredb add %s %s\n' "$custom_args" "$book_paths"
+  if ui_confirm "$TXT_MENU_ACTION_CONFIRM"; then
+    IFS="$(printf '\t')"
     # shellcheck disable=SC2086
-    printf '%s\n' "$books_path" | xargs -I {} calibredb add "{}" $custom_args
-    __fetch_calibre_db
-    __fetch_calibre_categories
+    if calibredb add $custom_args $book_paths; then
+      __fetch_calibre_db
+      __fetch_calibre_categories
+    else
+      ui_notify_error "$TXT_MENU_MISC_ADD_BOOKS_FAILED"
+    fi
   fi
 }
 

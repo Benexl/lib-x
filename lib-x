@@ -2057,13 +2057,17 @@ __menu_book_actions_read() {
   fi
 
   if [ -z "$reader" ]; then
-    reader="_util_open"
-  fi
-
-  if [ "$CONFIG_READING_PROCESS_DISOWN" = "true" ]; then
-    nohup "$reader" "$book_path" >/dev/null 2>&1 &
+    if [ "$CONFIG_READING_PROCESS_DISOWN" = "true" ]; then
+      _util_open "$book_path" >/dev/null 2>&1
+    else
+      _util_open "$book_path"
+    fi
   else
-    $reader "$book_path"
+    if [ "$CONFIG_READING_PROCESS_DISOWN" = "true" ]; then
+      nohup "$reader" "$book_path" >/dev/null 2>&1 &
+    else
+      $reader "$book_path"
+    fi
   fi
 }
 

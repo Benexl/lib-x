@@ -501,6 +501,8 @@ __post_config_load() {
 
 _print_config() {
   cat <<EOF
+#!/usr/bin/env sh
+# shellcheck disable=SC2034
 # ===================================================================================
 # 大きな力には大きな責任が伴う
 # ===================================================================================
@@ -524,82 +526,82 @@ _print_config() {
 # List of extensions to load automatically on startup
 CONFIG_AUTOLOADED_EXTENSIONS="$CONFIG_AUTOLOADED_EXTENSIONS"
 
-# Enable or disable colored/formatted output
-# Options: true, false (Default: true)
-CONFIG_ENABLE_COLORS="$CONFIG_COLORS_ENABLE"
-
-# The menu launcher tool used for the ui
-# Options: fzf, rofi, gum (Default: fzf)
-CONFIG_LAUNCHER="$CONFIG_LAUNCHER"
-
-# Enable book metadata/cover previews within the selector
-# Options: true, false (Default: false)
-CONFIG_ENABLE_PREVIEW="$CONFIG_PREVIEW_ENABLE"
-CONFIG_ENABLE_PREVIEW_IMAGES="$CONFIG_PREVIEW_IMAGES_ENABLE"
-
-# The tool used to render previews in the terminal
-# Options: chafa, icat, imgcat (Default: chafa)
-CONFIG_IMAGE_RENDERER="$CONFIG_PREVIEW_IMAGES_RENDERER"
-
-# Extra arguments for specific image renderers
-CONFIG_CHAFA_ARGS="$CONFIG_PREVIEW_IMAGES_CHAFA_ARGS"
-CONFIG_ICAT_ARGS="$CONFIG_PREVIEW_IMAGES_ICAT_ARGS"
-CONFIG_IMGCAT_ARGS="$CONFIG_PREVIEW_IMAGES_IMGCAT_ARGS"
-
 # The path to your Calibre library database directory
 CONFIG_CALIBRE_LIBRARY_PATH="$CONFIG_CALIBRE_LIBRARY_PATH"
 
-# Preferred file explorer when adding books from folders
-# Options: yazi, fzf (Default: yazi if installed, else fzf)
-CONFIG_FILE_EXPLORER="$CONFIG_FILE_EXPLORER"
-
-# Disown the reading process so you can close lib-x without closing the book
+# Enable or disable colored/formatted output
 # Options: true, false (Default: true)
-CONFIG_DISOWN_READING_PROCESS="$CONFIG_READING_PROCESS_DISOWN"
+CONFIG_COLORS_ENABLE="$CONFIG_COLORS_ENABLE"
 
 # Text editor for manual configuration editing
-# Options: vim, nano, code ... (Default: \$EDITOR or vi)
+# Options: helix, vim, nano, code ... (Default: \$EDITOR or vi)
 CONFIG_EDITOR="$CONFIG_EDITOR"
 
-# The terminal to use to execute commands that require a terminal
-CONFIG_TERMINAL_EXEC="$CONFIG_TERMINAL_EXEC"
-
-# Duration in seconds for desktop/terminal notifications
-CONFIG_NOTIFICATION_DURATION="$CONFIG_NOTIFICATION_DURATION"
-
-# Automatically check for script updates on startup
-# Options: true, false (Default: true)
-CONFIG_CHECK_FOR_UPDATES="$CONFIG_UPDATE_CHECK"
-
-# Whether to automatically update the Recent List when reading a book
-# Options: true, false (Default: true)
-CONFIG_UPDATE_RECENT="$CONFIG_RECENT_BOOKS_UPDATE"
-
-# Number of items to keep in the recent history list
-CONFIG_NO_OF_RECENT="$CONFIG_RECENT_BOOKS_NUMBER"
-
-# Number of items to retrieve when selecting "Random"
-CONFIG_NO_OF_RANDOM_BOOKS="$CONFIG_RANDOM_BOOKS_NUMBER"
-
-# Custom options passed directly to gum
-CONFIG_GUM_OPTS="$CONFIG_GUM_FILTER_OPTS"
-CONFIG_GUM_INPUT_OPTS="$CONFIG_GUM_INPUT_OPTS"
-CONFIG_GUM_PAGER_OPTS="$CONFIG_GUM_PAGER_OPTS"
-CONFIG_GUM_SPIN_OPTS="$CONFIG_GUM_SPIN_OPTS"
-CONFIG_GUM_CONFIRM_OPTS="$CONFIG_GUM_CONFIRM_OPTS"
+# Preferred file explorer when adding books from folders
+# Options: yazi, fzf (Default: fzf)
+CONFIG_FILE_EXPLORER="$CONFIG_FILE_EXPLORER"
 
 # Custom options passed directly to fzf
 CONFIG_FZF_HEADER="\\
 $CONFIG_FZF_HEADER"
 CONFIG_FZF_OPTS="$CONFIG_FZF_OPTS"
 
+# Custom options passed directly to gum
+CONFIG_GUM_CONFIRM_OPTS="$CONFIG_GUM_CONFIRM_OPTS"
+CONFIG_GUM_INPUT_OPTS="$CONFIG_GUM_INPUT_OPTS"
+CONFIG_GUM_OPTS="$CONFIG_GUM_FILTER_OPTS"
+CONFIG_GUM_PAGER_OPTS="$CONFIG_GUM_PAGER_OPTS"
+CONFIG_GUM_SPIN_OPTS="$CONFIG_GUM_SPIN_OPTS"
+
+# The menu launcher tool used for the ui
+# Options: fzf, rofi, gum (Default: fzf)
+CONFIG_LAUNCHER="$CONFIG_LAUNCHER"
+
+# Duration in seconds for desktop/terminal notifications
+CONFIG_NOTIFICATION_DURATION="$CONFIG_NOTIFICATION_DURATION"
+
+# Enable book metadata/cover previews within the selector
+# Options: true, false (Default: false)
+CONFIG_PREVIEW_ENABLE="$CONFIG_PREVIEW_ENABLE"
+CONFIG_PREVIEW_IMAGES_ENABLE="$CONFIG_PREVIEW_IMAGES_ENABLE"
+
+# Extra arguments for specific image renderers
+CONFIG_PREVIEW_IMAGES_CHAFA_ARGS="$CONFIG_PREVIEW_IMAGES_CHAFA_ARGS"
+CONFIG_PREVIEW_IMAGES_ICAT_ARGS="$CONFIG_PREVIEW_IMAGES_ICAT_ARGS"
+CONFIG_PREVIEW_IMAGES_IMGCAT_ARGS="$CONFIG_PREVIEW_IMAGES_IMGCAT_ARGS"
+
+# The tool used to render previews in the terminal
+# Options: chafa, icat, imgcat (Default: chafa)
+CONFIG_PREVIEW_IMAGES_RENDERER="$CONFIG_PREVIEW_IMAGES_RENDERER"
+
+# Number of items to retrieve when selecting "Random"
+CONFIG_RANDOM_BOOKS_NUMBER="$CONFIG_RANDOM_BOOKS_NUMBER"
+
+# Disown the reading process so you can close $CLI_NAME without closing the book
+# Options: true, false (Default: true)
+CONFIG_READING_PROCESS_DISOWN="$CONFIG_READING_PROCESS_DISOWN"
+
+# Number of items to keep in the recent history list
+CONFIG_RECENT_BOOKS_NUMBER="$CONFIG_RECENT_BOOKS_NUMBER"
+
+# Whether to automatically update the Recent List when reading a book
+# Options: true, false (Default: true)
+CONFIG_RECENT_BOOKS_UPDATE="$CONFIG_RECENT_BOOKS_UPDATE"
+
 # Rofi config all are required to run rofi as a launcher
 # Get the official ones at $CLI_REPO_URL
+CONFIG_ROFI_THEME_CONFIRM="$CONFIG_ROFI_THEME_CONFIRM"
 CONFIG_ROFI_THEME_MAIN="$CONFIG_ROFI_THEME_MAIN"
+CONFIG_ROFI_THEME_PAGER="$CONFIG_ROFI_THEME_PAGER"
 CONFIG_ROFI_THEME_PREVIEW="$CONFIG_ROFI_THEME_PREVIEW"
 CONFIG_ROFI_THEME_PROMPT="$CONFIG_ROFI_THEME_PROMPT"
-CONFIG_ROFI_THEME_CONFIRM="$CONFIG_ROFI_THEME_CONFIRM"
-CONFIG_ROFI_THEME_PAGER="$CONFIG_ROFI_THEME_PAGER"
+
+# The terminal to use to execute commands that require a terminal
+CONFIG_TERMINAL_EXEC="$CONFIG_TERMINAL_EXEC"
+
+# Periodically check for script updates on startup
+# Options: true, false (Default: true)
+CONFIG_UPDATE_CHECK="$CONFIG_UPDATE_CHECK"
 
 # ==============================================================================
 # Join the community at $CLI_DISCORD_URL

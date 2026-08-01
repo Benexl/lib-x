@@ -2300,6 +2300,7 @@ __menu_miscellaneous_add_books_from_folder() {
 __menu_miscellaneous_add_books() {
   local book_paths
   local custom_args
+  local old_ifs
 
   case "$CONFIG_FILE_EXPLORER" in
   yazi)
@@ -2325,6 +2326,7 @@ __menu_miscellaneous_add_books() {
 
   printf 'calibredb add %s %s\n' "$custom_args" "$book_paths"
   if ui_confirm "$TXT_MENU_ACTION_CONFIRM"; then
+    old_ifs="$IFS"
     IFS="$(printf '\t')"
     # shellcheck disable=SC2086
     if calibredb add $custom_args $book_paths; then
@@ -2333,6 +2335,7 @@ __menu_miscellaneous_add_books() {
     else
       ui_notify_error "$TXT_MENU_MISC_ADD_BOOKS_FAILED"
     fi
+    IFS="$old_ifs"
   fi
 }
 

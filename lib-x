@@ -130,14 +130,9 @@ CMD_SORT_BY=""
 __load_default_config() {
   : "${CONFIG_AUTOLOADED_EXTENSIONS:=}"
   : "${CONFIG_CALIBRE_LIBRARY_PATH:=$HOME/Calibre Library}"
-  : "${CONFIG_CHAFA_ARGS:=}"
-  : "${CONFIG_CHECK_FOR_UPDATES:=true}"
-  : "${CONFIG_DISOWN_READING_PROCESS:=true}"
+  : "${CONFIG_COLORS_ENABLE:=true}"
+  : "${CONFIG_READING_PROCESS_DISOWN:=true}"
   : "${CONFIG_EDITOR:=${EDITOR:-vi}}"
-  : "${CONFIG_ENABLE_COLORS:=true}"
-  : "${CONFIG_ENABLE_PREVIEW:=false}"
-  : "${CONFIG_ENABLE_PREVIEW_IMAGES:=false}"
-  : "${CONFIG_ENABLE_SEARCH_HISTORY:=true}"
   : "${CONFIG_FILE_EXPLORER:=fzf}"
   : "${CONFIG_FZF_HEADER:="\$CLI_HEADER"}"
   : "${CONFIG_GUM_CONFIRM_OPTS:="--prompt.foreground #2ac3de --selected.foreground #1a1b26 --selected.background #2ac3de --unselected.foreground #585858"}"
@@ -145,28 +140,35 @@ __load_default_config() {
   : "${CONFIG_GUM_INPUT_OPTS:="--prompt.foreground #2ac3de --cursor.foreground #c0caf5 --placeholder Search... --cursor.mode blink"}"
   : "${CONFIG_GUM_PAGER_OPTS:="--foreground #c0caf5 --line-number.foreground #585858 --match.foreground #2ac3de --match-highlight.foreground #1a1b26 --match-highlight.background #2ac3de --help.foreground #585858 --show-line-numbers --soft-wrap --border-foreground #2ac3de"}"
   : "${CONFIG_GUM_SPIN_OPTS:="--spinner dot --spinner.foreground #2ac3de --title.foreground #585858  --align left"}"
-  : "${CONFIG_ICAT_ARGS:=}"
-  : "${CONFIG_IMAGE_RENDERER:=chafa}"
-  : "${CONFIG_IMGCAT_ARGS:=}"
   : "${CONFIG_LAUNCHER:=fzf}"
-  : "${CONFIG_NO_OF_RANDOM_BOOKS:=30}"
-  : "${CONFIG_NO_OF_RECENT:=30}"
-  : "${CONFIG_NOTIFICATION_DURATION:=5}"
+  : "${CONFIG_NOTIFICATION_DURATION:=3}"
+  : "${CONFIG_PREVIEW_ENABLE:=false}"
+  : "${CONFIG_PREVIEW_IMAGES_CHAFA_ARGS:=}"
+  : "${CONFIG_PREVIEW_IMAGES_ENABLE:=false}"
+  : "${CONFIG_PREVIEW_IMAGES_ICAT_ARGS:=}"
+  : "${CONFIG_PREVIEW_IMAGES_IMGCAT_ARGS:=}"
+  : "${CONFIG_PREVIEW_IMAGES_RENDERER:=chafa}"
+  : "${CONFIG_RANDOM_BOOKS_NUMBER:=30}"
+  : "${CONFIG_READING_PROCESS_DISOWN:-true}"
+  : "${CONFIG_RECENT_BOOKS_NUMBER:=30}"
+  : "${CONFIG_RECENT_BOOKS_UPDATE:=true}"
   : "${CONFIG_ROFI_THEME_CONFIRM:=}"
   : "${CONFIG_ROFI_THEME_MAIN:=}"
   : "${CONFIG_ROFI_THEME_PAGER:=}"
   : "${CONFIG_ROFI_THEME_PREVIEW:=}"
   : "${CONFIG_ROFI_THEME_PROMPT:=}"
+  : "${CONFIG_SEARCH_HISTORY_ENABLE:=true}"
   : "${CONFIG_TERMINAL_EXEC:=}"
-  : "${CONFIG_UPDATE_RECENT:=true}"
+  : "${CONFIG_UPDATE_CHECK:=true}"
 
   : "${CONFIG_FZF_OPTS:="
   --ansi
+  --bind=ctrl-/:toggle-preview,ctrl-space:toggle-wrap+toggle-preview-wrap
   --border
-  --scheme=history
-  --style=full
-  --color=bg+:#283457
+  --border-label=''
+  --border=rounded
   --color=bg:#16161e
+  --color=bg+:#283457
   --color=border:#27a1b9
   --color=fg:#c0caf5
   --color=gutter:#16161e
@@ -181,36 +183,30 @@ __load_default_config() {
   --color=scrollbar:#27a1b9
   --color=separator:#ff9e64
   --color=spinner:#ff007c
-  --border=rounded
-  --border-label=''
-  --prompt=' >'
-  --marker=' >'
-  --pointer='◆'
-  --layout=reverse
   --cycle
+  --exact
   --ghost='Search library...'
   --height=100%
-  --bind=ctrl-/:toggle-preview,ctrl-space:toggle-wrap+toggle-preview-wrap
-  --no-margin
-  +m
   -i
-  --exact
-  --tabstop=1
+  --layout=reverse
+  +m
+  --marker=' >'
+  --no-margin
+  --pointer='◆'
   --preview-window=border-rounded,left,35%,wrap-word
-  --wrap-word
-  --wrap-sign=''"}"
+  --prompt=' >'
+  --scheme=history
+  --style=full
+  --tabstop=1
+  --wrap-sign=''
+  --wrap-word"}"
 }
 
 __load_env_config() {
   CONFIG_AUTOLOADED_EXTENSIONS="${LIB_X_AUTOLOADED_EXTENSIONS:-$CONFIG_AUTOLOADED_EXTENSIONS}"
   CONFIG_CALIBRE_LIBRARY_PATH="${LIB_X_CALIBRE_LIBRARY_PATH:-$CONFIG_CALIBRE_LIBRARY_PATH}"
-  CONFIG_CHAFA_ARGS="${LIB_X_CHAFA_ARGS:-$CONFIG_CHAFA_ARGS}"
-  CONFIG_CHECK_FOR_UPDATES="${LIB_X_CHECK_FOR_UPDATES:-$CONFIG_CHECK_FOR_UPDATES}"
-  CONFIG_DISOWN_READING_PROCESS="${LIB_X_DISOWN_READING_PROCESS:-$CONFIG_DISOWN_READING_PROCESS}"
+  CONFIG_COLORS_ENABLE="${LIB_X_COLORS_ENABLE:-$CONFIG_COLORS_ENABLE}"
   CONFIG_EDITOR="${LIB_X_EDITOR:-$CONFIG_EDITOR}"
-  CONFIG_ENABLE_COLORS="${LIB_X_ENABLE_COLORS:-$CONFIG_ENABLE_COLORS}"
-  CONFIG_ENABLE_PREVIEW="${LIB_X_ENABLE_PREVIEW:-$CONFIG_ENABLE_PREVIEW}"
-  CONFIG_ENABLE_PREVIEW_IMAGES="${LIB_X_ENABLE_PREVIEW_IMAGES:-$CONFIG_ENABLE_PREVIEW_IMAGES}"
   CONFIG_FILE_EXPLORER="${LIB_X_FILE_EXPLORER:-$CONFIG_FILE_EXPLORER}"
   CONFIG_FZF_HEADER="${LIB_X_FZF_HEADER:-$CONFIG_FZF_HEADER}"
   CONFIG_FZF_OPTS="${LIB_X_FZF_OPTS:-$CONFIG_FZF_OPTS}"
@@ -219,20 +215,26 @@ __load_env_config() {
   CONFIG_GUM_INPUT_OPTS="${LIB_X_GUM_INPUT_OPTS:-$CONFIG_GUM_INPUT_OPTS}"
   CONFIG_GUM_PAGER_OPTS="${LIB_X_GUM_PAGER_OPTS:-$CONFIG_GUM_PAGER_OPTS}"
   CONFIG_GUM_SPIN_OPTS="${LIB_X_GUM_SPIN_OPTS:-$CONFIG_GUM_SPIN_OPTS}"
-  CONFIG_ICAT_ARGS="${LIB_X_ICAT_ARGS:-$CONFIG_ICAT_ARGS}"
-  CONFIG_IMAGE_RENDERER="${LIB_X_IMAGE_RENDERER:-$CONFIG_IMAGE_RENDERER}"
-  CONFIG_IMGCAT_ARGS="${LIB_X_IMGCAT_ARGS:-$CONFIG_IMGCAT_ARGS}"
   CONFIG_LAUNCHER="${LIB_X_LAUNCHER:-$CONFIG_LAUNCHER}"
-  CONFIG_NO_OF_RANDOM_BOOKS="${LIB_X_NO_OF_RANDOM_BOOKS:-$CONFIG_NO_OF_RANDOM_BOOKS}"
-  CONFIG_NO_OF_RECENT="${LIB_X_NO_OF_RECENT:-$CONFIG_NO_OF_RECENT}"
   CONFIG_NOTIFICATION_DURATION="${LIB_X_NOTIFICATION_DURATION:-$CONFIG_NOTIFICATION_DURATION}"
+  CONFIG_PREVIEW_ENABLE="${LIB_X_PREVIEW_ENABLE:-$CONFIG_PREVIEW_ENABLE}"
+  CONFIG_PREVIEW_IMAGES_CHAFA_ARGS="${LIB_X_PREVIEW_IMAGES_CHAFA_ARGS:-$CONFIG_PREVIEW_IMAGES_CHAFA_ARGS}"
+  CONFIG_PREVIEW_IMAGES_ENABLE="${LIB_X_PREVIEW_IMAGES_ENABLE:-$CONFIG_PREVIEW_IMAGES_ENABLE}"
+  CONFIG_PREVIEW_IMAGES_ICAT_ARGS="${LIB_X_PREVIEW_IMAGES_ICAT_ARGS:-$CONFIG_PREVIEW_IMAGES_ICAT_ARGS}"
+  CONFIG_PREVIEW_IMAGES_IMGCAT_ARGS="${LIB_X_PREVIEW_IMAGES_IMGCAT_ARGS:-$CONFIG_PREVIEW_IMAGES_IMGCAT_ARGS}"
+  CONFIG_PREVIEW_IMAGES_RENDERER="${LIB_X_PREVIEW_IMAGES_RENDERER:-$CONFIG_PREVIEW_IMAGES_RENDERER}"
+  CONFIG_RANDOM_BOOKS_NUMBER="${LIB_X_RANDOM_BOOKS_NUMBER:-$CONFIG_RANDOM_BOOKS_NUMBER}"
+  CONFIG_READING_PROCESS_DISOWN="${LIB_X_READING_PROCESS_DISOWN:-$CONFIG_READING_PROCESS_DISOWN}"
+  CONFIG_RECENT_BOOKS_NUMBER="${LIB_X_RECENT_BOOKS_NUMBER:-$CONFIG_RECENT_BOOKS_NUMBER}"
+  CONFIG_RECENT_BOOKS_UPDATE="${LIB_X_RECENT_BOOKS_UPDATE:-$CONFIG_RECENT_BOOKS_UPDATE}"
   CONFIG_ROFI_THEME_CONFIRM="${LIB_X_ROFI_THEME_CONFIRM:-$CONFIG_ROFI_THEME_CONFIRM}"
   CONFIG_ROFI_THEME_MAIN="${LIB_X_ROFI_THEME_MAIN:-$CONFIG_ROFI_THEME_MAIN}"
   CONFIG_ROFI_THEME_PAGER="${LIB_X_ROFI_THEME_PAGER:-$CONFIG_ROFI_THEME_PAGER}"
   CONFIG_ROFI_THEME_PREVIEW="${LIB_X_ROFI_THEME_PREVIEW:-$CONFIG_ROFI_THEME_PREVIEW}"
   CONFIG_ROFI_THEME_PROMPT="${LIB_X_ROFI_THEME_PROMPT:-$CONFIG_ROFI_THEME_PROMPT}"
+  CONFIG_SEARCH_HISTORY_ENABLE="${LIB_X_SEARCH_HISTORY_ENABLE:-$CONFIG_SEARCH_HISTORY_ENABLE}"
   CONFIG_TERMINAL_EXEC="${LIB_X_TERMINAL_EXEC:-$CONFIG_TERMINAL_EXEC}"
-  CONFIG_UPDATE_RECENT="${LIB_X_UPDATE_RECENT:-$CONFIG_UPDATE_RECENT}"
+  CONFIG_UPDATE_CHECK="${LIB_X_UPDATES_CHECK:-$CONFIG_UPDATE_CHECK}"
 }
 
 __load_default_lang() {
@@ -439,7 +441,10 @@ ADDING FROM FOLDERS:
 __load_default_theme() {
   THEME_ESC="$(printf '\033')"
 
-  if $CLI_SUPPORTS_TRUE_COLOR && [ "$CONFIG_ENABLE_COLORS" = "true" ]; then
+  if $CLI_SUPPORTS_TRUE_COLOR && [ "$CONFIG_COLORS_ENABLE" = "true" ]; then
+    # Tokyo Night: Cyan (#2ac3de)
+    THEME_HEADER_COLOR="$(printf '\033[38;2;42;195;222m')"
+
     # Tokyo Night: Cyan (#2ac3de)
     THEME_FZF_ICON_COLOR_PRIMARY="$(printf '\033[38;2;42;195;222m')"
 
@@ -447,6 +452,7 @@ __load_default_theme() {
     THEME_FZF_ICON_COLOR_SECONDARY="$(printf '\033[38;2;84;92;126m')"
 
     # Tokyo Night: Orange (#ff9e64)
+    # shellcheck disable=SC2034
     THEME_FZF_ICON_COLOR_ACCENT="$(printf '\033[38;2;255;158;100m')"
 
     # Tokyo Night: Pink (#ff007c)
@@ -473,7 +479,8 @@ __load_default_theme() {
 }
 
 __pre_config_load() {
-  CLI_HEADER=$THEME_FZF_ICON_COLOR_PRIMARY"\
+  # shellcheck disable=SC2034
+  CLI_HEADER=$THEME_HEADER_COLOR"\
 ██╗░░░░░██╗██████╗░░░░░░░██╗░░██╗
 ██║░░░░░██║██╔══██╗░░░░░░╚██╗██╔╝
 ██║░░░░░██║██████╦╝█████╗░╚███╔╝░
@@ -519,7 +526,7 @@ CONFIG_AUTOLOADED_EXTENSIONS="$CONFIG_AUTOLOADED_EXTENSIONS"
 
 # Enable or disable colored/formatted output
 # Options: true, false (Default: true)
-CONFIG_ENABLE_COLORS="$CONFIG_ENABLE_COLORS"
+CONFIG_ENABLE_COLORS="$CONFIG_COLORS_ENABLE"
 
 # The menu launcher tool used for the ui
 # Options: fzf, rofi, gum (Default: fzf)
@@ -527,17 +534,17 @@ CONFIG_LAUNCHER="$CONFIG_LAUNCHER"
 
 # Enable book metadata/cover previews within the selector
 # Options: true, false (Default: false)
-CONFIG_ENABLE_PREVIEW="$CONFIG_ENABLE_PREVIEW"
-CONFIG_ENABLE_PREVIEW_IMAGES="$CONFIG_ENABLE_PREVIEW_IMAGES"
+CONFIG_ENABLE_PREVIEW="$CONFIG_PREVIEW_ENABLE"
+CONFIG_ENABLE_PREVIEW_IMAGES="$CONFIG_PREVIEW_IMAGES_ENABLE"
 
 # The tool used to render previews in the terminal
 # Options: chafa, icat, imgcat (Default: chafa)
-CONFIG_IMAGE_RENDERER="$CONFIG_IMAGE_RENDERER"
+CONFIG_IMAGE_RENDERER="$CONFIG_PREVIEW_IMAGES_RENDERER"
 
 # Extra arguments for specific image renderers
-CONFIG_CHAFA_ARGS="$CONFIG_CHAFA_ARGS"
-CONFIG_ICAT_ARGS="$CONFIG_ICAT_ARGS"
-CONFIG_IMGCAT_ARGS="$CONFIG_IMGCAT_ARGS"
+CONFIG_CHAFA_ARGS="$CONFIG_PREVIEW_IMAGES_CHAFA_ARGS"
+CONFIG_ICAT_ARGS="$CONFIG_PREVIEW_IMAGES_ICAT_ARGS"
+CONFIG_IMGCAT_ARGS="$CONFIG_PREVIEW_IMAGES_IMGCAT_ARGS"
 
 # The path to your Calibre library database directory
 CONFIG_CALIBRE_LIBRARY_PATH="$CONFIG_CALIBRE_LIBRARY_PATH"
@@ -548,7 +555,7 @@ CONFIG_FILE_EXPLORER="$CONFIG_FILE_EXPLORER"
 
 # Disown the reading process so you can close lib-x without closing the book
 # Options: true, false (Default: true)
-CONFIG_DISOWN_READING_PROCESS="$CONFIG_DISOWN_READING_PROCESS"
+CONFIG_DISOWN_READING_PROCESS="$CONFIG_READING_PROCESS_DISOWN"
 
 # Text editor for manual configuration editing
 # Options: vim, nano, code ... (Default: \$EDITOR or vi)
@@ -562,17 +569,17 @@ CONFIG_NOTIFICATION_DURATION="$CONFIG_NOTIFICATION_DURATION"
 
 # Automatically check for script updates on startup
 # Options: true, false (Default: true)
-CONFIG_CHECK_FOR_UPDATES="$CONFIG_CHECK_FOR_UPDATES"
+CONFIG_CHECK_FOR_UPDATES="$CONFIG_UPDATE_CHECK"
 
 # Whether to automatically update the Recent List when reading a book
 # Options: true, false (Default: true)
-CONFIG_UPDATE_RECENT="$CONFIG_UPDATE_RECENT"
+CONFIG_UPDATE_RECENT="$CONFIG_RECENT_BOOKS_UPDATE"
 
 # Number of items to keep in the recent history list
-CONFIG_NO_OF_RECENT="$CONFIG_NO_OF_RECENT"
+CONFIG_NO_OF_RECENT="$CONFIG_RECENT_BOOKS_NUMBER"
 
 # Number of items to retrieve when selecting "Random"
-CONFIG_NO_OF_RANDOM_BOOKS="$CONFIG_NO_OF_RANDOM_BOOKS"
+CONFIG_NO_OF_RANDOM_BOOKS="$CONFIG_RANDOM_BOOKS_NUMBER"
 
 # Custom options passed directly to gum
 CONFIG_GUM_OPTS="$CONFIG_GUM_FILTER_OPTS"
@@ -902,7 +909,7 @@ __ui_fzf_launcher_with_preview() {
 
   preview_script="\
 TXT_PREVIEW_INSTALL_VIEWER='$TXT_PREVIEW_INSTALL_VIEWER'
-CONFIG_IMAGE_RENDERER='$CONFIG_IMAGE_RENDERER'
+CONFIG_IMAGE_RENDERER='$CONFIG_PREVIEW_IMAGES_RENDERER'
 CLI_PLATFORM='$CLI_PLATFORM'
 THEME_FZF_PREVIEW_DIVIDER='$THEME_FZF_PREVIEW_DIVIDER'
 THEME_RESET='$THEME_RESET'
@@ -944,7 +951,7 @@ __ui_rofi_launcher_with_preview() {
 }
 
 _ui_launcher_with_preview() {
-  if [ "$CONFIG_ENABLE_PREVIEW" = "true" ]; then
+  if [ "$CONFIG_PREVIEW_ENABLE" = "true" ]; then
     case "$CONFIG_LAUNCHER" in
     fzf) __ui_fzf_launcher_with_preview "$@" ;;
     rofi) __ui_rofi_launcher_with_preview "$@" ;;
@@ -1302,7 +1309,7 @@ else
   exit 1
 fi
 
-if [ '$CONFIG_ENABLE_PREVIEW_IMAGES' = 'true' ];then
+if [ '$CONFIG_PREVIEW_IMAGES_ENABLE' = 'true' ];then
   if [ -s "$cover" ];then
     fzf_preview "$cover" 2>/dev/null;
   fi
@@ -1403,14 +1410,14 @@ _preview_fzf() {
   data_to_preview="$1"
 
   while IFS= read -r line; do
-    if [ "$CONFIG_ENABLE_PREVIEW" = "true" ]; then
+    if [ "$CONFIG_PREVIEW_ENABLE" = "true" ]; then
       printf '%s/%s.sh|%s\n' "$CLI_PREVIEW_SCRIPTS_DIR" "$(_util_generate_hash "$line")" "$line"
     else
       printf '%s\n' "$line"
     fi
   done
 
-  if [ "$CONFIG_ENABLE_PREVIEW" = "true" ]; then
+  if [ "$CONFIG_PREVIEW_ENABLE" = "true" ]; then
     _preview_fzf_generate_script "$data_to_preview" &
   fi
 }
@@ -1430,7 +1437,7 @@ _preview_rofi() {
 
   data_to_preview="$1"
 
-  if [ "$CONFIG_ENABLE_PREVIEW" = "true" ] && [ -n "$data_to_preview" ]; then
+  if [ "$CONFIG_PREVIEW_ENABLE" = "true" ] && [ -n "$data_to_preview" ]; then
     input_titles="$(cat)"
 
     # shellcheck disable=SC2141
@@ -1947,14 +1954,14 @@ manage_user_list() {
 __menu_book_actions_read() {
   local book_path
 
-  if [ "$CONFIG_UPDATE_RECENT" = "true" ]; then
+  if [ "$CONFIG_RECENT_BOOKS_UPDATE" = "true" ]; then
     manage_user_list_add "$CLI_USER_LIST_RECENT" "$CONFIG_RECENT_LIST_LIMIT"
   fi
 
   book_path="$(printf '%s' "$STATE_CURRENT_BOOK" | jq -r '.formats[0]')"
   _util_open "$book_path"
 
-  if [ "$CONFIG_DISOWN_READING_PROCESS" = "false" ]; then
+  if [ "$CONFIG_READING_PROCESS_DISOWN" = "false" ]; then
     wait
   fi
 }
@@ -2375,10 +2382,10 @@ __menu_main_dropped() {
 __menu_main_random() {
   local randoms
 
-  randoms="$(od -An -N$((CONFIG_NO_OF_RANDOM_BOOKS * 3 * 4)) -tu4 /dev/urandom)"
+  randoms="$(od -An -N$((CONFIG_RANDOM_BOOKS_NUMBER * 3 * 4)) -tu4 /dev/urandom)"
 
   STATE_CURRENT_BOOKS="$(
-    fetch_calibre_db | jq --argjson no_of_random_books "$CONFIG_NO_OF_RANDOM_BOOKS" --arg randoms "$randoms" '
+    fetch_calibre_db | jq --argjson no_of_random_books "$CONFIG_RANDOM_BOOKS_NUMBER" --arg randoms "$randoms" '
       . as $db
       | $randoms | sub("\n"; " "; "g") | split(" ") | map(select(. != "")) | map(tonumber? // empty) | unique | .[:($no_of_random_books)] as $random_list
       | $random_list | map($db[. % ($db | length)])
@@ -2398,7 +2405,7 @@ __menu_main_search() {
   local choice
 
   while true; do
-    if [ "$CONFIG_ENABLE_SEARCH_HISTORY" = "true" ] && [ -s "$CLI_SEARCH_HISTORY_FILE" ]; then
+    if [ "$CONFIG_SEARCH_HISTORY_ENABLE" = "true" ] && [ -s "$CLI_SEARCH_HISTORY_FILE" ]; then
       search_history="$(cat "$CLI_SEARCH_HISTORY_FILE")"
     else
       search_history=""
@@ -2427,7 +2434,7 @@ __menu_main_search() {
       continue
     fi
 
-    if [ "$CONFIG_ENABLE_SEARCH_HISTORY" = "true" ]; then
+    if [ "$CONFIG_SEARCH_HISTORY_ENABLE" = "true" ]; then
       printf '%s\n' "$search_history" | awk -v query="$query" '
     $0 != "" && $0 != query && !seen[$0]++ {
       print $0
@@ -2829,7 +2836,7 @@ _app_auto_update() {
   local interval
   local last_check_time
 
-  if [ "$CONFIG_CHECK_FOR_UPDATES" = "true" ]; then
+  if [ "$CONFIG_UPDATE_CHECK" = "true" ]; then
     timestamp_file="$CLI_CACHE_DIR/.last_update_check"
 
     interval=$((12 * 60 * 60))
@@ -3088,14 +3095,14 @@ _app_cmd_line_parser() {
     -ce | --cmd-exit) CMD_EXIT=true ;;
     -bs | --book-skip) CMD_BOOK_RESULTS_SKIP=true ;;
     -be | --book-exit) CMD_EXIT=true ;;
-    -d | --disown-reading-process) CONFIG_DISOWN_READING_PROCESS="true" ;;
-    -D | --no-disown-reading-process) CONFIG_DISOWN_READING_PROCESS="false" ;;
+    -d | --disown-reading-process) CONFIG_READING_PROCESS_DISOWN="true" ;;
+    -D | --no-disown-reading-process) CONFIG_READING_PROCESS_DISOWN="false" ;;
     --config-write) _print_config >"$CLI_CONFIG_FILE" && exit 0 ;;
-    --preview) CONFIG_ENABLE_PREVIEW=true ;;
-    --no-preview) CONFIG_ENABLE_PREVIEW=false ;;
-    --preview-images) CONFIG_ENABLE_PREVIEW_IMAGES=true ;;
-    --no-preview-images) CONFIG_ENABLE_PREVIEW_IMAGES=false ;;
-    --private) CONFIG_UPDATE_RECENT="false" ;;
+    --preview) CONFIG_PREVIEW_ENABLE=true ;;
+    --no-preview) CONFIG_PREVIEW_ENABLE=false ;;
+    --preview-images) CONFIG_PREVIEW_IMAGES_ENABLE=true ;;
+    --no-preview-images) CONFIG_PREVIEW_IMAGES_ENABLE=false ;;
+    --private) CONFIG_RECENT_BOOKS_UPDATE="false" ;;
     -l | --launcher)
       [ -n "$2" ] || _app_usage 1
       CONFIG_LAUNCHER="$2"
@@ -3172,10 +3179,10 @@ _app_cmd_line_parser() {
       ;;
     -r | --no-of-random-books)
       if [ -z "$2" ]; then
-        CONFIG_NO_OF_RANDOM_BOOKS="$(ui_prompt "Number of random books")"
-        [ -n "$CONFIG_NO_OF_RANDOM_BOOKS" ] || _app_usage 1
+        CONFIG_RANDOM_BOOKS_NUMBER="$(ui_prompt "Number of random books")"
+        [ -n "$CONFIG_RANDOM_BOOKS_NUMBER" ] || _app_usage 1
       else
-        CONFIG_NO_OF_RANDOM_BOOKS="$2"
+        CONFIG_RANDOM_BOOKS_NUMBER="$2"
         shift_count=2
       fi
       CMD_MAIN_ACTION="${CMD_MAIN_ACTION:-$TXT_MENU_MAIN_RANDOM}"

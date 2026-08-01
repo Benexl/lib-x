@@ -2,7 +2,7 @@
 # shellcheck disable=SC1090,SC3043
 # ==============================================================================
 # lib-x - Manage and read your calibre books from the terminal or app launcher
-# GPL V3 License - Copyright (c) 2024 Benexl
+# GPL V3 License - Copyright (c) September 4th, 2024 Benexl
 # ==============================================================================
 # File wide shellcheck ignores
 # ==============================================================================
@@ -30,7 +30,8 @@ readonly CLI_ARGS="$*"
 readonly CLI_APP_NAME="${LIB_X_APP_NAME:-"$CLI_NAME"}"
 readonly CLI_VERSION="0.2.0"
 readonly CLI_AUTHOR="Benexl"
-# readonly CLI_REPO_URL="https://github.com/Benexl/lib-x"
+readonly CLI_REPO_URL="https://github.com/Benexl/lib-x"
+readonly CLI_DISCORD_URL="https://discord.gg/9MtFj6jkuh"
 readonly CLI_VERSION_URL="https://raw.githubusercontent.com/Benexl/lib-x/refs/heads/master/version.txt"
 readonly CLI_RELEASES_BASE="https://github.com/Benexl/lib-x/releases/download"
 
@@ -518,14 +519,14 @@ _print_config() {
 # 大きな力には大きな責任が伴う
 # ===================================================================================
 #
-#    ██╗░░░░░██╗██████╗░░░░░░░██╗░░██╗  ░█████╗░░█████╗░███╗░░██╗███████╗██╗░██████╗░
-#    ██║░░░░░██║██╔══██╗░░░░░░╚██╗██╔╝  ██╔══██╗██╔══██╗████╗░██║██╔════╝██║██╔════╝░
-#    ██║░░░░░██║██████╦╝█████╗░╚███╔╝░  ██║░░╚═╝██║░░██║██╔██╗██║█████╗░░██║██║░░██╗░
-#    ██║░░░░░██║██╔══██╗╚════╝░██╔██╗░  ██║░░██╗██║░░██║██║╚████║██╔══╝░░██║██║░░╚██╗
-#    ███████╗██║██████╦╝░░░░░░██╔╝╚██╗  ╚█████╔╝╚█████╔╝██║░╚███║██║░░░░░██║╚██████╔╝
-#    ╚══════╝╚═╝╚═════╝░░░░░░░╚═╝░░╚═╝  ░╚════╝░░╚════╝░╚═╝░░╚══╝╚═╝░░░░░╚═╝░╚═════╝░
-#
-# ===================================================================================
+#  ██╗░░░░░██╗██████╗░░░░░░░██╗░░██╗  ░█████╗░░█████╗░███╗░░██╗███████╗██╗░██████╗░
+#  ██║░░░░░██║██╔══██╗░░░░░░╚██╗██╔╝  ██╔══██╗██╔══██╗████╗░██║██╔════╝██║██╔════╝░
+#  ██║░░░░░██║██████╦╝█████╗░╚███╔╝░  ██║░░╚═╝██║░░██║██╔██╗██║█████╗░░██║██║░░██╗░
+#  ██║░░░░░██║██╔══██╗╚════╝░██╔██╗░  ██║░░██╗██║░░██║██║╚████║██╔══╝░░██║██║░░╚██╗
+#  ███████╗██║██████╦╝░░░░░░██╔╝╚██╗  ╚█████╔╝╚█████╔╝██║░╚███║██║░░░░░██║╚██████╔╝
+#  ╚══════╝╚═╝╚═════╝░░░░░░░╚═╝░░╚═╝  ░╚════╝░░╚════╝░╚═╝░░╚══╝╚═╝░░░░░╚═╝░╚═════╝░
+# 
+## ===================================================================================
 #
 # !! BE CAREFUL WHAT YOU INCLUDE HERE SINCE THE CONFIG FILE IS SOURCED AS A SCRIPT  !!
 # !! ITS RECOMMENDED TO ONLY DO VARIABLE ASSIGNMENTS AND CONDITIONAL ASSIGNMENTS    !!
@@ -607,12 +608,16 @@ $CONFIG_FZF_HEADER"
 CONFIG_FZF_OPTS="$CONFIG_FZF_OPTS"
 
 # Rofi config all are required to run rofi as a launcher
+# Get the official ones at $CLI_REPO_URL
 CONFIG_ROFI_THEME_MAIN="$CONFIG_ROFI_THEME_MAIN"
 CONFIG_ROFI_THEME_PREVIEW="$CONFIG_ROFI_THEME_PREVIEW"
 CONFIG_ROFI_THEME_PROMPT="$CONFIG_ROFI_THEME_PROMPT"
 CONFIG_ROFI_THEME_CONFIRM="$CONFIG_ROFI_THEME_CONFIRM"
 CONFIG_ROFI_THEME_PAGER="$CONFIG_ROFI_THEME_PAGER"
 
+# ==============================================================================
+# Join the community at $CLI_DISCORD_URL
+# and dont forget to star the repo $CLI_REPO_URL :)
 # ==============================================================================
 # 楽しんでね
 # ==============================================================================

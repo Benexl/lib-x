@@ -175,7 +175,7 @@ __load_default_config() {
   : "${CONFIG_GUM_SPIN_OPTS:="--spinner dot --spinner.foreground #2ac3de --title.foreground #585858  --align left"}"
   : "${CONFIG_GUM_CONFIRM_OPTS:="--prompt.foreground #2ac3de --selected.foreground #1a1b26 --selected.background #2ac3de --unselected.foreground #585858"}"
 
-  : "${CONFIG_FZF_HEADER:=$CLI_HEADER}"
+  : "${CONFIG_FZF_HEADER:="\$CLI_HEADER"}"
   : "${CONFIG_FZF_OPTS:="
   --ansi
   --border
@@ -495,15 +495,17 @@ __load_default_theme() {
   [ -s "$CLI_DEFAULT_THEME_FILE" ] && . "$CLI_DEFAULT_THEME_FILE"
 }
 
-__post_config_load() {
-  CLI_HEADER="$(printf '%s' "$THEME_FZF_ICON_COLOR_PRIMARY")\
+__pre_config_load() {
+  CLI_HEADER=$THEME_FZF_ICON_COLOR_PRIMARY"\
 ██╗░░░░░██╗██████╗░░░░░░░██╗░░██╗
 ██║░░░░░██║██╔══██╗░░░░░░╚██╗██╔╝
 ██║░░░░░██║██████╦╝█████╗░╚███╔╝░
 ██║░░░░░██║██╔══██╗╚════╝░██╔██╗░
 ███████╗██║██████╦╝░░░░░░██╔╝╚██╗
-╚══════╝╚═╝╚═════╝░░░░░░░╚═╝░░╚═╝$(printf '%s' "$THEME_RESET")"
+╚══════╝╚═╝╚═════╝░░░░░░░╚═╝░░╚═╝$THEME_RESET"
+}
 
+__post_config_load() {
   if [ -n "$CONFIG_AUTOLOADED_EXTENSIONS" ]; then
     for ext in $(printf '%s' "$CONFIG_AUTOLOADED_EXTENSIONS" | tr ',' '\n'); do
       [ -s "$CLI_EXTENSIONS_DIR/$ext" ] && . "$CLI_EXTENSIONS_DIR/$ext"
@@ -617,7 +619,7 @@ CONFIG_ROFI_THEME_PAGER="$CONFIG_ROFI_THEME_PAGER"
 
 # ==============================================================================
 # Join the community at $CLI_DISCORD_URL
-# and dont forget to star the repo $CLI_REPO_URL :)
+# and don't forget to star the repo $CLI_REPO_URL :)
 # ==============================================================================
 # 楽しんでね
 # ==============================================================================
@@ -625,6 +627,7 @@ EOF
 }
 
 _load_config() {
+  __pre_config_load
   __load_default_config
 
   [ -s "$CLI_CONFIG_FILE" ] || _print_config >"$CLI_CONFIG_FILE"

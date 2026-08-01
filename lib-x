@@ -147,6 +147,7 @@ __load_default_config() {
   : "${CONFIG_PREVIEW_IMAGES_IMGCAT_ARGS:=}"
   : "${CONFIG_PREVIEW_IMAGES_RENDERER:=chafa}"
   : "${CONFIG_RANDOM_BOOKS_NUMBER:=30}"
+  : "${CONFIG_READER:=}"
   : "${CONFIG_READING_PROCESS_DISOWN:-true}"
   : "${CONFIG_RECENT_BOOKS_NUMBER:=30}"
   : "${CONFIG_RECENT_BOOKS_UPDATE:=true}"
@@ -222,6 +223,7 @@ __load_env_config() {
   CONFIG_PREVIEW_IMAGES_IMGCAT_ARGS="${LIB_X_PREVIEW_IMAGES_IMGCAT_ARGS:-$CONFIG_PREVIEW_IMAGES_IMGCAT_ARGS}"
   CONFIG_PREVIEW_IMAGES_RENDERER="${LIB_X_PREVIEW_IMAGES_RENDERER:-$CONFIG_PREVIEW_IMAGES_RENDERER}"
   CONFIG_RANDOM_BOOKS_NUMBER="${LIB_X_RANDOM_BOOKS_NUMBER:-$CONFIG_RANDOM_BOOKS_NUMBER}"
+  CONFIG_READER="${LIB_X_READER:-$CONFIG_READER}"
   CONFIG_READING_PROCESS_DISOWN="${LIB_X_READING_PROCESS_DISOWN:-$CONFIG_READING_PROCESS_DISOWN}"
   CONFIG_RECENT_BOOKS_NUMBER="${LIB_X_RECENT_BOOKS_NUMBER:-$CONFIG_RECENT_BOOKS_NUMBER}"
   CONFIG_RECENT_BOOKS_UPDATE="${LIB_X_RECENT_BOOKS_UPDATE:-$CONFIG_RECENT_BOOKS_UPDATE}"
@@ -642,6 +644,12 @@ CONFIG_PREVIEW_IMAGES_RENDERER="$CONFIG_PREVIEW_IMAGES_RENDERER"
 
 # Number of items to retrieve when selecting "Random"
 CONFIG_RANDOM_BOOKS_NUMBER="$CONFIG_RANDOM_BOOKS_NUMBER"
+
+# What commands to use when opening a book for reading
+# the syntax is a comma separated list
+# of ext:cmd
+# if not specified, the platforms open cmd would be used
+CONFIG_READER="$CONFIG_READER"
 
 # Disown the reading process so you can close $CLI_NAME without closing the book
 # Options: true, false (Default: true)
@@ -2033,16 +2041,29 @@ manage_user_list() {
 # ==============================================================================
 __menu_book_actions_read() {
   local book_path
+  local reader
 
   if [ "$CONFIG_RECENT_BOOKS_UPDATE" = "true" ]; then
     manage_user_list_add "$CLI_USER_LIST_RECENT" "$CONFIG_RECENT_LIST_LIMIT"
   fi
 
   book_path="$(printf '%s' "$STATE_CURRENT_BOOK" | jq -r '.formats[0]')"
-  _util_open "$book_path"
 
-  if [ "$CONFIG_READING_PROCESS_DISOWN" = "false" ]; then
-    wait
+  if [ -n "$CONFIG_READER" ]; then
+    reader="$(
+      printf '%s' "$CONFIG_READER" |
+        awk -F: -v RS=, -v book_path="$book_path" 'tolower(book_path) ~ "\\." $1 "$" {print $2}'
+    )"
+  fi
+
+  if [ -z "$reader" ]; then
+    reader="_util_open"
+  fi
+
+  if [ "$CONFIG_READING_PROCESS_DISOWN" = "true" ]; then
+    nohup "$reader" "$book_path" >/dev/null 2>&1 &
+  else
+    $reader "$book_path"
   fi
 }
 

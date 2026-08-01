@@ -2058,7 +2058,7 @@ __menu_book_actions_read() {
 
   if [ -z "$reader" ]; then
     if [ "$CONFIG_READING_PROCESS_DISOWN" = "true" ]; then
-      _util_open "$book_path" >/dev/null 2>&1
+      _util_open "$book_path" >/dev/null 2>&1 &
     else
       _util_open "$book_path"
     fi

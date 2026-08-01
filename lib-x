@@ -393,7 +393,6 @@ __load_default_lang() {
   -I IDENTIFIER, --identifier=IDENTIFIER
                         Set the identifiers for this book, e.g. -I asin:XXX -I
                         isbn:YYY
-
   -T TAGS, --tags=TAGS  Set the tags of the added book(s)
 
   -s SERIES, --series=SERIES
@@ -412,7 +411,7 @@ __load_default_lang() {
 
   TXT_MISC_ADD_BOOKS_FROM_FOLDER_OPTIONS=$TXT_MISC_ADD_BOOKS_OPTIONS'
 ADDING FROM FOLDERS:
-    Options to control the adding of books from folders. By default only
+   Options to control the adding of books from folders. By default only
     files that have extensions of known e-book file types are added.
 
     -1, --one-book-per-directory
@@ -432,6 +431,75 @@ ADDING FROM FOLDERS:
                         will be added when scanning folders for files, even if
                         they are not of a known e-book file type. Can be
                         specified multiple times for multiple patterns.'
+
+  TXT_APP_USAGE="\
+Read and manage your calibre books from the terminal.
+
+Usage: $CLI_NAME [OPTIONS]
+       $CLI_NAME completions [--fish|--bash|--zsh|--help]
+
+All options can also be set permanently in the config file ($CLI_CONFIG_FILE).
+Environment variables (LIB_X_*) override the config.
+
+────────────────────────────────────────────────────────────────────
+Options:
+  -h, --help                     Show this help message and exit
+  -v, --version                  Print version information and exit
+  -e, --edit-config              Open the config file in your editor
+  -E, --generate-desktop-entry   Print a .desktop file to stdout and exit
+  -U, --update                   Check for and apply an update for $CLI_NAME
+  -l, --launcher <launcher>      Menu launcher: fzf or rofi or gum
+  --config-write                 Write the current runtime config to the config file
+  --preview                      Enable the preview window (images/text)
+  --no-preview                   Disable the preview window
+  --preview-images               Enable the image preview window
+  --no-preview-images            Disable the image preview window
+  -d, --disown-reading-process   Detach the reading process from the terminal
+  -D, --no-disown-reading-process Keep reading process attached (default)
+  --private                      Do not update the recent history list
+  --rofi-theme-main <path>       Path to the rofi main theme file
+
+────────────────────────────────────────────────────────────────────
+Direct menu shortcuts & Overrides
+  -ce, --cmd-exit                Exit after shortcut menu commandline options
+  -bs, --book-skip               Skip the item selection menu and automatically pick the first entry
+  -be, --book-exit               Exit after performing a book action (read, edit, etc.)
+  -g, --go-directly-to <menu>    Open $CLI_NAME with a sub-menu pre-selected
+  -s, --search <term>            Search for a book based on calibredb search syntax
+  -S, --sort-by <field>          Sort the books on a specified field (e.g. author, size)
+  -r, --no-of-random-books <num> Number of random books to show (opens Random menu)
+  
+  --reading-list                 Open your Reading List directly
+  --recent                       Open your Recent books directly
+  --all                          Browse all books in your library directly
+
+────────────────────────────────────────────────────────────────────
+Sub‑commands:
+  completions                    Generate shell completion definitions
+    --fish                       Fish shell completions
+    --bash                       Bash shell completions
+    --zsh                        Zsh shell completions
+    --help                       Show help for completions
+
+────────────────────────────────────────────────────────────────────
+Incase of any questions join the discord server $CLI_DISCORD_URL
+or read the FAQ at $CLI_REPO_URL
+"
+
+  TXT_APP_USAGE_COMPLETIONS="\
+Generate shell completions for $CLI_NAME
+
+Options:
+  --fish
+    print fish completions and exit
+  --bash
+    print bash completions and exit
+  --zsh
+    print zsh completions and exit
+
+Example:
+  $CLI_NAME completions --fish
+"
 
   [ -s "$CLI_DEFAULT_LANG_FILE" ] && . "$CLI_DEFAULT_LANG_FILE"
 }
@@ -2923,73 +2991,12 @@ _app_runtime_clean_up() {
 # APP: USAGE
 # ==============================================================================
 _app_usage() {
-  cat <<EOF
-Read and manage your calibre books from the terminal.
-
-Usage: $CLI_NAME [OPTIONS]
-       $CLI_NAME completions [--fish|--bash|--zsh|--help]
-
-All options can also be set permanently in the config file ($CLI_CONFIG_FILE).
-Environment variables (LIB_X_*) override the config.
-
-────────────────────────────────────────────────────────────────────
-Options:
-  -h, --help                     Show this help message and exit
-  -v, --version                  Print version information and exit
-  -e, --edit-config              Open the config file in your editor
-  -E, --generate-desktop-entry   Print a .desktop file to stdout and exit
-  -U, --update                   Check for and apply an update for $CLI_NAME
-  -l, --launcher <launcher>      Menu launcher: fzf or rofi or gum
-  --config-write                 Write the current runtime config to the config file
-  --preview                      Enable the preview window (images/text)
-  --no-preview                   Disable the preview window
-  --preview-images               Enable the image preview window
-  --no-preview-images            Disable the image preview window
-  -d, --disown-reading-process   Detach the reading process from the terminal
-  -D, --no-disown-reading-process Keep reading process attached (default)
-  --private                      Do not update the recent history list
-  --rofi-theme-main <path>       Path to the rofi main theme file
-
-────────────────────────────────────────────────────────────────────
-Direct menu shortcuts & Overrides
-  -ce, --cmd-exit                Exit after shortcut menu commandline options
-  -bs, --book-skip               Skip the item selection menu and automatically pick the first entry
-  -be, --book-exit               Exit after performing a book action (read, edit, etc.)
-  -g, --go-directly-to <menu>    Open $CLI_NAME with a sub-menu pre-selected
-  -s, --search <term>            Search for a book based on calibredb search syntax
-  -S, --sort-by <field>          Sort the books on a specified field (e.g. author, size)
-  -r, --no-of-random-books <num> Number of random books to show (opens Random menu)
-  
-  --reading-list                 Open your Reading List directly
-  --recent                       Open your Recent books directly
-  --all                          Browse all books in your library directly
-
-────────────────────────────────────────────────────────────────────
-Sub‑commands:
-  completions                    Generate shell completion definitions
-    --fish                       Fish shell completions
-    --bash                       Bash shell completions
-    --zsh                        Zsh shell completions
-    --help                       Show help for completions
-EOF
+  printf '%s' "$TXT_APP_USAGE"
   exit "${1:-0}"
 }
 
 _app_usage_completions() {
-  cat <<EOF
-Generate shell completions for $CLI_NAME
-
-Options:
-  --fish
-    print fish completions and exit
-  --bash
-    print bash completions and exit
-  --zsh
-    print zsh completions and exit
-
-Example:
-  $CLI_NAME completions --fish
-EOF
+  printf '%s' "$TXT_APP_USAGE_COMPLETIONS"
   exit "${1:-0}"
 }
 

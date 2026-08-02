@@ -284,6 +284,7 @@ __load_default_lang() {
   TXT_MENU_BOOK_ACTIONS_CONVERT_OUTPUT_PROMPT="Select output format"
   TXT_MENU_BOOK_ACTIONS_CONVERT="Convert"
   TXT_MENU_BOOK_ACTIONS_CONVERTED="Converted successfully"
+  TXT_MENU_BOOK_ACTIONS_DB_UPDATE_FAILED="Failed to update the calibre database"
   TXT_MENU_BOOK_ACTIONS_EDIT="Edit Book"
   TXT_MENU_BOOK_ACTIONS_EDIT_METADATA="Edit Metadata"
   TXT_MENU_BOOK_ACTIONS_FORMAT_PROMPT="Select format"
@@ -2256,6 +2257,7 @@ __menu_book_actions_convert() {
   local formats
   local output_format
   local output_file
+  local book_id
 
   book_path="$(__menu_book_actions_pick_format)" || return 1
 
@@ -2293,7 +2295,14 @@ zip"
 
   if ui_confirm "$TXT_MENU_BOOK_ACTIONS_CONVERT_CONFIRM $STATE_CURRENT_BOOK_TITLE to $output_format?"; then
     if ebook-convert "$book_path" "$output_file"; then
-      ui_notify "$TXT_MENU_BOOK_ACTIONS_CONVERTED"
+      book_id="$(printf '%s' "$STATE_CURRENT_BOOK" | jq -r '.id')"
+      if calibredb add_format "$book_id" "$output_file"; then
+        __fetch_calibre_db
+        __fetch_calibre_categories
+        ui_notify "$TXT_MENU_BOOK_ACTIONS_CONVERTED"
+      else
+        ui_notify_error "$TXT_MENU_BOOK_ACTIONS_DB_UPDATE_FAILED"
+      fi
     else
       ui_notify_error "$TXT_MENU_BOOK_ACTIONS_CONVERT_FAILED"
     fi

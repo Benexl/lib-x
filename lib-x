@@ -290,7 +290,10 @@ __load_default_lang() {
   TXT_MENU_BOOK_ACTIONS_REMOVE_BOOK="Remove Book"
   TXT_MENU_BOOK_ACTIONS_REMOVE_CONFIRM="Are you sure you want to remove"
   TXT_MENU_BOOK_ACTIONS_REMOVED_SUCCESS="Successfully removed"
+  TXT_MENU_BOOK_ACTIONS_SHELL_INTRO="An interactive shell was opened for you to explore the current selection's variables. Use the exported variables below to interact with the selected books or run any shell commands."
   TXT_MENU_BOOK_ACTIONS_SHELL="Shell"
+  TXT_MENU_BOOK_ACTIONS_SHELL_VARIABLES="Exported variables:"
+  TXT_MENU_BOOK_ACTIONS_SHELL_WELCOME="Welcome to the interactive shell!"
   TXT_MENU_BOOK_ACTIONS_USER_LISTS_PROMPT="Select List"
   TXT_MENU_EXIT="Exit"
   TXT_MENU_INVALID_ACTION="Invalid Action"
@@ -329,10 +332,12 @@ __load_default_lang() {
   TXT_MENU_MAIN_TAGS_PROMPT="Select Tag"
   TXT_MENU_MAIN_TAGS="Tags"
   TXT_MENU_MISC_ADD_BOOKS="Add Books"
-  TXT_MENU_MISC_ADD_BOOKS_PROMPT="Add Books"
+  TXT_MENU_MISC_ADD_BOOKS_FAILED="Failed to add books to the library."
   TXT_MENU_MISC_ADD_BOOKS_FROM_FOLDER="Add Books From Folder"
+  TXT_MENU_MISC_ADD_BOOKS_FROM_FOLDER_FAILED="Failed to add books from the folder."
   TXT_MENU_MISC_ADD_BOOKS_FROM_FOLDER_PROMPT="Add Books From Folder"
   TXT_MENU_MISC_ADD_BOOKS_OPTIONS_PROMPT="Enter Custom Options"
+  TXT_MENU_MISC_ADD_BOOKS_PROMPT="Add Books"
   TXT_MENU_MISC_PROMPT="Select Action"
   TXT_MENU_MISC_SYNC="Sync Data"
 
@@ -1689,7 +1694,6 @@ __fetch_calibre_db() {
     mv "${CALIBRE_DB_JSON_FILE}.tmp" "$CALIBRE_DB_JSON_FILE"
     __update_user_lists
   else
-    # ui_notify_error "$TXT_CALIBRE_DB_FETCH_FAILED"
     rm -f "${CALIBRE_DB_JSON_FILE}.tmp"
     return 1
   fi
@@ -2193,9 +2197,9 @@ __menu_book_actions_shell() {
 
   init_text="\
 $CLI_HEADER
-$TXT_MENU_MEDIA_ACTIONS_SHELL_WELCOME
-$TXT_MENU_MEDIA_ACTIONS_SHELL_INTRO
-$TXT_MENU_MEDIA_ACTIONS_SHELL_VARIABLES
+$TXT_MENU_BOOK_ACTIONS_SHELL_WELCOME
+$TXT_MENU_BOOK_ACTIONS_SHELL_INTRO
+$TXT_MENU_BOOK_ACTIONS_SHELL_VARIABLES
 STATE_CURRENT_CATEGORY
 STATE_CURRENT_BOOKS
 STATE_CURRENT_BOOK_TITLES

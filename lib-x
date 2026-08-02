@@ -721,7 +721,7 @@ CONFIG_ROFI_THEME_PROMPT="$CONFIG_ROFI_THEME_PROMPT"
 # By what field should the calibre titles be sorted
 # Append _asc for ascending order (default: descending)
 # Defaults to: none
-CONFIG_SORT_BY=""
+CONFIG_SORT_BY="$CONFIG_SORT_BY"
 
 # The terminal to use to execute commands that require a terminal
 CONFIG_TERMINAL_EXEC="$CONFIG_TERMINAL_EXEC"

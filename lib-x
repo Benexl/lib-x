@@ -290,6 +290,7 @@ __load_default_lang() {
   TXT_MENU_BOOK_ACTIONS_REMOVE_BOOK="Remove Book"
   TXT_MENU_BOOK_ACTIONS_REMOVE_CONFIRM="Are you sure you want to remove"
   TXT_MENU_BOOK_ACTIONS_REMOVED_SUCCESS="Successfully removed"
+  TXT_MENU_BOOK_ACTIONS_SHELL="Shell"
   TXT_MENU_BOOK_ACTIONS_USER_LISTS_PROMPT="Select List"
   TXT_MENU_EXIT="Exit"
   TXT_MENU_INVALID_ACTION="Invalid Action"
@@ -341,6 +342,7 @@ __load_default_lang() {
   TXT_ICON_MENU_BOOK_ACTIONS_EDIT_METADATA="󱚌"
   TXT_ICON_MENU_BOOK_ACTIONS_READ=""
   TXT_ICON_MENU_BOOK_ACTIONS_REMOVE_BOOK="󰗙"
+  TXT_ICON_MENU_BOOK_ACTIONS_SHELL=""
   TXT_ICON_MENU_EXIT="󰈆"
   TXT_ICON_MENU_MAIN_ALL="󰌱"
   TXT_ICON_MENU_MAIN_AUTHORS=""
@@ -520,7 +522,6 @@ __load_default_theme() {
     THEME_FZF_ICON_COLOR_SECONDARY="$(printf '\033[38;2;84;92;126m')"
 
     # Tokyo Night: Orange (#ff9e64)
-    # shellcheck disable=SC2034
     THEME_FZF_ICON_COLOR_ACCENT="$(printf '\033[38;2;255;158;100m')"
 
     # Tokyo Night: Pink (#ff007c)
@@ -706,8 +707,6 @@ _load_config() {
 _util_terminal_exec() {
   local term
   local old_ifs
-  local cmd
-  cmd="$*"
   old_ifs="$IFS"
 
   if ! $CLI_IS_TERMINAL; then
@@ -735,12 +734,12 @@ _util_terminal_exec() {
     fi
     IFS=" "
     # shellcheck disable=SC2086
-    $term $cmd
+    $term "$@"
     IFS="$old_ifs"
     return
   fi
   IFS=" "
-  $cmd
+  "$@"
   IFS="$old_ifs"
 }
 
@@ -2178,6 +2177,49 @@ cover"
 
 }
 
+__menu_book_actions_shell() {
+  local init_text
+  local user_shell
+
+  export \
+    STATE_CURRENT_CATEGORY \
+    STATE_CURRENT_BOOK_TITLES \
+    STATE_CURRENT_BOOK \
+    STATE_CURRENT_BOOK_TITLE \
+    STATE_CURRENT \
+    CALIBRE_DB_JSON_FILE \
+    CALIBRE_CATEGORIES_CSV_FILE \
+    CLI_NAME
+
+  init_text="\
+$CLI_HEADER
+$TXT_MENU_MEDIA_ACTIONS_SHELL_WELCOME
+$TXT_MENU_MEDIA_ACTIONS_SHELL_INTRO
+$TXT_MENU_MEDIA_ACTIONS_SHELL_VARIABLES
+STATE_CURRENT_CATEGORY
+STATE_CURRENT_BOOKS
+STATE_CURRENT_BOOK_TITLES
+STATE_CURRENT_BOOK
+STATE_CURRENT_BOOK_TITLE
+CALIBRE_DB_JSON_FILE
+CALIBRE_CATEGORIES_CSV_FILE
+CLI_NAME
+"
+  user_shell="$(ps -o comm= -p "$PPID")"
+  if [ "$user_shell" = "fish" ]; then
+    _util_terminal_exec fish --init-command "function fish_greeting;printf '$init_text';end"
+  else
+    local init_file
+    init_file="$(mktemp "${TMPDIR:-/tmp}/yt_x_sh_init.XXXXXX")"
+
+    cat <<EOF >"$init_file"
+printf '%s' "$init_text"
+EOF
+    ENV="$init_file" _util_terminal_exec sh -i
+  fi
+
+}
+
 # shellcheck disable=SC2120
 _menu_book_actions() {
   local actions
@@ -2197,7 +2239,8 @@ _menu_book_actions() {
  ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_ADD_LIST}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS}
  ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_REMOVE_BOOK}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_REMOVE_BOOK}
  ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_EDIT_METADATA}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_EDIT_METADATA}
- ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BACK}${THEME_RESET}  ${TXT_MENU_BACK}
+ ${THEME_FZF_ICON_COLOR_ACCENT}${TXT_ICON_MENU_BOOK_ACTIONS_SHELL}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_SHELL}
+ ${THEME_FZF_ICON_COLOR_SECONDARY}${TXT_ICON_MENU_BACK}${THEME_RESET}  ${TXT_MENU_BACK}
  ${THEME_FZF_ICON_COLOR_ERROR}${TXT_ICON_MENU_EXIT}${THEME_RESET}  ${TXT_MENU_EXIT}"
 
   if [ -n "$extra_menu_options" ] && [ -n "$extra_menu_options_handler" ]; then
@@ -2226,6 +2269,7 @@ $extra_menu_options"
     "$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS") __menu_book_actions_manage_my_lists ;;
     "$TXT_MENU_BOOK_ACTIONS_REMOVE_BOOK") __menu_book_actions_remove_book ;;
     "$TXT_MENU_BOOK_ACTIONS_EDIT_METADATA") __menu_book_actions_edit_metadata ;;
+    "$TXT_MENU_BOOK_ACTIONS_SHELL") __menu_book_actions_shell ;;
     "$TXT_MENU_BACK" | "") _state_pop && break ;;
     "$TXT_MENU_EXIT") _util_byebye ;;
     *)

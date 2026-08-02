@@ -72,6 +72,12 @@ else
   readonly CLI_IS_TERMINAL=false
 fi
 
+if [ "$COLORTERM" = "truecolor" ] || [ "$COLORTERM" = "24bit" ]; then
+  readonly CLI_SUPPORTS_TRUE_COLOR=true
+else
+  readonly CLI_SUPPORTS_TRUE_COLOR=false
+fi
+
 # ==============================================================================
 # SETUP PATHS
 # ==============================================================================
@@ -83,6 +89,7 @@ readonly CLI_CONFIG_DIR="$XDG_CONFIG_HOME/$CLI_APP_NAME"
 readonly CLI_USER_LISTS="$CLI_CONFIG_DIR/my-lists"
 readonly CLI_EXTENSIONS_DIR="$CLI_CONFIG_DIR/extensions"
 readonly CLI_DEFAULT_LANG_FILE="$CLI_EXTENSIONS_DIR/langs/default.lang"
+readonly CLI_DEFAULT_THEME_FILE="$CLI_EXTENSIONS_DIR/langs/default.theme"
 
 readonly CLI_CONFIG_FILE="$CLI_CONFIG_DIR/config"
 readonly CLI_USER_LIST_RECENT="$CLI_CONFIG_DIR/recent.json"
@@ -118,17 +125,19 @@ mkdir -p \
 # DECLARATIONS FOR LSP
 # ==============================================================================
 CMD_EXIT=""
+CMD_BOOK_EXIT=""
 CMD_MAIN_ACTION=""
-CMD_SEARCH=""
+CMD_MISC_ACTION=""
+CMD_INPUT=""
 
 # ==============================================================================
 # CONFIGURATION
 # ==============================================================================
 __load_default_config() {
   : "${CONFIG_AUTOLOADED_EXTENSIONS:=}"
+  : "${CONFIG_CACHE_RETENTION_DAYS:=7}"
   : "${CONFIG_CALIBRE_LIBRARY_PATH:=$HOME/Calibre Library}"
   : "${CONFIG_COLORS_ENABLE:=true}"
-  : "${CONFIG_READING_PROCESS_DISOWN:=true}"
   : "${CONFIG_EDITOR:=${EDITOR:-vi}}"
   : "${CONFIG_FILE_EXPLORER:=fzf}"
   : "${CONFIG_FZF_HEADER:="\$CLI_HEADER"}"
@@ -145,10 +154,10 @@ __load_default_config() {
   : "${CONFIG_PREVIEW_IMAGES_ICAT_ARGS:=}"
   : "${CONFIG_PREVIEW_IMAGES_IMGCAT_ARGS:=}"
   : "${CONFIG_PREVIEW_IMAGES_RENDERER:=chafa}"
-  : "${CONFIG_RANDOM_BOOKS_NUMBER:=30}"
+  : "${CONFIG_RANDOM_BOOKS_LIMIT:=30}"
   : "${CONFIG_READER:=}"
-  : "${CONFIG_READING_PROCESS_DISOWN:-true}"
-  : "${CONFIG_RECENT_BOOKS_NUMBER:=30}"
+  : "${CONFIG_READING_PROCESS_DISOWN:=true}"
+  : "${CONFIG_RECENT_BOOKS_LIMIT:=30}"
   : "${CONFIG_RECENT_BOOKS_UPDATE:=true}"
   : "${CONFIG_ROFI_THEME_CONFIRM:=}"
   : "${CONFIG_ROFI_THEME_MAIN:=}"
@@ -203,6 +212,7 @@ __load_default_config() {
 
 __load_env_config() {
   CONFIG_AUTOLOADED_EXTENSIONS="${LIB_X_AUTOLOADED_EXTENSIONS:-$CONFIG_AUTOLOADED_EXTENSIONS}"
+  CONFIG_CACHE_RETENTION_DAYS="${LIB_X_CACHE_RETENTION_DAYS:-$CONFIG_CACHE_RETENTION_DAYS}"
   CONFIG_CALIBRE_LIBRARY_PATH="${LIB_X_CALIBRE_LIBRARY_PATH:-$CONFIG_CALIBRE_LIBRARY_PATH}"
   CONFIG_COLORS_ENABLE="${LIB_X_COLORS_ENABLE:-$CONFIG_COLORS_ENABLE}"
   CONFIG_EDITOR="${LIB_X_EDITOR:-$CONFIG_EDITOR}"
@@ -210,7 +220,7 @@ __load_env_config() {
   CONFIG_FZF_HEADER="${LIB_X_FZF_HEADER:-$CONFIG_FZF_HEADER}"
   CONFIG_FZF_OPTS="${LIB_X_FZF_OPTS:-$CONFIG_FZF_OPTS}"
   CONFIG_GUM_CONFIRM_OPTS="${LIB_X_GUM_CONFIRM_OPTS:-$CONFIG_GUM_CONFIRM_OPTS}"
-  CONFIG_GUM_FILTER_OPTS="${LIB_X_GUM_OPTS:-$CONFIG_GUM_FILTER_OPTS}"
+  CONFIG_GUM_FILTER_OPTS="${LIB_X_GUM_FILTER_OPTS:-$CONFIG_GUM_FILTER_OPTS}"
   CONFIG_GUM_INPUT_OPTS="${LIB_X_GUM_INPUT_OPTS:-$CONFIG_GUM_INPUT_OPTS}"
   CONFIG_GUM_PAGER_OPTS="${LIB_X_GUM_PAGER_OPTS:-$CONFIG_GUM_PAGER_OPTS}"
   CONFIG_GUM_SPIN_OPTS="${LIB_X_GUM_SPIN_OPTS:-$CONFIG_GUM_SPIN_OPTS}"
@@ -222,10 +232,10 @@ __load_env_config() {
   CONFIG_PREVIEW_IMAGES_ICAT_ARGS="${LIB_X_PREVIEW_IMAGES_ICAT_ARGS:-$CONFIG_PREVIEW_IMAGES_ICAT_ARGS}"
   CONFIG_PREVIEW_IMAGES_IMGCAT_ARGS="${LIB_X_PREVIEW_IMAGES_IMGCAT_ARGS:-$CONFIG_PREVIEW_IMAGES_IMGCAT_ARGS}"
   CONFIG_PREVIEW_IMAGES_RENDERER="${LIB_X_PREVIEW_IMAGES_RENDERER:-$CONFIG_PREVIEW_IMAGES_RENDERER}"
-  CONFIG_RANDOM_BOOKS_NUMBER="${LIB_X_RANDOM_BOOKS_NUMBER:-$CONFIG_RANDOM_BOOKS_NUMBER}"
+  CONFIG_RANDOM_BOOKS_LIMIT="${LIB_X_RANDOM_BOOKS_LIMIT:-$CONFIG_RANDOM_BOOKS_LIMIT}"
   CONFIG_READER="${LIB_X_READER:-$CONFIG_READER}"
   CONFIG_READING_PROCESS_DISOWN="${LIB_X_READING_PROCESS_DISOWN:-$CONFIG_READING_PROCESS_DISOWN}"
-  CONFIG_RECENT_BOOKS_NUMBER="${LIB_X_RECENT_BOOKS_NUMBER:-$CONFIG_RECENT_BOOKS_NUMBER}"
+  CONFIG_RECENT_BOOKS_LIMIT="${LIB_X_RECENT_BOOKS_LIMIT:-$CONFIG_RECENT_BOOKS_LIMIT}"
   CONFIG_RECENT_BOOKS_UPDATE="${LIB_X_RECENT_BOOKS_UPDATE:-$CONFIG_RECENT_BOOKS_UPDATE}"
   CONFIG_ROFI_THEME_CONFIRM="${LIB_X_ROFI_THEME_CONFIRM:-$CONFIG_ROFI_THEME_CONFIRM}"
   CONFIG_ROFI_THEME_MAIN="${LIB_X_ROFI_THEME_MAIN:-$CONFIG_ROFI_THEME_MAIN}"
@@ -233,9 +243,9 @@ __load_env_config() {
   CONFIG_ROFI_THEME_PREVIEW="${LIB_X_ROFI_THEME_PREVIEW:-$CONFIG_ROFI_THEME_PREVIEW}"
   CONFIG_ROFI_THEME_PROMPT="${LIB_X_ROFI_THEME_PROMPT:-$CONFIG_ROFI_THEME_PROMPT}"
   CONFIG_SEARCH_HISTORY_ENABLE="${LIB_X_SEARCH_HISTORY_ENABLE:-$CONFIG_SEARCH_HISTORY_ENABLE}"
-  CONFIG_SORT_BY="${LIB_X_CONFIG_SORT_BY:-$CONFIG_SORT_BY}"
+  CONFIG_SORT_BY="${LIB_X_SORT_BY:-$CONFIG_SORT_BY}"
   CONFIG_TERMINAL_EXEC="${LIB_X_TERMINAL_EXEC:-$CONFIG_TERMINAL_EXEC}"
-  CONFIG_UPDATE_CHECK="${LIB_X_UPDATES_CHECK:-$CONFIG_UPDATE_CHECK}"
+  CONFIG_UPDATE_CHECK="${LIB_X_UPDATE_CHECK:-$CONFIG_UPDATE_CHECK}"
 }
 
 __load_default_lang() {
@@ -280,10 +290,10 @@ __load_default_lang() {
   TXT_MENU_BACK="Back"
   TXT_MENU_BOOK_ACTIONS_CONFIRM_UPDATE="Are you sure you want to update"
   TXT_MENU_BOOK_ACTIONS_CONVERT_CONFIRM="Are you sure you want to convert"
-  TXT_MENU_BOOK_ACTIONS_CONVERT_FAILED="Conversion failed"
-  TXT_MENU_BOOK_ACTIONS_CONVERT_OUTPUT_PROMPT="Select output format"
   TXT_MENU_BOOK_ACTIONS_CONVERT="Convert"
   TXT_MENU_BOOK_ACTIONS_CONVERTED="Converted successfully"
+  TXT_MENU_BOOK_ACTIONS_CONVERT_FAILED="Conversion failed"
+  TXT_MENU_BOOK_ACTIONS_CONVERT_OUTPUT_PROMPT="Select output format"
   TXT_MENU_BOOK_ACTIONS_DB_UPDATE_FAILED="Failed to update the calibre database"
   TXT_MENU_BOOK_ACTIONS_EDIT="Edit Book"
   TXT_MENU_BOOK_ACTIONS_EDIT_METADATA="Edit Metadata"
@@ -300,10 +310,10 @@ __load_default_lang() {
   TXT_MENU_BOOK_ACTIONS_METADATA="Show Metadata"
   TXT_MENU_BOOK_ACTIONS_NO_FORMATS="No formats found for this book"
   TXT_MENU_BOOK_ACTIONS_POLISH_CONFIRM="Are you sure you want to polish with"
-  TXT_MENU_BOOK_ACTIONS_POLISH_FAILED="Polish failed"
-  TXT_MENU_BOOK_ACTIONS_POLISH_PROMPT="Select polish action"
-  TXT_MENU_BOOK_ACTIONS_POLISH="Polish"
   TXT_MENU_BOOK_ACTIONS_POLISHED="Polished successfully"
+  TXT_MENU_BOOK_ACTIONS_POLISH_FAILED="Polish failed"
+  TXT_MENU_BOOK_ACTIONS_POLISH="Polish"
+  TXT_MENU_BOOK_ACTIONS_POLISH_PROMPT="Select polish action"
   TXT_MENU_BOOK_ACTIONS_PROMPT_FIELD="Select field to edit"
   TXT_MENU_BOOK_ACTIONS_PROMPT_NEW_VAL="Enter new value for"
   TXT_MENU_BOOK_ACTIONS_PROMPT="Select Book Action"
@@ -489,8 +499,8 @@ Options:
   --no-preview                   Disable the preview window
   --preview-images               Enable the image preview window
   --no-preview-images            Disable the image preview window
-  -d, --disown-reading-process   Detach the reading process from the terminal
-  -D, --no-disown-reading-process Keep reading process attached (default)
+  -d, --disown-reading-process   Detach the reading process from the terminal (default)
+  -D, --no-disown-reading-process Keep reading process attached
   --private                      Do not update the recent history list
   --rofi-theme-main <path>       Path to the rofi main theme file
 
@@ -499,7 +509,6 @@ Direct menu shortcuts & Overrides
   -ce, --cmd-exit                Exit after shortcut menu commandline options
   -bs, --book-skip               Skip the item selection menu and automatically pick the first entry
   -be, --book-exit               Exit after performing a book action (read, edit, etc.)
-  -g, --go-directly-to <menu>    Open $CLI_NAME with a sub-menu pre-selected
   -s, --search <term>            Search for a book based on calibredb search syntax
   -S, --sort-by <field>          Sort the books on a specified field (e.g. author, size)
   -r, --no-of-random-books <num> Number of random books to show (opens Random menu)
@@ -626,6 +635,10 @@ _print_config() {
 # List of extensions to load automatically on startup
 CONFIG_AUTOLOADED_EXTENSIONS="$CONFIG_AUTOLOADED_EXTENSIONS"
 
+# The number of days till a cached file becomes stale
+# Default: 7 days
+CONFIG_CACHE_RETENTION_DAYS="$CONFIG_CACHE_RETENTION_DAYS"
+
 # The path to your Calibre library database directory
 CONFIG_CALIBRE_LIBRARY_PATH="$CONFIG_CALIBRE_LIBRARY_PATH"
 
@@ -675,7 +688,7 @@ CONFIG_PREVIEW_IMAGES_IMGCAT_ARGS="$CONFIG_PREVIEW_IMAGES_IMGCAT_ARGS"
 CONFIG_PREVIEW_IMAGES_RENDERER="$CONFIG_PREVIEW_IMAGES_RENDERER"
 
 # Number of items to retrieve when selecting "Random"
-CONFIG_RANDOM_BOOKS_NUMBER="$CONFIG_RANDOM_BOOKS_NUMBER"
+CONFIG_RANDOM_BOOKS_LIMIT="$CONFIG_RANDOM_BOOKS_LIMIT"
 
 # What commands to use when opening a book for reading
 # the syntax is a comma separated list
@@ -688,7 +701,7 @@ CONFIG_READER="$CONFIG_READER"
 CONFIG_READING_PROCESS_DISOWN="$CONFIG_READING_PROCESS_DISOWN"
 
 # Number of items to keep in the recent history list
-CONFIG_RECENT_BOOKS_NUMBER="$CONFIG_RECENT_BOOKS_NUMBER"
+CONFIG_RECENT_BOOKS_LIMIT="$CONFIG_RECENT_BOOKS_LIMIT"
 
 # Whether to automatically update the Recent List when reading a book
 # Options: true, false (Default: true)
@@ -2089,7 +2102,7 @@ __menu_book_actions_read() {
   local reader
 
   if [ "$CONFIG_RECENT_BOOKS_UPDATE" = "true" ]; then
-    manage_user_list_add "$CLI_USER_LIST_RECENT" "$CONFIG_RECENT_LIST_LIMIT"
+    manage_user_list_add "$CLI_USER_LIST_RECENT" "$CONFIG_RECENT_BOOKS_LIMIT"
   fi
 
   book_path="$(printf '%s' "$STATE_CURRENT_BOOK" | jq -r '.formats[0]')"
@@ -2413,7 +2426,7 @@ CLI_NAME
     _util_terminal_exec fish --init-command "function fish_greeting;printf '$init_text';end"
   else
     local init_file
-    init_file="$(mktemp "${TMPDIR:-/tmp}/yt_x_sh_init.XXXXXX")"
+    init_file="$(mktemp "${TMPDIR:-/tmp}/lib_x_sh_init.XXXXXX")"
 
     cat <<EOF >"$init_file"
 printf '%s' "$init_text"
@@ -2493,11 +2506,8 @@ $extra_menu_options"
       fi
       ;;
     esac
-
-    if [ "$CMD_EXIT" = "true" ]; then
+    if [ "$CMD_BOOK_EXIT" = true ]; then
       _util_byebye
-    elif [ "$CMD_EXIT" = "true" ]; then
-      break
     fi
   done
 }
@@ -2591,6 +2601,9 @@ __menu_miscellaneous_add_books_from_folder() {
       ui_notify_error "$TXT_MENU_MISC_ADD_BOOKS_FROM_FOLDER_FAILED"
     fi
   fi
+  if [ -n "$CMD_EXIT" ]; then
+    _util_byebye
+  fi
 }
 
 __menu_miscellaneous_add_books() {
@@ -2633,11 +2646,17 @@ __menu_miscellaneous_add_books() {
     fi
     IFS="$old_ifs"
   fi
+  if [ -n "$CMD_EXIT" ]; then
+    _util_byebye
+  fi
 }
 
 __menu_miscellaneous_sync() {
   __fetch_calibre_db
   __fetch_calibre_categories
+  if [ -n "$CMD_EXIT" ]; then
+    _util_byebye
+  fi
 }
 
 # shellcheck disable=SC2120
@@ -2662,7 +2681,7 @@ _menu_miscellaneous() {
     actions="$(printf '%s' "$actions" | grep --invert-match "$menu_options_filter")"
   fi
   if [ -n "$sort" ]; then
-    actions="$(_util_menu_sort "$actions" "$sort")"
+    actions="$(printf '%s' "$actions" | _util_menu_sort "$sort")"
   fi
 
   while true; do
@@ -2761,10 +2780,10 @@ __menu_main_dropped() {
 __menu_main_random() {
   local randoms
 
-  randoms="$(od -An -N$((CONFIG_RANDOM_BOOKS_NUMBER * 3 * 4)) -tu4 /dev/urandom)"
+  randoms="$(od -An -N$((CONFIG_RANDOM_BOOKS_LIMIT * 3 * 4)) -tu4 /dev/urandom)"
 
   STATE_CURRENT_BOOKS="$(
-    fetch_calibre_db | jq --argjson no_of_random_books "$CONFIG_RANDOM_BOOKS_NUMBER" --arg randoms "$randoms" '
+    fetch_calibre_db | jq --argjson no_of_random_books "$CONFIG_RANDOM_BOOKS_LIMIT" --arg randoms "$randoms" '
       . as $db
       | $randoms | sub("\n"; " "; "g") | split(" ") | map(select(. != "")) | map(tonumber? // empty) | unique | .[:($no_of_random_books)] as $random_list
       | $random_list | map($db[. % ($db | length)])
@@ -2792,6 +2811,7 @@ __menu_main_search() {
 
     if [ -n "$CMD_INPUT" ]; then
       query="$CMD_INPUT"
+      unset -v CMD_INPUT
     else
       if [ -z "$search_history" ]; then
         query="$(ui_prompt "$TXT_MENU_MAIN_SEARCH_PROMPT")"
@@ -2828,6 +2848,9 @@ __menu_main_search() {
     STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
     _state_push
     menu_book_list_explorer
+    if [ -n "$CMD_EXIT" ]; then
+      _util_byebye
+    fi
   done
 }
 
@@ -2836,6 +2859,9 @@ __menu_main_all() {
   STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
   _state_push
   menu_book_list_explorer
+  if [ -n "$CMD_EXIT" ]; then
+    _util_byebye
+  fi
 }
 
 __menu_main_series() {
@@ -2862,6 +2888,9 @@ __menu_main_series() {
     STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
     _state_push
     menu_book_list_explorer
+    if [ -n "$CMD_EXIT" ]; then
+      _util_byebye
+    fi
   done
 }
 
@@ -2889,6 +2918,9 @@ __menu_main_authors() {
     STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
     _state_push
     menu_book_list_explorer
+    if [ -n "$CMD_EXIT" ]; then
+      _util_byebye
+    fi
   done
 }
 
@@ -2916,6 +2948,9 @@ __menu_main_tags() {
     STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
     _state_push
     menu_book_list_explorer
+    if [ -n "$CMD_EXIT" ]; then
+      _util_byebye
+    fi
   done
 }
 
@@ -2943,6 +2978,9 @@ __menu_main_formats() {
     STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
     _state_push
     menu_book_list_explorer
+    if [ -n "$CMD_EXIT" ]; then
+      _util_byebye
+    fi
   done
 }
 
@@ -2970,6 +3008,9 @@ __menu_main_languages() {
     STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
     _state_push
     menu_book_list_explorer
+    if [ -n "$CMD_EXIT" ]; then
+      _util_byebye
+    fi
   done
 }
 
@@ -2997,6 +3038,9 @@ __menu_main_ratings() {
     STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
     _state_push
     menu_book_list_explorer
+    if [ -n "$CMD_EXIT" ]; then
+      _util_byebye
+    fi
   done
 }
 
@@ -3024,6 +3068,9 @@ __menu_main_publishers() {
     STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
     _state_push
     menu_book_list_explorer
+    if [ -n "$CMD_EXIT" ]; then
+      _util_byebye
+    fi
   done
 }
 
@@ -3051,6 +3098,9 @@ __menu_main_identifiers() {
     STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
     _state_push
     menu_book_list_explorer
+    if [ -n "$CMD_EXIT" ]; then
+      _util_byebye
+    fi
   done
 }
 
@@ -3163,7 +3213,7 @@ _app_update_script() {
   if ! [ -w "$CLI_PATH" ]; then
     ui_confirm "$TXT_UPDATE_ROOT_WARNING" || exit 1
     if _dep_ch sudo; then
-      exec sudo -s "$CLI_PATH" "-u"
+      exec sudo -s "$CLI_PATH" "-U"
     else
       ui_notify_critical "$TXT_UPDATE_SUDO_MISSING"
     fi
@@ -3275,18 +3325,10 @@ _app_core_dep_ch() {
 
 _app_cache_clean_up() {
   local retention_days
-  retention_days="${CONFIG_CACHE_RETENTION_DAYS:-3}"
+  retention_days="$CONFIG_CACHE_RETENTION_DAYS"
 
-  if [ -d "$CLI_PREVIEW_DIR" ]; then
-    find "$CLI_PREVIEW_DIR" -type f -mtime "+$retention_days" -exec rm {} + 2>/dev/null
-  fi
-
-  if [ -d "$CLI_AUTO_GEN_PLAYLISTS" ]; then
-    find "$CLI_AUTO_GEN_PLAYLISTS" -type f -mtime "+$retention_days" -exec rm {} + 2>/dev/null
-  fi
-
-  if [ -d "$CLI_LOG_DIR" ]; then
-    find "$CLI_LOG_DIR" -type f -mtime "+$retention_days" -exec rm {} + 2>/dev/null
+  if [ -d "$CLI_PREVIEW_SCRIPTS_DIR" ]; then
+    find "$CLI_PREVIEW_SCRIPTS_DIR" -type f -mtime "+$retention_days" -exec rm {} + 2>/dev/null
   fi
 }
 
@@ -3417,7 +3459,7 @@ _app_cmd_line_parser() {
     -E | --generate-desktop-entry) _app_generate_desktop_entry ;;
     -ce | --cmd-exit) CMD_EXIT=true ;;
     -bs | --book-skip) CMD_BOOK_RESULTS_SKIP=true ;;
-    -be | --book-exit) CMD_EXIT=true ;;
+    -be | --book-exit) CMD_BOOK_EXIT=true ;;
     -d | --disown-reading-process) CONFIG_READING_PROCESS_DISOWN="true" ;;
     -D | --no-disown-reading-process) CONFIG_READING_PROCESS_DISOWN="false" ;;
     --config-write) _print_config >"$CLI_CONFIG_FILE" && exit 0 ;;
@@ -3487,13 +3529,13 @@ _app_cmd_line_parser() {
     --show-metadata) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_METADATA" ;;
     -s | --search)
       if [ -z "$2" ]; then
-        CMD_SEARCH="$(ui_prompt "Enter search query")"
-        [ -n "$CMD_SEARCH" ] || _app_usage 1
+        CMD_INPUT="$(ui_prompt "Enter search query")"
+        [ -n "$CMD_INPUT" ] || _app_usage 1
       else
-        CMD_SEARCH="$2"
+        CMD_INPUT="$2"
         shift_count=2
       fi
-      CMD_MAIN_ACTION="${CMD_MAIN_ACTION:-$TXT_MENU_MAIN_ALL}"
+      CMD_MAIN_ACTION="$TXT_MENU_MAIN_SEARCH"
       ;;
     -S | --sort-by)
       if [ -z "$2" ]; then
@@ -3506,10 +3548,10 @@ _app_cmd_line_parser() {
       ;;
     -r | --no-of-random-books)
       if [ -z "$2" ]; then
-        CONFIG_RANDOM_BOOKS_NUMBER="$(ui_prompt "Number of random books")"
-        [ -n "$CONFIG_RANDOM_BOOKS_NUMBER" ] || _app_usage 1
+        CONFIG_RANDOM_BOOKS_LIMIT="$(ui_prompt "Number of random books")"
+        [ -n "$CONFIG_RANDOM_BOOKS_LIMIT" ] || _app_usage 1
       else
-        CONFIG_RANDOM_BOOKS_NUMBER="$2"
+        CONFIG_RANDOM_BOOKS_LIMIT="$2"
         shift_count=2
       fi
       CMD_MAIN_ACTION="${CMD_MAIN_ACTION:-$TXT_MENU_MAIN_RANDOM}"

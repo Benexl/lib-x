@@ -2463,8 +2463,10 @@ CALIBRE_CATEGORIES_CSV_FILE
 CLI_NAME
 "
   user_shell="$(ps -o comm= -p "$PPID")"
+
+  clear
   if [ "$user_shell" = "fish" ]; then
-    _util_terminal_exec fish --init-command "function fish_greeting;printf '$init_text';end"
+    _util_terminal_exec fish --init-command "function fish_greeting;printf \"$init_text\";end"
   else
     local init_file
     init_file="$(mktemp "${TMPDIR:-/tmp}/lib_x_sh_init.XXXXXX")"

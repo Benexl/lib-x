@@ -3147,7 +3147,7 @@ _app_cmd_line_parser() {
     shift_count=1
     case "$1" in
     -h | --help) _app_usage ;;
-    -v | --version) printf '%s v%s MIT Copyright © 2024 %s\n' "$CLI_NAME" "$CLI_VERSION" "$CLI_AUTHOR" && exit 0 ;;
+    -v | --version) printf '%s v%s GPL V3 Copyright © 2024 %s\n' "$CLI_NAME" "$CLI_VERSION" "$CLI_AUTHOR" && exit 0 ;;
     -U | --update) _app_update_check || printf '%s\n' "No updates found" && exit 1 ;;
     -e | --edit-config) __menu_main_edit_config && exit 0 ;;
     -E | --generate-desktop-entry) _app_generate_desktop_entry ;;

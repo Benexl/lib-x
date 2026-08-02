@@ -243,6 +243,11 @@ __load_default_lang() {
   TXT_CONFIRM_DEFAULT="Default"
   TXT_DEP_MISSING_CALIBREDB="calibredb is required but not found in PATH."
   TXT_DEP_MISSING_DIFF="diff is not installed. Skipping update diff display."
+  TXT_DEP_MISSING_EBOOK_CONVERT="ebook-convert is required but not found in PATH."
+  TXT_DEP_MISSING_EBOOK_EDIT="ebook-edit is required but not found in PATH."
+  TXT_DEP_MISSING_EBOOK_META="ebook-meta is required but not found in PATH."
+  TXT_DEP_MISSING_EBOOK_POLISH="ebook-polish is required but not found in PATH."
+  TXT_DEP_MISSING_EBOOK_VIEWER="ebook-viewer is required but not found in PATH."
   TXT_DEP_MISSING_FZF="fzf is required but not found in PATH."
   TXT_DEP_MISSING_JQ="jq is required but not found in PATH."
   TXT_DESKTOP_ENTRY_COMMENT="Read and manage your calibre books from the terminal"
@@ -274,7 +279,14 @@ __load_default_lang() {
   TXT_MENU_ACTION_CONFIRM="Are you sure you would like to proceed?"
   TXT_MENU_BACK="Back"
   TXT_MENU_BOOK_ACTIONS_CONFIRM_UPDATE="Are you sure you want to update"
+  TXT_MENU_BOOK_ACTIONS_CONVERT_CONFIRM="Are you sure you want to convert"
+  TXT_MENU_BOOK_ACTIONS_CONVERT_FAILED="Conversion failed"
+  TXT_MENU_BOOK_ACTIONS_CONVERT_OUTPUT_PROMPT="Select output format"
+  TXT_MENU_BOOK_ACTIONS_CONVERT="Convert"
+  TXT_MENU_BOOK_ACTIONS_CONVERTED="Converted successfully"
+  TXT_MENU_BOOK_ACTIONS_EDIT="Edit Book"
   TXT_MENU_BOOK_ACTIONS_EDIT_METADATA="Edit Metadata"
+  TXT_MENU_BOOK_ACTIONS_FORMAT_PROMPT="Select format"
   TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_COMPLETED="Add to completed list"
   TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_DOCS="Add to docs list"
   TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_DROPPED="Add to dropped list"
@@ -284,6 +296,13 @@ __load_default_lang() {
   TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_RE_READING="Add to re-reading list"
   TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS="Manage My Lists"
   TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_REMOVE="Remove from my lists"
+  TXT_MENU_BOOK_ACTIONS_METADATA="Show Metadata"
+  TXT_MENU_BOOK_ACTIONS_NO_FORMATS="No formats found for this book"
+  TXT_MENU_BOOK_ACTIONS_POLISH_CONFIRM="Are you sure you want to polish with"
+  TXT_MENU_BOOK_ACTIONS_POLISH_FAILED="Polish failed"
+  TXT_MENU_BOOK_ACTIONS_POLISH_PROMPT="Select polish action"
+  TXT_MENU_BOOK_ACTIONS_POLISH="Polish"
+  TXT_MENU_BOOK_ACTIONS_POLISHED="Polished successfully"
   TXT_MENU_BOOK_ACTIONS_PROMPT_FIELD="Select field to edit"
   TXT_MENU_BOOK_ACTIONS_PROMPT_NEW_VAL="Enter new value for"
   TXT_MENU_BOOK_ACTIONS_PROMPT="Select Book Action"
@@ -296,6 +315,7 @@ __load_default_lang() {
   TXT_MENU_BOOK_ACTIONS_SHELL_VARIABLES="Exported variables:"
   TXT_MENU_BOOK_ACTIONS_SHELL_WELCOME="Welcome to the interactive shell!"
   TXT_MENU_BOOK_ACTIONS_USER_LISTS_PROMPT="Select List"
+  TXT_MENU_BOOK_ACTIONS_VIEWER="View in Calibre Viewer"
   TXT_MENU_EXIT="Exit"
   TXT_MENU_INVALID_ACTION="Invalid Action"
   TXT_MENU_LIST_EXPLORER_PROMPT="Select Book"
@@ -344,11 +364,15 @@ __load_default_lang() {
 
   TXT_ICON_MENU_BACK="󰌍"
   TXT_ICON_MENU_BOOK_ACTIONS_ADD_LIST="󰐒"
-  TXT_ICON_MENU_BOOK_ACTIONS_ADD_LIST="󰐒"
+  TXT_ICON_MENU_BOOK_ACTIONS_CONVERT="󰉺"
+  TXT_ICON_MENU_BOOK_ACTIONS_EDIT="󰏪"
   TXT_ICON_MENU_BOOK_ACTIONS_EDIT_METADATA="󱚌"
+  TXT_ICON_MENU_BOOK_ACTIONS_METADATA="󰋼"
+  TXT_ICON_MENU_BOOK_ACTIONS_POLISH="󰓩"
   TXT_ICON_MENU_BOOK_ACTIONS_READ=""
   TXT_ICON_MENU_BOOK_ACTIONS_REMOVE_BOOK="󰗙"
   TXT_ICON_MENU_BOOK_ACTIONS_SHELL=""
+  TXT_ICON_MENU_BOOK_ACTIONS_VIEWER="󰂯"
   TXT_ICON_MENU_EXIT="󰈆"
   TXT_ICON_MENU_MAIN_ALL="󰌱"
   TXT_ICON_MENU_MAIN_AUTHORS=""
@@ -2186,6 +2210,170 @@ cover"
 
 }
 
+__menu_book_actions_pick_format() {
+  local formats
+  local format
+
+  formats="$(printf '%s' "$STATE_CURRENT_BOOK" | jq -r '.formats[]')"
+
+  if [ -z "$formats" ]; then
+    ui_notify_warning "$TXT_MENU_BOOK_ACTIONS_NO_FORMATS"
+    return 1
+  fi
+
+  if [ "$(printf '%s\n' "$formats" | wc -l)" -eq 1 ]; then
+    printf '%s' "$formats"
+    return 0
+  fi
+
+  format="$(printf '%s\n%s' "$formats" "$TXT_MENU_BACK" | ui_launcher "$TXT_MENU_BOOK_ACTIONS_FORMAT_PROMPT")"
+
+  case "$format" in
+  "$TXT_MENU_BACK" | "") return 1 ;;
+  *) printf '%s' "$format" ;;
+  esac
+}
+
+__menu_book_actions_viewer() {
+  local book_path
+
+  book_path="$(__menu_book_actions_pick_format)" || return 1
+
+  if ! _dep_ch ebook-viewer; then
+    ui_notify_error "$TXT_DEP_MISSING_EBOOK_VIEWER"
+    return 1
+  fi
+
+  if [ "$CONFIG_READING_PROCESS_DISOWN" = "true" ]; then
+    nohup ebook-viewer "$book_path" >/dev/null 2>&1 &
+  else
+    ebook-viewer "$book_path"
+  fi
+}
+
+__menu_book_actions_convert() {
+  local book_path
+  local formats
+  local output_format
+  local output_file
+
+  book_path="$(__menu_book_actions_pick_format)" || return 1
+
+  if ! _dep_ch ebook-convert; then
+    ui_notify_error "$TXT_DEP_MISSING_EBOOK_CONVERT"
+    return 1
+  fi
+
+  formats="azw3
+cbz
+docx
+epub
+fb2
+htmlz
+lit
+lrf
+mobi
+oeb
+pdb
+pdf
+prc
+rtf
+snb
+txt
+txtz
+zip"
+
+  output_format="$(printf '%s\n%s' "$formats" "$TXT_MENU_BACK" | ui_launcher "$TXT_MENU_BOOK_ACTIONS_CONVERT_OUTPUT_PROMPT")"
+
+  case "$output_format" in
+  "$TXT_MENU_BACK" | "") return 1 ;;
+  esac
+
+  output_file="${book_path%.*}.$output_format"
+
+  if ui_confirm "$TXT_MENU_BOOK_ACTIONS_CONVERT_CONFIRM $STATE_CURRENT_BOOK_TITLE to $output_format?"; then
+    if ebook-convert "$book_path" "$output_file"; then
+      ui_notify "$TXT_MENU_BOOK_ACTIONS_CONVERTED"
+    else
+      ui_notify_error "$TXT_MENU_BOOK_ACTIONS_CONVERT_FAILED"
+    fi
+  fi
+}
+
+__menu_book_actions_edit() {
+  local book_path
+
+  book_path="$(__menu_book_actions_pick_format)" || return 1
+
+  if ! _dep_ch ebook-edit; then
+    ui_notify_error "$TXT_DEP_MISSING_EBOOK_EDIT"
+    return 1
+  fi
+
+  if [ "$CONFIG_READING_PROCESS_DISOWN" = "true" ]; then
+    nohup ebook-edit "$book_path" >/dev/null 2>&1 &
+  else
+    ebook-edit "$book_path"
+  fi
+}
+
+__menu_book_actions_polish() {
+  local book_path
+  local options
+  local action
+
+  book_path="$(__menu_book_actions_pick_format)" || return 1
+
+  if ! _dep_ch ebook-polish; then
+    ui_notify_error "$TXT_DEP_MISSING_EBOOK_POLISH"
+    return 1
+  fi
+
+  options="\
+--add-soft-hyphens: Insert soft hyphens into words to improve text justification
+--clean-markup: Remove pointless/obsolete markup
+--compress-images: Recompress all images to reduce file size
+--convert-rare-css: Convert rarely used CSS features to more common ones
+--fix-hyphens: Fix hyphenation errors
+--remove-advertisements: Remove common advertising patterns
+--remove-embedded-fonts: Remove embedded fonts
+--remove-fake-margins: Remove fake margins from EPUB files
+--remove-paragraph-spacing: Remove blank space between paragraphs
+--remove-unused-css: Remove unused CSS rules
+--smarten-punctuation: Replace plain text punctuation with typographically correct punctuation
+--subset-embedded-fonts: Subset embedded fonts to only the glyphs used
+--transform-css: Transform CSS rules
+--upgrade-book-internals: Upgrade the internal format of EPUB files"
+
+  action="$(printf '%s\n%s' "$options" "$TXT_MENU_BACK" | ui_launcher "$TXT_MENU_BOOK_ACTIONS_POLISH_PROMPT")"
+
+  case "$action" in
+  "$TXT_MENU_BACK" | "") return 1 ;;
+  *) action="${action%%:*}" ;;
+  esac
+
+  if ui_confirm "$TXT_MENU_BOOK_ACTIONS_POLISH_CONFIRM $action?"; then
+    if ebook-polish "$action" "$book_path"; then
+      ui_notify "$TXT_MENU_BOOK_ACTIONS_POLISHED"
+    else
+      ui_notify_error "$TXT_MENU_BOOK_ACTIONS_POLISH_FAILED"
+    fi
+  fi
+}
+
+__menu_book_actions_show_metadata() {
+  local book_path
+
+  book_path="$(__menu_book_actions_pick_format)" || return 1
+
+  if ! _dep_ch ebook-meta; then
+    ui_notify_error "$TXT_DEP_MISSING_EBOOK_META"
+    return 1
+  fi
+
+  ebook-meta "$book_path" | ui_pager
+}
+
 __menu_book_actions_shell() {
   local init_text
   local user_shell
@@ -2248,6 +2436,11 @@ _menu_book_actions() {
  ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_ADD_LIST}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS}
  ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_REMOVE_BOOK}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_REMOVE_BOOK}
  ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_EDIT_METADATA}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_EDIT_METADATA}
+ ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_VIEWER}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_VIEWER}
+ ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_CONVERT}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_CONVERT}
+ ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_EDIT}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_EDIT}
+ ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_POLISH}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_POLISH}
+ ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BOOK_ACTIONS_METADATA}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_METADATA}
  ${THEME_FZF_ICON_COLOR_ACCENT}${TXT_ICON_MENU_BOOK_ACTIONS_SHELL}${THEME_RESET}  ${TXT_MENU_BOOK_ACTIONS_SHELL}
  ${THEME_FZF_ICON_COLOR_SECONDARY}${TXT_ICON_MENU_BACK}${THEME_RESET}  ${TXT_MENU_BACK}
  ${THEME_FZF_ICON_COLOR_ERROR}${TXT_ICON_MENU_EXIT}${THEME_RESET}  ${TXT_MENU_EXIT}"
@@ -2278,6 +2471,11 @@ $extra_menu_options"
     "$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS") __menu_book_actions_manage_my_lists ;;
     "$TXT_MENU_BOOK_ACTIONS_REMOVE_BOOK") __menu_book_actions_remove_book ;;
     "$TXT_MENU_BOOK_ACTIONS_EDIT_METADATA") __menu_book_actions_edit_metadata ;;
+    "$TXT_MENU_BOOK_ACTIONS_VIEWER") __menu_book_actions_viewer ;;
+    "$TXT_MENU_BOOK_ACTIONS_CONVERT") __menu_book_actions_convert ;;
+    "$TXT_MENU_BOOK_ACTIONS_EDIT") __menu_book_actions_edit ;;
+    "$TXT_MENU_BOOK_ACTIONS_POLISH") __menu_book_actions_polish ;;
+    "$TXT_MENU_BOOK_ACTIONS_METADATA") __menu_book_actions_show_metadata ;;
     "$TXT_MENU_BOOK_ACTIONS_SHELL") __menu_book_actions_shell ;;
     "$TXT_MENU_BACK" | "") _state_pop && break ;;
     "$TXT_MENU_EXIT") _util_byebye ;;
@@ -3174,6 +3372,11 @@ complete -c $CLI_NAME -n "__fish_use_subcommand" -l misc -l miscellaneous -d "Op
 complete -c $CLI_NAME -n "__fish_use_subcommand" -l read -d "Read the selected book"
 complete -c $CLI_NAME -n "__fish_use_subcommand" -l edit-metadata -d "Edit metadata of the selected book"
 complete -c $CLI_NAME -n "__fish_use_subcommand" -l remove-book -d "Remove the selected book"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l viewer -d "Open the selected book in the Calibre viewer"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l convert -d "Convert the selected book to another format"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l edit-book -d "Edit the selected book in the Calibre editor"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l polish -d "Polish the selected book"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l show-metadata -d "Show metadata of the selected book"
 
 complete -c $CLI_NAME -n "__fish_use_subcommand" -s s -l search -d "Search for a book" --require-parameter --no-files -a "(_lib_x_complete_search)"
 complete -c $CLI_NAME -n "__fish_use_subcommand" -s S -l sort-by -d "Sort books by field" --require-parameter --no-files -a 'author_sort authors comments cover formats identifiers isbn languages last_modified pubdate publisher rating series series_index size tags template timestamp title uuid'
@@ -3271,6 +3474,11 @@ _app_cmd_line_parser() {
     --read) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_READ" ;;
     --edit-metadata) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_EDIT_METADATA" ;;
     --remove-book) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_REMOVE_BOOK" ;;
+    --viewer) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_VIEWER" ;;
+    --convert) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_CONVERT" ;;
+    --edit-book) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_EDIT" ;;
+    --polish) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_POLISH" ;;
+    --show-metadata) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_METADATA" ;;
     -s | --search)
       if [ -z "$2" ]; then
         CMD_SEARCH="$(ui_prompt "Enter search query")"

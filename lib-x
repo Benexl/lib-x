@@ -1764,10 +1764,9 @@ fetch_calibre_db() {
 }
 
 __fetch_calibre_categories() {
-  if calibredb list_categories --csv >"${CALIBRE_CATEGORIES_CSV_FILE}.tmp"; then
+  if calibredb list_categories --csv --dialect=excel-tab >"${CALIBRE_CATEGORIES_CSV_FILE}.tmp"; then
     mv "${CALIBRE_CATEGORIES_CSV_FILE}.tmp" "$CALIBRE_CATEGORIES_CSV_FILE"
   else
-    # ui_notify_error "$TXT_CALIBRE_DB_FETCH_FAILED"
     rm -f "${CALIBRE_CATEGORIES_CSV_FILE}.tmp"
     return 1
   fi
@@ -1791,7 +1790,7 @@ fetch_calibre_categories() {
 }
 
 _fetch_calibre_category() {
-  fetch_calibre_categories | awk -v category="$1" -v FS=, '$1 == category {print $2}'
+  fetch_calibre_categories | awk -v category="$1" -v FS='\t' '$1 == category {print $2}'
 }
 
 fetch_calibre_category() {

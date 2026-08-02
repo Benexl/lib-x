@@ -795,11 +795,22 @@ _util_file_edit() {
 _util_generate_hash() {
   local input
 
-  if [ -n "$1" ]; then
-    input="$1"
-  else
-    input=$(cat)
-  fi
+  case "$CLI_PLATFORM" in
+  windows)
+    if [ -n "$1" ]; then
+      input=$(printf '%s' "$1" | tr -d '\r')
+    else
+      input=$(cat | tr -d '\r')
+    fi
+    ;;
+  *)
+    if [ -n "$1" ]; then
+      input="$1"
+    else
+      input=$(cat)
+    fi
+    ;;
+  esac
 
   if _dep_ch sha256sum; then
     printf "%s" "$input" | sha256sum | awk '{print $1}'

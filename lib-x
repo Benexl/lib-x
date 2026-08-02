@@ -2330,20 +2330,17 @@ __menu_book_actions_polish() {
   fi
 
   options="\
---add-soft-hyphens: Insert soft hyphens into words to improve text justification
---clean-markup: Remove pointless/obsolete markup
---compress-images: Recompress all images to reduce file size
---convert-rare-css: Convert rarely used CSS features to more common ones
---fix-hyphens: Fix hyphenation errors
---remove-advertisements: Remove common advertising patterns
---remove-embedded-fonts: Remove embedded fonts
---remove-fake-margins: Remove fake margins from EPUB files
---remove-paragraph-spacing: Remove blank space between paragraphs
---remove-unused-css: Remove unused CSS rules
---smarten-punctuation: Replace plain text punctuation with typographically correct punctuation
---subset-embedded-fonts: Subset embedded fonts to only the glyphs used
---transform-css: Transform CSS rules
---upgrade-book-internals: Upgrade the internal format of EPUB files"
+--add-soft-hyphens: Add soft hyphens to all words in the book
+--compress-images: Losslessly compress images in the book to reduce the filesize
+--download-external-resources: Download external resources (images, stylesheets) and embed them in the book
+--embed-fonts: Embed all fonts referenced in the document that are not already embedded
+--jacket: Insert a book jacket page with all the book metadata
+--remove-jacket: Remove a previously inserted book jacket page
+--remove-soft-hyphens: Remove soft hyphens from all text in the book
+--remove-unused-css: Remove all unused CSS rules from stylesheets and style tags
+--smarten-punctuation: Convert plain text dashes, ellipsis, quotes, multiple hyphens, etc. into their typographically correct equivalents
+--subset-fonts: Subset embedded fonts to only the glyphs used
+--upgrade-book: Upgrade the internal structures of the book (e.g. EPUB 2 to EPUB 3)"
 
   action="$(printf '%s\n%s' "$options" "$TXT_MENU_BACK" | ui_launcher "$TXT_MENU_BOOK_ACTIONS_POLISH_PROMPT")"
 

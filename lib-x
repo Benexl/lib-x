@@ -1802,16 +1802,40 @@ fetch_calibre_category() {
 # shellcheck disable=SC2016
 CALIBRE_SORT_JQ='
 def sort_calibre_db($key):
-  if $key == "title" then
+  if $key == "id" then
+    sort_by(.id // 0)
+  elif $key == "title" then
     sort_by(.title | ascii_downcase)
   elif $key == "author" then
     sort_by(.authors[0] // "" | ascii_downcase)
   elif $key == "series" then
     sort_by(.series // "" | ascii_downcase)
+  elif $key == "series_index" then
+    sort_by(.series_index // 0)
   elif $key == "rating" then
     sort_by(.rating // 0)
   elif $key == "publisher" then
     sort_by(.publisher // "" | ascii_downcase)
+  elif $key == "date" or $key == "pubdate" then
+    sort_by(.pubdate // "")
+  elif $key == "timestamp" then
+    sort_by(.timestamp // "")
+  elif $key == "last_modified" then
+    sort_by(.last_modified // "")
+  elif $key == "size" then
+    sort_by(.size // 0)
+  elif $key == "formats" then
+    sort_by(.formats[0] // "" | ascii_downcase)
+  elif $key == "comments" then
+    sort_by(.comments // "" | ascii_downcase)
+  elif $key == "languages" then
+    sort_by(.languages[0] // "" | ascii_downcase)
+  elif $key == "tags" then
+    sort_by(.tags[0] // "" | ascii_downcase)
+  elif $key == "identifiers" then
+    sort_by(.identifiers // {} | length)
+  elif $key == "uuid" then
+    sort_by(.uuid // "" | ascii_downcase)
   else .
   end;
 '

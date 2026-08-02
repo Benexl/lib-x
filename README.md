@@ -2,15 +2,6 @@
 
 # 📚 lib-x
 
-```text
-██╗░░░░░██╗██████╗░░░░░░░██╗░░██╗
-██║░░░░░██║██╔══██╗░░░░░░╚██╗██╔╝
-██║░░░░░██║██████╦╝█████╗░╚███╔╝░
-██║░░░░░██║██╔══██╗╚════╝░██╔██╗░
-███████╗██║██████╦╝░░░░░░██╔╝╚██╗
-╚══════╝╚═╝╚═════╝░░░░░░░╚═╝░░╚═╝
-```
-
 **Browse and manage your Calibre library from the terminal**
 
 ![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black)

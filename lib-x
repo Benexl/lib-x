@@ -274,7 +274,7 @@ __load_default_lang() {
   TXT_ROFI_NOT_CONFIGURED="Rofi theme not configured"
   TXT_ROFI_PAGER_MESSAGE="Scroll with arrow keys, press ENTER to dismiss"
   TXT_ROFI_PAGER_PROMPT="Pager"
-  TXT_SORT_BY="Sort by field (e.g., author, title, size)"
+  TXT_SORT_BY="Sort by field (e.g., author, title, size). Append _asc for ascending order (default: descending)"
   TXT_STATE_MALFORMED_CURRENT="State malformed"
   TXT_UNSUPPORTED_FILE_EXPLORER="The current file explorer ($CONFIG_FILE_EXPLORER) is unsupported"
   TXT_UPDATE_CONFIRM="Apply the update?"
@@ -512,7 +512,8 @@ Direct menu shortcuts & Overrides
   -bs, --book-skip               Skip the item selection menu and automatically pick the first entry
   -be, --book-exit               Exit after performing a book action (read, edit, etc.)
   -s, --search <term>            Search for a book based on calibredb search syntax
-  -S, --sort-by <field>          Sort the books on a specified field (e.g. author, size)
+  -S, --sort-by <field>          Sort the books on a specified field (e.g. author, size).
+                                 Append _asc for ascending order (default: descending)
   -r, --no-of-random-books <num> Number of random books to show (opens Random menu)
   
   --reading-list                 Open your Reading List directly
@@ -718,6 +719,7 @@ CONFIG_ROFI_THEME_PREVIEW="$CONFIG_ROFI_THEME_PREVIEW"
 CONFIG_ROFI_THEME_PROMPT="$CONFIG_ROFI_THEME_PROMPT"
 
 # By what field should the calibre titles be sorted
+# Append _asc for ascending order (default: descending)
 # Defaults to: none
 CONFIG_SORT_BY=""
 
@@ -1802,42 +1804,52 @@ fetch_calibre_category() {
 # shellcheck disable=SC2016
 CALIBRE_SORT_JQ='
 def sort_calibre_db($key):
-  if $key == "id" then
-    sort_by(.id // 0)
-  elif $key == "title" then
-    sort_by(.title | ascii_downcase)
-  elif $key == "author" then
-    sort_by(.authors[0] // "" | ascii_downcase)
-  elif $key == "series" then
-    sort_by(.series // "" | ascii_downcase)
-  elif $key == "series_index" then
-    sort_by(.series_index // 0)
-  elif $key == "rating" then
-    sort_by(.rating // 0)
-  elif $key == "publisher" then
-    sort_by(.publisher // "" | ascii_downcase)
-  elif $key == "date" or $key == "pubdate" then
-    sort_by(.pubdate // "")
-  elif $key == "timestamp" then
-    sort_by(.timestamp // "")
-  elif $key == "last_modified" then
-    sort_by(.last_modified // "")
-  elif $key == "size" then
-    sort_by(.size // 0)
-  elif $key == "formats" then
-    sort_by(.formats[0] // "" | ascii_downcase)
-  elif $key == "comments" then
-    sort_by(.comments // "" | ascii_downcase)
-  elif $key == "languages" then
-    sort_by(.languages[0] // "" | ascii_downcase)
-  elif $key == "tags" then
-    sort_by(.tags[0] // "" | ascii_downcase)
-  elif $key == "identifiers" then
-    sort_by(.identifiers // {} | length)
-  elif $key == "uuid" then
-    sort_by(.uuid // "" | ascii_downcase)
-  else .
-  end;
+  ($key | endswith("_asc")) as $asc
+  | ($key | if $asc then rtrimstr("_asc") else . end) as $field
+  | (if $field == "id" then
+      sort_by(.id // 0)
+    elif $field == "title" then
+      sort_by(.title | ascii_downcase)
+    elif $field == "author" then
+      sort_by(.authors[0] // "" | ascii_downcase)
+    elif $field == "series" then
+      sort_by(.series // "" | ascii_downcase)
+    elif $field == "series_index" then
+      sort_by(.series_index // 0)
+    elif $field == "rating" then
+      sort_by(.rating // 0)
+    elif $field == "publisher" then
+      sort_by(.publisher // "" | ascii_downcase)
+    elif $field == "date" or $field == "pubdate" then
+      sort_by(.pubdate // "")
+    elif $field == "timestamp" then
+      sort_by(.timestamp // "")
+    elif $field == "last_modified" then
+      sort_by(.last_modified // "")
+    elif $field == "size" then
+      sort_by(.size // 0)
+    elif $field == "formats" then
+      sort_by(.formats[0] // "" | ascii_downcase)
+    elif $field == "comments" then
+      sort_by(.comments // "" | ascii_downcase)
+    elif $field == "languages" then
+      sort_by(.languages[0] // "" | ascii_downcase)
+    elif $field == "tags" then
+      sort_by(.tags[0] // "" | ascii_downcase)
+    elif $field == "identifiers" then
+      sort_by(.identifiers // {} | length)
+    elif $field == "uuid" then
+      sort_by(.uuid // "" | ascii_downcase)
+    else
+      null
+    end) as $sorted
+  | if $sorted == null then
+      .
+    elif $asc then
+      $sorted
+    else
+      $sorted | reverse
+    end;
 '
 
 _fetch_calibre_db_all() {

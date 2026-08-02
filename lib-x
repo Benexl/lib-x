@@ -274,12 +274,14 @@ __load_default_lang() {
   TXT_ROFI_NOT_CONFIGURED="Rofi theme not configured"
   TXT_ROFI_PAGER_MESSAGE="Scroll with arrow keys, press ENTER to dismiss"
   TXT_ROFI_PAGER_PROMPT="Pager"
+  TXT_SORT_BY="Sort by field (e.g., author, title, size)"
   TXT_STATE_MALFORMED_CURRENT="State malformed"
   TXT_UNSUPPORTED_FILE_EXPLORER="The current file explorer ($CONFIG_FILE_EXPLORER) is unsupported"
   TXT_UPDATE_CONFIRM="Apply the update?"
   TXT_UPDATE_FAILED="Failed to install the update."
   TXT_UPDATE_FETCH_FAILED="Failed to download the update."
   TXT_UPDATE_FOUND="New version available. Show the diff?"
+  TXT_UPDATE_NOT_FOUND="No update found"
   TXT_UPDATE_ROOT_WARNING="Updating requires root privileges. Continue as root?"
   TXT_UPDATE_SCRIPT_REEXECUTE="Re-execute the script with the new version?"
   TXT_UPDATE_SUDO_MISSING="sudo not available, cannot update."
@@ -1946,6 +1948,9 @@ _fetch_calibre_db_search_language() {
       else
       .
     end
+    | to_entries
+    | map(.value.title=\"\(.key+1|tostring| if (.|length) < 2 then \"0\" + . else . end) \" + .value.title)
+    | map(.value)
   "
 }
 
@@ -2131,6 +2136,7 @@ __menu_book_actions_read() {
 
 __menu_book_actions_manage_my_lists() {
   local list
+  local lists
 
   while true; do
     lists="\
@@ -2181,8 +2187,8 @@ __menu_book_actions_edit_metadata() {
   local val
 
   fields="\
-author_sort
 authors
+author_sort
 comments
 cover
 id
@@ -2198,8 +2204,7 @@ sort
 tags
 timestamp
 title
-title_sort
-cover"
+title_sort"
 
   while true; do
     field="$(printf '%s\n%s' "$fields" "$TXT_MENU_BACK" | ui_launcher "$TXT_MENU_BOOK_ACTIONS_PROMPT_FIELD")"
@@ -3454,8 +3459,8 @@ _app_cmd_line_parser() {
     case "$1" in
     -h | --help) _app_usage ;;
     -v | --version) printf '%s v%s GPL V3 Copyright © 2024 %s\n' "$CLI_NAME" "$CLI_VERSION" "$CLI_AUTHOR" && exit 0 ;;
-    -U | --update) _app_update_check || printf '%s\n' "No updates found" && exit 1 ;;
-    -e | --edit-config) __menu_main_edit_config && exit 0 ;;
+    -U | --update) _app_update_check || printf '%s\n' "$TXT_UPDATE_NOT_FOUND" && exit 1 ;;
+    -e | --edit-config) _app_edit_config ;;
     -E | --generate-desktop-entry) _app_generate_desktop_entry ;;
     -ce | --cmd-exit) CMD_EXIT=true ;;
     -bs | --book-skip) CMD_BOOK_RESULTS_SKIP=true ;;
@@ -3512,7 +3517,7 @@ _app_cmd_line_parser() {
     --recent) CMD_MAIN_ACTION="$TXT_MENU_MAIN_RECENT" ;;
     --paused) CMD_MAIN_ACTION="$TXT_MENU_MAIN_PAUSED" ;;
     --rereading) CMD_MAIN_ACTION="$TXT_MENU_MAIN_REREADING" ;;
-    --planing) CMD_MAIN_ACTION="$TXT_MENU_MAIN_PLANNING" ;;
+    --planning) CMD_MAIN_ACTION="$TXT_MENU_MAIN_PLANNING" ;;
     --completed) CMD_MAIN_ACTION="$TXT_MENU_MAIN_COMPLETED" ;;
     --docs) CMD_MAIN_ACTION="$TXT_MENU_MAIN_DOCS" ;;
     --dropped) CMD_MAIN_ACTION="$TXT_MENU_MAIN_DROPPED" ;;
@@ -3529,7 +3534,7 @@ _app_cmd_line_parser() {
     --show-metadata) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_METADATA" ;;
     -s | --search)
       if [ -z "$2" ]; then
-        CMD_INPUT="$(ui_prompt "Enter search query")"
+        CMD_INPUT="$(ui_prompt "$TXT_MENU_MAIN_SEARCH_PROMPT")"
         [ -n "$CMD_INPUT" ] || _app_usage 1
       else
         CMD_INPUT="$2"
@@ -3539,7 +3544,7 @@ _app_cmd_line_parser() {
       ;;
     -S | --sort-by)
       if [ -z "$2" ]; then
-        CONFIG_SORT_BY="$(ui_prompt "Sort by field (e.g., author, title, size)")"
+        CONFIG_SORT_BY="$(ui_prompt "$TXT_SORT_BY")"
         [ -n "$CONFIG_SORT_BY" ] || _app_usage 1
       else
         CONFIG_SORT_BY="$2"

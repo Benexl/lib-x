@@ -1533,7 +1533,7 @@ _preview_rofi() {
   local output_count
   local others
   local output
-  output="$CLI_CURRENT_STATE_DIR/rofi-preview-output-$$-$(date +%s)"
+  output="$CLI_CURRENT_STATE_DIR/rofi-preview-output-$$-$(date +%s).txt"
 
   data_to_preview="$1"
 

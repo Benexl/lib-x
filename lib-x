@@ -832,6 +832,7 @@ _util_reverse() {
     awk '{ line[NR] = $0 } END { for (i = NR; i > 0; i--) print line[i] }'
   fi
 }
+
 _util_menu_sort() {
   awk -v sort="$1" '
     BEGIN {
@@ -1517,7 +1518,7 @@ _preview_fzf() {
   done
 
   if [ "$CONFIG_PREVIEW_ENABLE" = "true" ]; then
-    _preview_fzf_generate_script "$data_to_preview" &
+    _preview_fzf_generate_script "$data_to_preview" </dev/null &
   fi
 }
 

@@ -19,6 +19,7 @@
 ![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white)
 ![License](https://img.shields.io/badge/License-GPL_v3-yellow?style=flat-square)
 ![Core](https://img.shields.io/badge/Core-Calibre%20%7C%20FZF%20%7C%20JQ-blue?style=flat-square)
+</div>
 
 <details>
 <summary>Click to view screenshots</summary>
@@ -460,4 +461,3 @@ Pull requests are highly welcome :)
 ### Supporting the Project
 
 If you enjoy using `lib-x` and want to support its ongoing development, **consider leaving a Star on GitHub!**
-</div>

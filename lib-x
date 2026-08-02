@@ -120,7 +120,6 @@ mkdir -p \
 CMD_EXIT=""
 CMD_MAIN_ACTION=""
 CMD_SEARCH=""
-CMD_SORT_BY=""
 
 # ==============================================================================
 # CONFIGURATION
@@ -158,6 +157,7 @@ __load_default_config() {
   : "${CONFIG_ROFI_THEME_PROMPT:=}"
   : "${CONFIG_SEARCH_HISTORY_ENABLE:=true}"
   : "${CONFIG_TERMINAL_EXEC:=}"
+  : "${CONFIG_SORT_BY:=}"
   : "${CONFIG_UPDATE_CHECK:=true}"
 
   : "${CONFIG_FZF_OPTS:="
@@ -233,6 +233,7 @@ __load_env_config() {
   CONFIG_ROFI_THEME_PREVIEW="${LIB_X_ROFI_THEME_PREVIEW:-$CONFIG_ROFI_THEME_PREVIEW}"
   CONFIG_ROFI_THEME_PROMPT="${LIB_X_ROFI_THEME_PROMPT:-$CONFIG_ROFI_THEME_PROMPT}"
   CONFIG_SEARCH_HISTORY_ENABLE="${LIB_X_SEARCH_HISTORY_ENABLE:-$CONFIG_SEARCH_HISTORY_ENABLE}"
+  CONFIG_SORT_BY="${LIB_X_CONFIG_SORT_BY:-$CONFIG_SORT_BY}"
   CONFIG_TERMINAL_EXEC="${LIB_X_TERMINAL_EXEC:-$CONFIG_TERMINAL_EXEC}"
   CONFIG_UPDATE_CHECK="${LIB_X_UPDATES_CHECK:-$CONFIG_UPDATE_CHECK}"
 }
@@ -675,6 +676,10 @@ CONFIG_ROFI_THEME_MAIN="$CONFIG_ROFI_THEME_MAIN"
 CONFIG_ROFI_THEME_PAGER="$CONFIG_ROFI_THEME_PAGER"
 CONFIG_ROFI_THEME_PREVIEW="$CONFIG_ROFI_THEME_PREVIEW"
 CONFIG_ROFI_THEME_PROMPT="$CONFIG_ROFI_THEME_PROMPT"
+
+# By what field should the calibre titles be sorted
+# Defaults to: none
+CONFIG_SORT_BY=""
 
 # The terminal to use to execute commands that require a terminal
 CONFIG_TERMINAL_EXEC="$CONFIG_TERMINAL_EXEC"
@@ -3278,13 +3283,12 @@ _app_cmd_line_parser() {
       ;;
     -S | --sort-by)
       if [ -z "$2" ]; then
-        CMD_SORT_BY="$(ui_prompt "Sort by field (e.g., author, title, size)")"
-        [ -n "$CMD_SORT_BY" ] || _app_usage 1
+        CONFIG_SORT_BY="$(ui_prompt "Sort by field (e.g., author, title, size)")"
+        [ -n "$CONFIG_SORT_BY" ] || _app_usage 1
       else
-        CMD_SORT_BY="$2"
+        CONFIG_SORT_BY="$2"
         shift_count=2
       fi
-      CMD_MAIN_ACTION="${CMD_MAIN_ACTION:-$TXT_MENU_MAIN_ALL}"
       ;;
     -r | --no-of-random-books)
       if [ -z "$2" ]; then

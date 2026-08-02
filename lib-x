@@ -2317,9 +2317,11 @@ __menu_miscellaneous_add_books_from_folder() {
   ! [ -d "$books_dir" ] && return
 
   clear
-  printf "================================================================================\n"
-  printf '%s' "$TXT_MISC_ADD_BOOKS_FROM_FOLDER_OPTIONS"
-  printf "\n================================================================================\n"
+  printf '\
+================================================================================
+%s
+================================================================================
+' "$TXT_MISC_ADD_BOOKS_FROM_FOLDER_OPTIONS"
   custom_args="$(ui_prompt "$TXT_MENU_MISC_ADD_BOOKS_OPTIONS_PROMPT")"
 
   printf 'calibredb add %s %s\n' "$custom_args" "$books_dir"

@@ -2,23 +2,31 @@
 
 # 📚 lib-x
 
-**Browse and manage your Calibre library from the terminal**
+**Manage and read your calibre books from the terminal or app launcher.**
 
-![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black)
-![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white)
-![Windows](https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows&logoColor=white)
-![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white)
-![License](https://img.shields.io/badge/License-GPL_v3-yellow?style=flat-square)
-![Core](https://img.shields.io/badge/Core-Calibre%20%7C%20FZF%20%7C%20JQ-blue?style=flat-square)
+[![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/Benexl/lib-x?style=flat-square)](https://github.com/Benexl/lib-x/issues)
+[![GitHub License](https://img.shields.io/github/license/Benexl/lib-x?style=flat-square)](https://github.com/Benexl/lib-x/blob/master/LICENSE)
+[![GitHub file size in bytes](https://img.shields.io/github/size/Benexl/lib-x/lib-x?style=flat-square)]()
+![GitHub Downloads (specific asset, all releases)](https://img.shields.io/github/downloads/Benexl/lib-x/lib-x?displayAssetName=false&style=flat-square&color=%2397ca00)
+[![GitHub Release](https://img.shields.io/github/v/release/Benexl/lib-x?style=flat-square)](https://github.com/Benexl/lib-x/releases)
+[![GitHub commit activity](https://img.shields.io/github/commit-activity/m/Benexl/lib-x?style=flat-square)]()
+
 </div>
 
+[lib-x demo](https://github.com/user-attachments/assets/placeholder-for-your-demo-video.webm)
+
 <details>
-<summary>Click to view screenshots</summary>
-<br>
+<summary><b>View Demos & Previews</b></summary>
 
-_(Add your screenshots here!)_
+**Full Demo:**
 
-<!-- <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/your-image-hash" /> -->
+[lib-x-full-github-demo.webm](https://github.com/user-attachments/assets/placeholder-for-your-demo-video.webm)
+
+**Previews:**
+
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/placeholder-image-1" />
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/placeholder-image-2" />
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/placeholder-image-3" />
 
 </details>
 
@@ -38,58 +46,67 @@ _(Add your screenshots here!)_
   - [Configuration File Location](#configuration-file-location)
   - [Configuration Variables](#configuration-variables)
 - [Extensions](#extensions)
-  - [Official Extensions](#official-extensions)
 - [Frequently Asked Questions (FAQ)](#frequently-asked-questions-faq)
 - [Contribution](#contribution)
 - [Support](#support)
 
 ## Features
 
-- **Multiple Launcher Support**: Browse your library with `fzf`, `rofi`, or `gum`, all supporting high-quality cover previews.
-- **Calibre Integration**: Seamlessly interfaces with `calibredb` to fetch, search, sort, add, and remove books without ever touching the bloated Calibre GUI. Includes capabilities to `convert`, `polish`, and launch the `ebook-viewer`.
-- **Smart Caching**: `lib-x` caches your entire library to a local JSON file on startup. It only updates when it detects file changes, making browsing massive libraries instantaneous. Caches automatically clean up after 7 days.
-- **Interactive Shell Mode**: Spawn an interactive shell populated with exported environment variables for the selected book(s) allowing manual command-line execution.
-- **Custom User Lists**: Manage your reading habits with built-in states: Reading, Paused, Re-reading, Planning, Completed, Dropped, and Docs. Includes a history of Recent books.
-- **Metadata Editing**: Quickly edit titles, authors, tags, ratings, and publishers directly from the terminal.
-- **Cover Previews**: View beautiful book covers directly in your terminal using `icat`, `chafa`, or `imgcat`.
-- **Search & Sort**: Utilize native Calibre search syntax to filter books, and sort them dynamically by size, author, date, ratings, identifier, etc. Saves local search history.
-- **File Explorer Support**: Use `yazi` or `fzf` to navigate your local filesystem and easily add single books or entire directories to your Calibre library.
-- **Background Reading**: Option to disown the reading process (`CONFIG_READING_PROCESS_DISOWN`), allowing you to close `lib-x` while keeping your eBook reader open. Define explicit readers using `CONFIG_READER` (e.g., `pdf:zathura,epub:foliate`).
-- **Theming & Styling**: Native theming support through `.theme` extensions, with Tokyo Night set as the default.
-- **Multi-language Support**: Loadable language files (`.lang`) to easily localize UI prompts and messages.
+- **Multiple Launcher Support**: Browse with `fzf`, `rofi`, or `gum`, all supporting rich previews.
+- **Deep Calibre Integration**: Interface securely with your library via `calibredb`.
+- **Search & Filter**: Search books using Calibre's native syntax, or browse directly by Authors, Series, Tags, Formats, Languages, Ratings, Publishers, and Identifiers.
+- **Personal Reading Lists**: Track your reading journey with built-in user lists (Reading, Paused, Planning, Re-reading, Completed, Dropped, Docs).
+- **Extensive Book Actions**: Directly from the terminal:
+  - Read your books
+  - Edit Metadata (Tags, Authors, Dates, etc.)
+  - Convert formats (`ebook-convert`)
+  - Polish books (`ebook-polish`)
+  - View raw metadata
+  - Open in Calibre's GUI Viewer (`ebook-viewer`)
+- **Bulk Add Books**: Seamlessly add books from files or folders (integrates with `fzf` or `yazi` as a file chooser).
+- **Theming & Styling**: Theming support through `.theme` extensions with Tokyo Night as the default theme.
+- **Multi-language Support**: Loadable language files (`.lang`) to localize UI prompts and messages.
+- **Cover Art Previews**: High-quality book cover image rendering directly in the terminal using `chafa`, `icat`, or `imgcat`.
+- **Custom Readers**: Map specific formats (e.g., EPUB, PDF) to your preferred CLI/GUI reading apps.
 - **Scriptable Shortcuts**: Bypass menus and jump straight to specific lists, searches, or actions using direct command-line flags.
-- **Desktop Integration**: Generate a `.desktop` file to be launched natively from application menus (Linux) combined perfectly with Rofi.
-- **Auto-Updater**: Built-in update checker that securely pulls the latest version from GitHub and allows you to apply the update in-place, showing code diffs.
-- **Shell Completions**: Includes shell completions for `fish`, `bash`, and `zsh`.
+- **Stateful Sub-Shell Execution**: Drop into a shell pre-loaded with environment variables of your currently selected book for custom scripting or manual database interactions.
+- **Desktop Integration**: Generate a `.desktop` file to launch natively from application menus (Linux).
+- **Cache Management**: Automatically caches your Calibre database as JSON for lightning-fast speeds, cleaning up stale previews and data automatically (Default: 7 days).
+- **OS Support**: Works across Linux, macOS, Windows (via WSL/MSYS/Cygwin), and Android (Termux).
+- **Auto-Updater**: Secure update checker that pulls the latest version from GitHub and shows you the diff before applying.
+- **Shell Completions**: Includes tab completions for `fish`, `bash`, and `zsh` covering flags, custom categories, and book sorting options.
 
 ## Installation
 
 ![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black)
 ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white)
 ![Windows](https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows&logoColor=white)
+![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white)
 ![Arch Linux](https://img.shields.io/badge/Arch_Linux-1793D1?style=flat-square&logo=arch-linux&logoColor=white)
+![NixOS](https://img.shields.io/badge/NixOS-5277C3?style=flat-square&logo=nixos&logoColor=white)
 
 ### Prerequisites
 
 **Required:**
 
-- `calibre` - For providing the `calibredb` CLI tool.
-- `fzf` - Main launcher.
-- `jq` - For parsing the library cache JSON.
-- `curl` - For fetching script updates and installers.
-- `sh` - Any POSIX-compliant shell.
-- **Nerd Font** - For the icons (Recommended JetBrains Mono Nerd Font).
+- `calibre` - Provides `calibredb` for database interactions.
+- `fzf` - Main terminal launcher.
+- `jq` - For rapid JSON database parsing.
+- `sh` - Any POSIX-compliant shell (Bash, Zsh, Dash, etc.).
+- **Nerd Font** - For the icons (Recommended: JetBrains Mono Nerd Font).
 
-**Optional:**
+**Optional (Highly Recommended for Full Functionality):**
 
-- **Terminal Image Viewers:**
-  - `icat` _(Recommended for Kitty and Ghostty)_
+- **Terminal File Explorers (For adding books):** `yazi` or `fzf`
+- **Calibre CLI Tools:** `ebook-convert`, `ebook-polish`, `ebook-viewer`, `ebook-meta`, `ebook-edit` (Usually bundled with Calibre).
+- **Alternate Launchers:** `rofi` (for a desktop app experience) or `gum` (for styled TUI flows).
+- **Modern Terminal That Supports True Color:** `kitty`, `ghostty`, `wezterm`, etc.
+- **Terminal Image Viewers (For Cover Art):**
   - `chafa` _(Cross-terminal)_
+  - `icat` _(Recommended for Kitty and Ghostty)_
   - `imgcat` _(For iTerm2/WezTerm)_
-- **File Explorers:** `yazi` _(Highly recommended for adding books)_
-- **Alternate Launcher:** `rofi` _(Great if you want a desktop app launcher)_
-- **Terminal QoL:** `gum` _(Better terminal UI; loaders, prompts etc)._
-- **E-Book Utilities**: `ebook-viewer`, `ebook-convert`, `ebook-edit`, `ebook-polish`, `ebook-meta` (usually bundled with Calibre).
+- **Terminal QoL:**
+  - `bat` _(Better paging and diff viewing)_
 
 ---
 
@@ -98,20 +115,17 @@ _(Add your screenshots here!)_
 Ensure `~/.local/bin` exists and is added to your system's `$PATH`.
 
 ```bash
-# Automated interactive installer
-# Helps you setup dependencies and configure themes, languages, and other options.
-curl -sL "https://raw.githubusercontent.com/Benexl/lib-x/refs/heads/master/installer" | sh
-
-# Or manual setup
 curl -sL "https://github.com/Benexl/lib-x/releases/download/v0.5.0/lib-x" -o ~/.local/bin/lib-x
 chmod +x ~/.local/bin/lib-x
 ```
 
-_To uninstall, just run: `rm ~/.local/bin/lib-x`_, then to remove its related data folders `rm -rf ~/.config/lib-x` and `rm -rf ~/.cache/lib-x`.
+_To uninstall, just run: `rm ~/.local/bin/lib-x`_, then to remove its related data folders `rm -r ~/.config/lib-x` and `rm -r ~/.cache/lib-x`.
 
 ---
 
 ### Platform-Specific Instructions
+
+Note: I am not the one who maintains any of these packages and you should probably turn off auto updates in `lib-x` if using them.
 
 <details>
 <summary><b>Arch Linux (AUR)</b></summary>
@@ -126,9 +140,44 @@ paru -S lib-x-git
 
 </details>
 
+<details>
+<summary><b>Nix / NixOS</b></summary>
+
+**1. Imperative:**
+
+```bash
+nix profile install github:Benexl/lib-x
+```
+
+**2. Declarative:**
+First, add the repository to your `flake.nix` inputs:
+
+```nix
+inputs = {
+  nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+  lib-x = {
+    url = "github:Benexl/lib-x";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
+}
+```
+
+- **For system-wide installation** (in `configuration.nix`):
+
+  ```nix
+  environment.systemPackages = [ inputs.lib-x.packages."${system}".default ];
+  ```
+
+- **For user-level installation** (via Home Manager in `home.nix`):
+  ```nix
+  home.packages = [ inputs.lib-x.packages."${system}".default ];
+  ```
+
+</details>
+
 ## Usage
 
-You can opt to use it interactively via menus or via cmdline shortcuts for purposes of scripting or keybinding.
+You can opt to either use it via interactive menus or command-line shortcuts for scripting and keybinding.
 
 ```bash
 lib-x [OPTIONS]
@@ -147,118 +196,133 @@ lib-x
 
 ### Command‑Line Options
 
-#### Core Flags
-- `-h, --help` : Show the help message and exit.
-- `-v, --version` : Print version information and exit.
+#### Search & Sort
+
+- `-s, --search <term>` : Prompt for (or immediately execute) a book search.
+- `-S, --sort-by <field>` : Sort the books by a specific field (e.g., `author`, `size`, `timestamp`). Append `_asc` for ascending order (default is descending).
+- `-r, --no-of-random-books <num>` : Display a specific number of random books from your library.
+
+#### Direct Shortcuts (Skip main menus)
+
+All these options can be paired with `--cmd-exit` (`-ce`) so that backing out of the menu exits the CLI entirely.
+
+- `--reading-list` : Open your actively reading list.
+- `--recent` : Show recently opened books.
+- `--paused` : Open paused books.
+- `--rereading` : Open books marked for re-reading.
+- `--planning` : Open planned/to-read books.
+- `--completed` : Open completed books.
+- `--docs` : Open your documents list.
+- `--dropped` : Open dropped/abandoned books.
+- `--all` : Browse your entire Calibre library directly.
+- `--misc` : Open the miscellaneous menu (Sync, Add books).
+
+#### Book Action Shortcuts (Skip the media action menu)
+
+Can be paired with `--book-skip` (`-bs`) to auto-select the first result, and `--book-exit` (`-be`) to exit immediately after the action.
+
+- `--read` : Open the selected book in your preferred reader.
+- `--edit-metadata` : Start editing the metadata for a book.
+- `--remove-book` : Delete a book from the library.
+- `--viewer` : Open in the Calibre GUI ebook-viewer.
+- `--convert` : Convert the book to another format.
+- `--edit-book` : Open in the Calibre eBook Editor.
+- `--polish` : Run `ebook-polish` on the selected book.
+- `--show-metadata` : View the raw metadata (using `ebook-meta`).
+
+#### UI & Process Control
+
+- `-l, --launcher <fzf|rofi|gum>` : Override the default menu launcher.
+- `--preview` : Enable the preview window (metadata).
+- `--no-preview` : Disable the preview window.
+- `--preview-images` : Enable the image preview (book covers).
+- `--no-preview-images` : Disable the image preview.
+- `-d, --disown-reading-process` : Detach the reading process from the terminal (default).
+- `-D, --no-disown-reading-process` : Keep the reading process attached to the terminal session.
+- `--private` : Do not update the recent history list when opening a book.
+
+#### Rofi specific
+
+Note: You can find preconfigured rofi themes in the GitHub repo to elevate the desktop app experience!
+
+- `--rofi-theme-main <path>`
+- `--rofi-theme-preview <path>`
+- `--rofi-theme-prompt <path>`
+- `--rofi-theme-confirm <path>`
+- `--rofi-theme-pager <path>`
+
+#### Others
+
+- `-x, --extension <ext>` : Load a specific extension file.
+- `-xargs, --extension-arguments <args>` : Pass arguments to a loaded extension.
 - `-e, --edit-config` : Open the `lib-x` configuration file in your `$EDITOR`.
 - `-U, --update` : Check for and apply the latest script update from GitHub.
-- `-E, --generate-desktop-entry` : Print a `.desktop` application entry to `stdout`; perfectly paired with Rofi.
+- `-E, --generate-desktop-entry` : Print a `.desktop` application entry to `stdout`.
+- `-v, --version` : Print version information and exit.
+- `-h, --help` : Show the help message and exit.
 - `--config-write` : Write the current runtime config to the config file.
-
-#### Search & Sort
-- `-s, --search [term]` : Search for a book. If no term is provided, it prompts you interactively.
-- `-S, --sort-by [field]` : Sort the library based on a field (e.g., `author_sort`, `size`, `timestamp`, `pubdate`, `rating`). Append `_asc` for ascending. If no field is provided, it prompts you interactively.
-
-#### Access Lists & Categories
-You can jump straight into a list or category and skip the main menu:
-
-- `--reading-list` : Open your Reading List directly.
-- `--recent` : Open your Recent books directly.
-- `--paused` : Open your Paused list directly.
-- `--rereading` : Open your Re-reading list directly.
-- `--planning` : Open your Planning list directly.
-- `--completed` : Open your Completed list directly.
-- `--docs` : Open your Docs list directly.
-- `--dropped` : Open your Dropped list directly.
-- `--all` : Browse all books in your library.
-- `-r, --no-of-random-books [num]` : Set the number of random books to show (opens Random menu).
-- `--random` : Browse random books directly.
-- `--misc, --miscellaneous` : Open the Miscellaneous menu.
-
-#### UI & Display Settings
-- `-l, --launcher <fzf|rofi|gum>` : Override the default menu launcher.
-- `--preview` : Enable the preview window (metadata & descriptions).
-- `--no-preview` : Disable the preview window.
-- `--preview-images` : Enable image covers in the preview window.
-- `--no-preview-images` : Disable image covers in the preview window.
-- `--rofi-theme-main <path>` : Override the Rofi main theme.
-- `--rofi-theme-preview <path>` : Override the Rofi preview theme.
-- `--rofi-theme-prompt <path>` : Override the Rofi prompt theme.
-- `--rofi-theme-confirm <path>` : Override the Rofi confirm theme.
-
-#### Book Action Shortcuts
-All these options can be paired with `--book-exit` (`-be`) to terminate the CLI immediately after the action completes, or `--cmd-exit` (`-ce`) to exit after menu processes.
-
-- `--read` : Read the selected book.
-- `--edit-metadata` : Open the metadata editor for the selected book.
-- `--remove-book` : Remove the selected book from the library.
-- `--viewer` : Open the selected book in the Calibre ebook-viewer.
-- `--convert` : Convert the selected book to another format.
-- `--edit-book` : Open the selected book in Calibre ebook-edit.
-- `--polish` : Polish the selected book.
-- `--show-metadata` : Display metadata using ebook-meta.
-- `-bs, --book-skip` : Skip the book selection menu and automatically pick the first entry.
-- `-be, --book-exit` : Exit after performing a book action.
-- `-ce, --cmd-exit` : Exit after shortcut menu commands.
-
-#### Extensions & Modifiers
-- `-x, --extension <ext>` : Load a specific extension file (supports shell tab completion).
-- `-xargs, --extension-arguments <args>` : Arguments to pass to a command extension.
-- `-d, --disown-reading-process` : Detach the reading process from the terminal.
-- `-D, --no-disown-reading-process` : Keep the reading process attached to the terminal.
-- `--private` : Do not update the recent history list during this session.
 
 ---
 
 ### Environment Variables
 
-Almost all CLI options can be permanently set in `~/.config/lib-x/config` or overridden using environment variables prefixed with `LIB_X_`.
+Almost all CLI options can be permanently set in `~/.config/lib-x/config` or overridden using environment variables.
 
-- `LIB_X_LAUNCHER` (e.g., `fzf` or `rofi`)
-- `LIB_X_CALIBRE_LIBRARY_PATH` (e.g., `~/Books`)
+- `LIB_X_LAUNCHER` (e.g., `fzf`, `rofi`, `gum`)
+- `LIB_X_CALIBRE_LIBRARY_PATH` (e.g., `$HOME/Documents/Calibre Library`)
 - `LIB_X_PREVIEW_ENABLE` (`true` or `false`)
 - `LIB_X_PREVIEW_IMAGES_ENABLE` (`true` or `false`)
 - `LIB_X_PREVIEW_IMAGES_RENDERER` (`chafa`, `icat`, `imgcat`)
-- `LIB_X_FILE_EXPLORER` (`yazi`, `fzf`)
-- `LIB_X_COLORS_ENABLE` (`true` or `false`)
+- `LIB_X_FILE_EXPLORER` (`fzf`, `yazi`)
 
 ---
 
 ### Examples & Workflows
 
-**Hello world**
-Save your current runtime settings to the config file:
+**Hello world (Save config)**
+
 ```bash
-LIB_X_PREVIEW_IMAGES_RENDERER=icat LIB_X_LAUNCHER=fzf lib-x --preview --preview-images --config-write
+# always put --config-write at the end to save the runtime config
+LIB_X_PREVIEW_IMAGES_RENDERER=icat lib-x --preview --preview-images --config-write
 ```
 
-**Desktop app launcher**
-Launch `lib-x` as a graphical application using Rofi:
+**Desktop App Launcher**
+
+Launch `lib-x` as a graphical application using Rofi (great with keybindings!).
+
 ```bash
-lib-x --launcher rofi --preview --disown-reading-process
+lib-x --launcher rofi --preview --preview-images --disown-reading-process
 ```
 
-**Quick Search & Read**
-Search for chess books, sort by size descending, skip the selection menu, open the book, and exit the CLI:
+**Custom Book Reader Mapping**
+
+You want EPUBs to open in `zathura` and PDFs to open in `evince`. Set this in your config or env:
+
 ```bash
-lib-x --search "tag:chess" --sort-by "size" --book-skip --read --book-exit
+LIB_X_READER="epub:zathura,pdf:evince" lib-x --read
 ```
 
-**Interactive Custom Reader Configuration**
-If you want to use a specific reader depending on the extension:
+**Jump straight to your current reads**
+
 ```bash
-export LIB_X_READER="pdf:zathura,epub:foliate,mobi:ebook-viewer"
-lib-x --reading-list
+lib-x --reading-list --cmd-exit
 ```
 
-**Generate a Desktop Entry**
+**Find a specific author and exit menu on back**
+
+```bash
+lib-x -s "Isaac Asimov" --cmd-exit
+```
+
+**Create a desktop entry**
+
 ```bash
 lib-x -E > ~/.local/share/applications/lib-x.desktop
 ```
 
-**Shell Completions**
+**Shell completions (Fish)**
+
 ```bash
-# Fish shell completions
 lib-x completions --fish > ~/.config/fish/completions/lib-x.fish
 ```
 
@@ -272,7 +336,7 @@ By default, the main configuration file is located at:
 
 _(Note: It respects the `$XDG_CONFIG_HOME` environment variable if set)._
 
-You can open it using the cli:
+You can open it directly using the CLI:
 
 ```bash
 lib-x --edit-config
@@ -287,106 +351,63 @@ lib-x --edit-config
 | Variable                       | Default             | Description                                                            |
 | :----------------------------- | :------------------ | :--------------------------------------------------------------------- |
 | `CONFIG_LAUNCHER`              | `fzf`               | The menu launcher tool to use. Options: `fzf`, `rofi`, `gum`.          |
-| `CONFIG_COLORS_ENABLE`         | `true`              | Enable or disable ANSI true-color formatting in the UI.                |
-| `CONFIG_EDITOR`                | `vi` (or `$EDITOR`) | Text editor used for editing configs and files.                        |
-| `CONFIG_TERMINAL_EXEC`         | _(auto-detected)_   | The terminal emulator used to spawn interactive shells/apps.           |
+| `CONFIG_COLORS_ENABLE`         | `true`              | Enable or disable ANSI true-color (24-bit) formatting in the UI.       |
+| `CONFIG_EDITOR`                | `vi` (or `$EDITOR`) | Text editor used for editing config files, histories, and metadata.    |
 | `CONFIG_NOTIFICATION_DURATION` | `3`                 | Duration (in seconds) for desktop/CLI notifications to remain visible. |
+| `CONFIG_TERMINAL_EXEC`         | _auto-detected_     | The terminal emulator used to launch external interactive shell tools. |
 
-#### Media & Covers
+#### Previews
 
 | Variable                           | Default | Description                                                                     |
 | :--------------------------------- | :------ | :------------------------------------------------------------------------------ |
-| `CONFIG_PREVIEW_ENABLE`            | `false` | Enable or disable the preview window (metadata & descriptions).                 |
-| `CONFIG_PREVIEW_IMAGES_ENABLE`     | `false` | Whether to render book covers in the preview window.                            |
+| `CONFIG_PREVIEW_ENABLE`            | `false` | Enable or disable the preview window (metadata descriptions).                   |
+| `CONFIG_PREVIEW_IMAGES_ENABLE`     | `false` | Enable rendering book covers in the preview window.                             |
 | `CONFIG_PREVIEW_IMAGES_RENDERER`   | `chafa` | Tool used to render images in the terminal. Options: `chafa`, `icat`, `imgcat`. |
-| `CONFIG_PREVIEW_IMAGES_CHAFA_ARGS` | `""`    | Extra arguments for `chafa`.                                                    |
-| `CONFIG_PREVIEW_IMAGES_ICAT_ARGS`  | `""`    | Extra arguments for `icat`.                                                     |
-| `CONFIG_PREVIEW_IMAGES_IMGCAT_ARGS`| `""`    | Extra arguments for `imgcat`.                                                   |
+| `CONFIG_PREVIEW_IMAGES_CHAFA_ARGS` | `""`    | Pass custom arguments to `chafa`.                                               |
+| `CONFIG_PREVIEW_IMAGES_ICAT_ARGS`  | `""`    | Pass custom arguments to `icat` / `kitty +kitten icat`.                         |
 
-#### Calibre Handling
+#### Calibre & Book Management
 
-| Variable                        | Default             | Description                                                            |
-| :------------------------------ | :------------------ | :--------------------------------------------------------------------- |
-| `CONFIG_CALIBRE_LIBRARY_PATH`   | `~/Calibre Library` | Absolute path to your active Calibre library folder.                   |
-| `CONFIG_FILE_EXPLORER`          | `fzf` (or `yazi`)   | Tool used when selecting "Add Books From Folder".                      |
-| `CONFIG_READER`                 | `""`                | Comma-separated list for custom readers (e.g., `pdf:zathura,epub:foliate`). If empty, uses system default. |
-| `CONFIG_READING_PROCESS_DISOWN` | `true`              | Run the eBook reader in the background without blocking the UI.        |
-| `CONFIG_SORT_BY`                | `""`                | Default sort field (e.g. `size`, `author_sort`). Append `_asc` to reverse. |
+| Variable                      | Default                 | Description                                                                       |
+| :---------------------------- | :---------------------- | :-------------------------------------------------------------------------------- |
+| `CONFIG_CALIBRE_LIBRARY_PATH` | `~/Calibre Library`     | Absolute path to your Calibre library database directory.                         |
+| `CONFIG_FILE_EXPLORER`        | `fzf`                   | File chooser used when adding books to the library. Options: `fzf`, `yazi`.       |
+| `CONFIG_READER`               | `""`                    | Mapping of `ext:command` (e.g. `epub:zathura`). Falls back to OS default if empty.|
+| `CONFIG_READING_PROCESS_DISOWN`| `true`                 | Detach reader process from terminal so `lib-x` can be closed without killing app. |
+| `CONFIG_SORT_BY`              | `""`                    | Default sort field (e.g. `author`, `size_asc`, `pubdate`).                        |
+| `CONFIG_RANDOM_BOOKS_LIMIT`   | `30`                    | Number of books to return when selecting "Random".                                |
 
-#### History & Lists
+#### History & Caching
 
-| Variable                       | Default | Description                                                         |
-| :----------------------------- | :------ | :------------------------------------------------------------------ |
-| `CONFIG_RECENT_BOOKS_UPDATE`   | `true`  | Save books automatically to the Recent list when you select "Read". |
-| `CONFIG_RECENT_BOOKS_LIMIT`    | `30`    | The maximum number of books to retain in your Recent list.          |
-| `CONFIG_RANDOM_BOOKS_LIMIT`    | `30`    | Number of books to fetch when generating a Random list.             |
-| `CONFIG_SEARCH_HISTORY_ENABLE` | `true`  | Save local search queries to reuse them later.                      |
-| `CONFIG_CACHE_RETENTION_DAYS`  | `7`     | Number of days before cleaning up old generated previews/caches.    |
+| Variable                       | Default | Description                                                                            |
+| :----------------------------- | :------ | :------------------------------------------------------------------------------------- |
+| `CONFIG_SEARCH_HISTORY_ENABLE` | `true`  | Save local search history to track and quickly recall past queries.                    |
+| `CONFIG_RECENT_BOOKS_UPDATE`   | `true`  | Automatically log opened books to the "Recent" list.                                   |
+| `CONFIG_RECENT_BOOKS_LIMIT`    | `30`    | Number of books to keep in the recent history list.                                    |
+| `CONFIG_CACHE_RETENTION_DAYS`  | `7`     | Auto-clean stale preview images and shell scripts older than this duration.            |
 
-#### Fzf, Gum, and Rofi Configurations
+#### Fzf, Gum, and Rofi
 
-| Variable                    | Description                                                                              |
-| :-------------------------- | :--------------------------------------------------------------------------------------- |
-| `CONFIG_FZF_OPTS`           | Fine‑tune `fzf` layout, colors, pointers. Defaults to Tokyo Night colors.                |
-| `CONFIG_FZF_HEADER`         | The header logo for the `fzf` view.                                                      |
-| `CONFIG_GUM_FILTER_OPTS`    | Options passed directly to `gum filter`.                                                 |
-| `CONFIG_GUM_INPUT_OPTS`     | Options passed directly to `gum input`.                                                  |
-| `CONFIG_GUM_CONFIRM_OPTS`   | Options passed directly to `gum confirm`.                                                |
-| `CONFIG_GUM_SPIN_OPTS`      | Options passed directly to `gum spin`.                                                   |
-| `CONFIG_ROFI_THEME_MAIN`    | Path to a custom Rofi `.rasi` theme for the main menu.                                   |
-| `CONFIG_ROFI_THEME_PREVIEW` | Path to a custom Rofi `.rasi` theme for the preview menu.                                |
-| `CONFIG_ROFI_THEME_PROMPT`  | Path to a custom Rofi `.rasi` theme for user text input prompts.                         |
-| `CONFIG_ROFI_THEME_CONFIRM` | Path to a custom Rofi `.rasi` theme for confirmation dialogs.                            |
-| `CONFIG_ROFI_THEME_PAGER`   | Path to a custom Rofi `.rasi` theme for pager menus (e.g. long text).                    |
+*(Note: Advanced Fzf and Gum styling parameters are also exposed in the config file. See the generated config file for full default strings).*
+
+| Variable                    | Default        | Description                                                                 |
+| :-------------------------- | :------------- | :-------------------------------------------------------------------------- |
+| `CONFIG_FZF_HEADER`         | _(logo)_       | Custom ASCII logo displayed at the top of the `fzf` menu.                   |
+| `CONFIG_FZF_OPTS`           | _(see config)_ | Fine‑tune `fzf` layout, colors, and bindings. Defaults to "Tokyo Night".    |
+| `CONFIG_ROFI_THEME_MAIN`    | `""`           | Path to a custom Rofi `.rasi` theme for the main menu.                      |
+| `CONFIG_ROFI_THEME_PREVIEW` | `""`           | Path to a custom Rofi `.rasi` theme for the preview menu.                   |
+| `CONFIG_ROFI_THEME_PROMPT`  | `""`           | Path to a custom Rofi `.rasi` theme for prompt dialogs.                     |
+| `CONFIG_ROFI_THEME_CONFIRM` | `""`           | Path to a custom Rofi `.rasi` theme for confirmation dialogs.               |
+| `CONFIG_ROFI_THEME_PAGER`   | `""`           | Path to a custom Rofi `.rasi` theme for the pager.                          |
 
 ## Extensions
 
-`lib-x` supports **extensions** to add or override functionality without modifying the core script.  
-Extensions are shell scripts placed in `~/.config/lib-x/extensions/` and can be loaded on demand or automatically.
+`lib-x` supports **extensions** to add languages, themes, or override functionality.
+Extensions are standard shell scripts loaded from `~/.config/lib-x/extensions/`.
 
-### Official Extensions
-
-The following extensions are maintained and included in the repository.
-
-#### Language Extensions (`langs/`)
-
-<details>
-<summary><code>es.lang</code></summary>
-
-Spanish translation for all UI texts, prompts, and messages.
-
-**Load with:**  
-`lib-x -x langs/es.lang`
-
-</details>
-
-#### Theme Extensions (`themes/`)
-
-<details>
-<summary><code>catppuccin-mocha.theme</code></summary>
-
-Applies the **Catppuccin Mocha** color scheme to `fzf` and the terminal output.
-
-**Load with:**  
-`lib-x -x themes/catppuccin-mocha.theme`
-
-</details>
-
-### Loading Extensions
-
-**Temporary (single session)**
-
-```bash
-lib-x -x langs/es.lang
-lib-x -x themes/catppuccin-mocha.theme
-```
-
-**Permanent**  
-Add to `~/.config/lib-x/config`:
-
-```bash
-CONFIG_AUTOLOADED_EXTENSIONS="themes/catppuccin-mocha.theme,langs/es.lang"
-```
+- **Languages:** Add localizations by editing `langs/default.lang` (e.g., swap out `TXT_MENU_MAIN_SEARCH="Search"` to your native language).
+- **Themes:** Tweak terminal colors by editing `themes/default.theme` (defines `$THEME_HEADER_COLOR`, `$THEME_FZF_ICON_COLOR_PRIMARY`, etc.).
+- **Autoloading:** Add any custom `.sh` script names to `CONFIG_AUTOLOADED_EXTENSIONS="custom.sh"` to have them sourced at runtime.
 
 ## Frequently Asked Questions (FAQ)
 
@@ -394,34 +415,35 @@ CONFIG_AUTOLOADED_EXTENSIONS="themes/catppuccin-mocha.theme,langs/es.lang"
 <summary><b>Reporting Bugs</b></summary>
 <br>
 
-`lib-x` is a wrapper over `calibredb`. Before opening an issue, please determine if the bug is related to `calibredb` itself.
-
-- **Database lock errors or missing books:** Handled by Calibre. Make sure the Calibre GUI is closed, or use a networked Calibre server setup.
-- **UI logic, states, or previews fail:** This is handled by `lib-x`. Please open an issue!
+`lib-x` is a wrapper around the powerful `calibredb` command-line utility. 
+Before opening an issue, check if the underlying issue is Calibre related:
+- **Database syncing / Book adding fails:** Ensure `calibredb` works directly from your terminal. 
+- **Metadata parsing or navigation logic fails:** This is handled by `lib-x`. Please open an issue!
 
 </details>
 
 <details>
-<summary><b>Why is my library empty or not updating?</b></summary>
+<summary><b>Where is my Calibre Database located?</b></summary>
 <br>
 
-`lib-x` caches your library into `~/.cache/lib-x/calibre_db.json`. It looks at the Last Modified timestamp of your `CONFIG_CALIBRE_LIBRARY_PATH` to know when to refresh.
-If books aren't showing up, select **Miscellaneous -> Sync Data** in the menu to force a cache refresh.
+By default, `lib-x` looks in `~/Calibre Library`. If your library is elsewhere, change the `CONFIG_CALIBRE_LIBRARY_PATH` variable in your config file (via `lib-x -e`).
+The script specifically looks for the `metadata.db` file in this directory to track modifications.
 
 </details>
 
 <details>
-<summary><b>How does lib-x open books? Can I change my reader?</b></summary>
+<summary><b>How do I read EPUBs or PDFs in specific apps?</b></summary>
 <br>
 
-`lib-x` primarily uses your operating system's native file opener (`open` on macOS, `xdg-open` on Linux, `cmd.exe` on Windows/WSL).
-However, you can explicitly map extensions to your preferred readers directly inside the `lib-x` config:
-`CONFIG_READER="pdf:zathura,epub:foliate"`
+By default, `lib-x` uses your OS's default file opener (`xdg-open`, `open`, etc.). 
+If you want to enforce specific readers, use the `CONFIG_READER` variable formatted as `extension:command,extension2:command2`.
+
+Example: `CONFIG_READER="epub:zathura,pdf:evince,mobi:foliate"`
 
 </details>
 
 <details>
-<summary><b>Why are my image previews not showing up?</b></summary>
+<summary><b>Why are my book covers (image previews) not showing up?</b></summary>
 <br>
 
 Image previews require a few components to work together:
@@ -429,25 +451,46 @@ Image previews require a few components to work together:
 1. Ensure you have enabled them in your config: `CONFIG_PREVIEW_ENABLE=true` and `CONFIG_PREVIEW_IMAGES_ENABLE=true`.
 2. Ensure you have a supported image renderer installed (e.g., `chafa`, `icat`, or `imgcat`).
 3. Set the correct renderer in your config: `CONFIG_PREVIEW_IMAGES_RENDERER="chafa"`.
-4. Ensure your terminal emulator actually supports image rendering. If it doesn't, stick with `chafa`, which falls back to excellent ASCII/block character rendering.
+4. Ensure your terminal emulator actually supports image rendering. If it doesn't, `chafa` is highly recommended as it falls back to excellent ASCII/block character rendering.
 
 </details>
 
 <details>
-<summary><b>Previews overlap text or look distorted. How do I fix this?</b></summary>
+<summary><b>What is the `--shell` action in the Book Actions menu?</b></summary>
 <br>
 
-If your images are overlapping with UI text, your terminal may not properly support the image clearing sequences used by `chafa`.
+Selecting `Shell` from a book's action menu drops you into a subshell pre-loaded with all the data about that book. 
 
-1. **Kitty / Ghostty:** Set `CONFIG_PREVIEW_IMAGES_RENDERER="icat"`.
-2. **iTerm2 / WezTerm:** Try `CONFIG_PREVIEW_IMAGES_RENDERER="imgcat"`.
-3. **Other Terminals:** Stick to `CONFIG_PREVIEW_IMAGES_RENDERER="chafa"`, but ensure your terminal supports Sixel.
+Variables exported include:
+- `STATE_CURRENT_BOOK_TITLE`
+- `STATE_CURRENT_BOOK` (Raw JSON payload containing UUIDs, authors, formats, tags)
+- `CALIBRE_DB_JSON_FILE` (Path to the cached database)
+
+This is incredibly powerful if you want to run custom scripts, write raw Calibre commands, or manipulate the book file manually without leaving `lib-x`. Use `jq` to parse the `$STATE_CURRENT_BOOK` payload.
+
+</details>
+
+<details>
+<summary><b>How does "Add Books from Folder" work with Yazi?</b></summary>
+<br>
+
+If you have `yazi` installed and set `CONFIG_FILE_EXPLORER="yazi"`, selecting "Add Books From Folder" (in the Miscellaneous menu) will launch `yazi`. 
+Navigate to the directory you want to import, press `ENTER`, and `lib-x` will automatically pass that directory to `calibredb add` along with any custom options you specify in the subsequent prompt.
+
+</details>
+
+<details>
+<summary><b>How do I customize the Nerd Font icons?</b></summary>
+<br>
+
+All icons are defined in the language variables (`TXT_ICON_MENU_MAIN_SEARCH`, `TXT_ICON_MENU_BOOK_ACTIONS_READ`, etc.). 
+If you don't like them or your terminal doesn't support Nerd Fonts, create a custom `.lang` extension in `~/.config/lib-x/extensions/langs/` and override these variables with empty strings or standard ASCII characters. Load it via `CONFIG_AUTOLOADED_EXTENSIONS`.
 
 </details>
 
 ## Contribution
 
-Pull requests are highly welcome :)
+Pull requests are highly welcome! :)
 
 ### Supporting the Project
 

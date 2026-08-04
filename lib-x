@@ -1425,25 +1425,25 @@ __preview_fzf_generate_script_for_item() {
       end;
 
     [
-      "id=" + (.id // "" | @sh),
-      "uuid=" + (.uuid // "" | @sh),
-      "title=" + (.title // "" | sub("^[0-9]+ "; "") | @sh),
-      "raw_title=" + (.title // "" | @sh),
-      "cover=" + (.cover // "" | @sh),
-      "identifiers=" + ([.identifiers | to_entries | .[] | (.key) + " " + (.value)] | join(", ") // "" | @sh),
-      "languages=" + (.languages | join(", ") // "" | @sh),
-      "tags=" + (.tags | join(", ") // "" | @sh),
-      "authors=" + (.authors // "" | @sh),
-      "size=" + (.size // "" | format_size | @sh),
-      "series=" + (.series // "" | @sh),
-      "publisher=" + (.publisher // "" | @sh),
-      "publish_date=" + (.pubdate // "" | if . == "0101-01-01T00:00:00+00:00" then "" end | format_timestamp | @sh),
-      "series_index=" + (.series_index // "" | @sh),
-      "comments=" + (.comments // "" | @sh),
-      "isbn=" + (.isbn // "" | @sh),
-      "formats=" + (.formats[] | sub("^.+\\."; "") // "" | @sh),
-      "last_modified=" + (.last_modified // "" | format_timestamp | @sh),
-      "date_added=" + (.timestamp // "" | format_timestamp | @sh)
+      "id=" + (.id // "" | @sh | @sh ),
+      "uuid=" + (.uuid // "" | @sh | @sh ),
+      "title=" + (.title // "" | sub("^[0-9]+ "; "") | @sh | @sh ),
+      "raw_title=" + (.title // "" | @sh ),
+      "cover=" + (.cover // "" | @sh | @sh ),
+      "identifiers=" + ([.identifiers | to_entries | .[] | (.key) + " " + (.value)] | join(", ") // "" | @sh | @sh ),
+      "languages=" + (.languages | join(", ") // "" | @sh | @sh ),
+      "tags=" + (.tags | join(", ") // "" | @sh | @sh ),
+      "authors=" + (.authors // "" | @sh | @sh ),
+      "size=" + (.size // "" | format_size | @sh | @sh ),
+      "series=" + (.series // "" | @sh | @sh ),
+      "publisher=" + (.publisher // "" | @sh | @sh ),
+      "publish_date=" + (.pubdate // "" | if . == "0101-01-01T00:00:00+00:00" then "" end | format_timestamp | @sh | @sh ),
+      "series_index=" + (.series_index // "" | @sh | @sh ),
+      "comments=" + (.comments // "" | @sh | @sh ),
+      "isbn=" + (.isbn // "" | @sh | @sh ),
+      "formats=" + (.formats[] | sub("^.+\\."; "") // "" | @sh | @sh ),
+      "last_modified=" + (.last_modified // "" | format_timestamp | @sh | @sh ),
+      "date_added=" + (.timestamp // "" | format_timestamp | @sh | @sh )
     ] | join("\n")
 ')"
 
@@ -1468,84 +1468,98 @@ else
 fi
 
 if [ '$CONFIG_PREVIEW_IMAGES_ENABLE' = 'true' ];then
-  if [ -s "$cover" ];then
-    fzf_preview "$cover" 2>/dev/null;
+  cover=$cover
+  if [ -s "\$cover" ];then
+    fzf_preview "\$cover" 2>/dev/null;
   fi
 fi
 
+draw_divider
+
+title=$title
+printf "${THEME_FZF_PREVIEW_TITLE}${THEME_BOLD}%s${THEME_RESET}\n" "\$title"
 
 draw_divider
 
-printf "${THEME_FZF_PREVIEW_TITLE}${THEME_BOLD}%s${THEME_RESET}\n" "$title"
+authors=$authors
+if [ -n "\$authors" ];then
+  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Authors:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$authors"
+fi
 
+publisher=$publisher
+if [ -n "\$publisher" ]; then
+  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Publisher:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$publisher"
+fi
+
+series=$series
+if [ -n "\$series" ]; then
+  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Series:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$series"
+fi
+
+if [ -n "\$authors" ] || [ -n "\$publisher" ] || [ -n "\$series" ]; then
+  draw_divider
+fi
+
+tags=$tags
+if [ -n "\$tags" ]; then
+  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Tags:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$tags"
+fi
+
+formats=$formats
+if [ -n "\$formats" ]; then
+  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Formats:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$formats"
+fi
+
+languages=$languages
+if [ -n "\$languages" ]; then
+  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Languages:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$languages"
+fi
+
+if [ -n "\$tags" ] || [ -n "\$formats" ] || [ -n "\$languages" ]; then
 draw_divider
-
-if [ -n "$authors" ];then
-  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Authors:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "$authors"
 fi
 
-if [ -n "$publisher" ]; then
-  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Publisher:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "$publisher"
+identifiers=$identifiers
+if [ -n "\$identifiers" ]; then
+  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Identifiers:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$identifiers"
 fi
 
-if [ -n "$series" ]; then
-  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Series:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "$series"
+isbn=$isbn
+if [ -n "\$isbn" ]; then
+  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Isbn:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$isbn"
 fi
 
-if [ -n "$authors" ] || [ -n "$publisher" ] || [ -n "$series" ]; then
+if [ -n "\$identifiers" ] || [ -n "\$isbn" ]; then
   draw_divider
 fi
 
-if [ -n "$tags" ]; then
-  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Tags:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "$tags"
+size=$size
+if [ -n "\$size" ]; then
+  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Size:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$size"
 fi
 
-if [ -n "$formats" ]; then
-  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Formats:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "$formats"
+publish_date=$publish_date
+if [ -n "\$publish_date" ]; then
+  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Publish Date:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$publish_date"
 fi
 
-if [ -n "$languages" ]; then
-  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Languages:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "$languages"
+last_modified=$last_modified
+if [ -n "\$last_modified" ]; then
+  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Last Modified:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$last_modified"
 fi
 
-if [ -n "$tags" ] || [ -n "$formats" ] || [ -n "$languages" ]; then
-draw_divider
+date_added=$date_added
+if [ -n "\$date_added" ]; then
+  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Date Added:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$date_added"
 fi
 
-if [ -n "$identifiers" ]; then
-  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Identifiers:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "$identifiers"
-fi
-
-if [ -n "$isbn" ]; then
-  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Isbn:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "$isbn"
-fi
-
-if [ -n "$identifiers" ] || [ -n "$isbn" ]; then
+if [ -n "\$size" ] || [ -n "\$publish_date" ] || [ -n "\$last_modified" ] || [ -n "\$last_modified" ]; then
   draw_divider
 fi
 
-if [ -n "$size" ]; then
-  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Size:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "$size"
-fi
-
-if [ -n "$publish_date" ]; then
-  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Publish Date:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "$publish_date"
-fi
-
-if [ -n "$last_modified" ]; then
-  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Last Modified:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "$last_modified"
-fi
-
-if [ -n "$date_added" ]; then
-  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Date Added:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "$date_added"
-fi
-
-if [ -n "$size" ] || [ -n "$publish_date" ] || [ -n "$last_modified" ] || [ -n "$last_modified" ]; then
-  draw_divider
-fi
-
-if [ -n "$comments" ]; then
-  printf "${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "$comments"
+comments=$comments
+if [ -n "\$comments" ]; then
+  printf "${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$comments"
 fi
 EOF
 }
@@ -1907,7 +1921,7 @@ fetch_calibre_db_search() {
 
 _fetch_calibre_db_search_title() {
   _fetch_calibre_db | jq -r --arg title "$1" --arg sort_by "$2" "
-    map(select((.title // \"\" | ascii_downcase | index(\$title | ascii_downcase)) != null))
+    map(select((.title // \"\" | ascii_downcase) == (\$title|ascii_downcase)))
     | if \$sort_by != \"\" then
         $CALIBRE_SORT_JQ
         sort_calibre_db(\$sort_by)

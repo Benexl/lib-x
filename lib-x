@@ -171,7 +171,10 @@ __load_default_config() {
 
   : "${CONFIG_FZF_OPTS:="
   --ansi
-  --bind=ctrl-/:toggle-preview,ctrl-space:toggle-wrap+toggle-preview-wrap
+  --bind='alt-e:execute-silent(lib-x --private --book-skip --book-exit --edit-metadata --search \\\"\\\$(printf {} | sed -E \\\"s/^[0-9]+ //g\\\")\\\") &)'
+  --bind='alt-r:execute(lib-x --private --book-skip --book-exit --remove-book --search \\\"\\\$(printf {} | sed -E \\\"s/^[0-9]+ //g\\\")\\\")'
+  --bind='alt-v:execute-silent(lib-x --private --book-skip --book-exit --read --search \\\"\\\$(printf {} | sed -E \\\"s/^[0-9]+ //g\\\")\\\" &)'
+  --bind='ctrl-/:toggle-preview,ctrl-space:toggle-wrap+toggle-preview-wrap'
   --border
   --border-label=''
   --border=rounded

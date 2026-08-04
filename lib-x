@@ -171,9 +171,9 @@ __load_default_config() {
 
   : "${CONFIG_FZF_OPTS:="
   --ansi
-  --bind='alt-e:execute-silent(LIB_X_SEARCH_HISTORY_ENABLE=false lib-x --cmd-exit --book-skip --book-exit --edit-metadata --search \\\"\\\$(printf {} | sed -E \\\"s/^(.*\\.sh\\|)?[0-9]+ //g\\\") &)'
-  --bind='alt-r:execute(LIB_X_SEARCH_HISTORY_ENABLE=false lib-x --cmd-exit --book-skip --book-exit --remove-book --search \\\"\\\$(printf {} | sed -E \\\"s/^(.*\\.sh\\|)?[0-9]+ //g\\\")\\\")'
-  --bind='alt-v:execute-silent(LIB_X_SEARCH_HISTORY_ENABLE=false lib-x --cmd-exit --book-skip --book-exit --read --search \\\"\\\$(printf {} | sed -E \\\"s/^(.*\\.sh\\|)?[0-9]+ //g\\\")\\\" &)'
+  --bind='alt-e:execute-silent(LIB_X_SEARCH_HISTORY_ENABLE=false lib-x --cmd-exit --book-skip --book-exit --edit-metadata --search-title \\\"\\\$(printf {} | sed -E \\\"s/^(.*\\.sh\\|)?[0-9]+ //g\\\") &)'
+  --bind='alt-r:execute(LIB_X_SEARCH_HISTORY_ENABLE=false lib-x --cmd-exit --book-skip --book-exit --remove-book --search-title \\\"\\\$(printf {} | sed -E \\\"s/^(.*\\.sh\\|)?[0-9]+ //g\\\")\\\")'
+  --bind='alt-v:execute-silent(LIB_X_SEARCH_HISTORY_ENABLE=false lib-x --cmd-exit --book-skip --book-exit --read --search-title  \\\"\\\$(printf {} | sed -E \\\"s/^(.*\\.sh\\|)?[0-9]+ //g\\\")\\\" &)'
   --bind='ctrl-/:toggle-preview,ctrl-space:toggle-wrap+toggle-preview-wrap'
   --border
   --border-label=''
@@ -364,6 +364,8 @@ __load_default_lang() {
   TXT_MENU_MAIN_SEARCH_OR_HISTORY_PROMPT="Search or select from history"
   TXT_MENU_MAIN_SEARCH_PROMPT="Enter search query"
   TXT_MENU_MAIN_SEARCH="Search"
+  TXT_MENU_MAIN_SEARCH_TITLE="Search Title"
+  TXT_MENU_MAIN_SEARCH_TITLE_PROMPT="Enter title query"
   TXT_MENU_MAIN_SERIES_PROMPT="Select Series"
   TXT_MENU_MAIN_SERIES="Series"
   TXT_MENU_MAIN_TAGS_PROMPT="Select Tag"
@@ -409,6 +411,7 @@ __load_default_lang() {
   TXT_ICON_MENU_MAIN_RECENT=""
   TXT_ICON_MENU_MAIN_REREADING=""
   TXT_ICON_MENU_MAIN_SEARCH=""
+  TXT_ICON_MENU_MAIN_SEARCH_TITLE="󰋊"
   TXT_ICON_MENU_MAIN_SERIES="󱉟"
   TXT_ICON_MENU_MAIN_TAGS=""
   TXT_ICON_MENU_MISC_ADD_BOOKS="󰗛"
@@ -515,6 +518,7 @@ Direct menu shortcuts & Overrides
   -bs, --book-skip               Skip the item selection menu and automatically pick the first entry
   -be, --book-exit               Exit after performing a book action (read, edit, etc.)
   -s, --search <term>            Search for a book based on calibredb search syntax
+  --search-title <term>          Search for a book by title (literal, not regex)
   -S, --sort-by <field>          Sort the books on a specified field (e.g. author, size).
                                  Append _asc for ascending order (default: descending)
   -r, --no-of-random-books <num> Number of random books to show (opens Random menu)
@@ -1901,6 +1905,25 @@ fetch_calibre_db_search() {
   _fetch_calibre_db_search "$@"
 }
 
+_fetch_calibre_db_search_title() {
+  _fetch_calibre_db | jq -r --arg title "$1" --arg sort_by "$2" "
+    map(select((.title // \"\" | ascii_downcase | index(\$title | ascii_downcase)) != null))
+    | if \$sort_by != \"\" then
+        $CALIBRE_SORT_JQ
+        sort_calibre_db(\$sort_by)
+       else
+        .
+      end
+      | to_entries
+      | map(.value.title=\"\(.key+1|tostring| if (.|length) < 2 then \"0\" + . else . end) \" + .value.title)
+      | map(.value)
+  "
+}
+
+fetch_calibre_db_search_title() {
+  _fetch_calibre_db_search_title "$@"
+}
+
 _fetch_calibre_db_search_series() {
   _fetch_calibre_db | jq -r --arg series "$1" --arg sort_by "$2" "
     map(select(.series == \$series))
@@ -2899,6 +2922,64 @@ __menu_main_search() {
   done
 }
 
+__menu_main_search_by_title() {
+  local query
+  local sort
+  local search_history
+  local choice
+
+  while true; do
+    if [ "$CONFIG_SEARCH_HISTORY_ENABLE" = "true" ] && [ -s "$CLI_SEARCH_HISTORY_FILE" ]; then
+      search_history="$(cat "$CLI_SEARCH_HISTORY_FILE")"
+    else
+      search_history=""
+    fi
+
+    if [ -n "$CMD_INPUT" ]; then
+      query="$CMD_INPUT"
+      unset -v CMD_INPUT
+    else
+      if [ -z "$search_history" ]; then
+        query="$(ui_prompt "$TXT_MENU_MAIN_SEARCH_TITLE_PROMPT")"
+      else
+        choice=$(printf "%s\n%s\n%s" "$TXT_MENU_MAIN_NEW_SEARCH" "$(printf '%s\n' "$search_history" | _util_reverse)" "$TXT_MENU_BACK" | ui_launcher "$TXT_MENU_MAIN_SEARCH_OR_HISTORY_PROMPT")
+        case "$choice" in
+        "$TXT_MENU_MAIN_NEW_SEARCH")
+          query="$(ui_prompt "$TXT_MENU_MAIN_SEARCH_TITLE_PROMPT")"
+          ;;
+        "$TXT_MENU_BACK" | "") break ;;
+        *)
+          query="$choice"
+          ;;
+        esac
+      fi
+
+    fi
+    if [ -z "$query" ]; then
+      continue
+    fi
+
+    if [ "$CONFIG_SEARCH_HISTORY_ENABLE" = "true" ]; then
+      printf '%s\n' "$search_history" | awk -v query="$query" '
+    $0 != "" && $0 != query && !seen[$0]++ {
+      print $0
+    }
+    END {
+      print query
+    }
+    ' >"$CLI_SEARCH_HISTORY_FILE"
+    fi
+
+    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_title "$query" "$CONFIG_SORT_BY")"
+    STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
+    _state_push
+    menu_book_list_explorer
+    if [ -n "$CMD_EXIT" ]; then
+      _util_byebye
+    fi
+  done
+}
+
 __menu_main_all() {
   STATE_CURRENT_BOOKS="$(fetch_calibre_db_all "$CONFIG_SORT_BY")"
   STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
@@ -3173,6 +3254,7 @@ ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_COMPLETED}${THEME_RESET}  ${
 ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_DOCS}${THEME_RESET}  ${TXT_MENU_MAIN_DOCS}
 ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_RANDOM}${THEME_RESET}  ${TXT_MENU_MAIN_RANDOM}
 ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_SEARCH}${THEME_RESET}  ${TXT_MENU_MAIN_SEARCH}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_SEARCH_TITLE}${THEME_RESET}  ${TXT_MENU_MAIN_SEARCH_TITLE}
 ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_ALL}${THEME_RESET}  ${TXT_MENU_MAIN_ALL}
 ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_SERIES}${THEME_RESET}  ${TXT_MENU_MAIN_SERIES}
 ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_AUTHORS}${THEME_RESET}  ${TXT_MENU_MAIN_AUTHORS}
@@ -3218,6 +3300,7 @@ $extra_menu_options"
     "$TXT_MENU_MAIN_DOCS") __menu_main_docs ;;
     "$TXT_MENU_MAIN_RANDOM") __menu_main_random ;;
     "$TXT_MENU_MAIN_SEARCH") __menu_main_search ;;
+    "$TXT_MENU_MAIN_SEARCH_TITLE") __menu_main_search_by_title ;;
     "$TXT_MENU_MAIN_ALL") __menu_main_all ;;
     "$TXT_MENU_MAIN_SERIES") __menu_main_series ;;
     "$TXT_MENU_MAIN_AUTHORS") __menu_main_authors ;;
@@ -3472,6 +3555,7 @@ complete -c $CLI_NAME -n "__fish_use_subcommand" -l polish -d "Polish the select
 complete -c $CLI_NAME -n "__fish_use_subcommand" -l show-metadata -d "Show metadata of the selected book"
 
 complete -c $CLI_NAME -n "__fish_use_subcommand" -s s -l search -d "Search for a book" --require-parameter --no-files -a "(_lib_x_complete_search)"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l search-title -d "Search for a book by title (literal)" --require-parameter --no-files -a "(_lib_x_complete_search)"
 complete -c $CLI_NAME -n "__fish_use_subcommand" -s S -l sort-by -d "Sort books by field" --require-parameter --no-files -a 'author_sort authors comments cover formats identifiers isbn languages last_modified pubdate publisher rating series series_index size tags template timestamp title uuid'
 complete -c $CLI_NAME -n "__fish_use_subcommand" -s g -l go-directly-to -d "Open sub-menu directly" --require-parameter --no-files -a 'All Reading-List Paused Planing Re-reading Completed Docs Random authors formats identifiers languages publisher rating series tags Recent Dropped'
 complete -c $CLI_NAME -n "__fish_use_subcommand" -s r -l no-of-random-books -d "Number of random books to show" --require-parameter --no-files -a "(seq 1 100)"
@@ -3581,6 +3665,16 @@ _app_cmd_line_parser() {
         shift_count=2
       fi
       CMD_MAIN_ACTION="$TXT_MENU_MAIN_SEARCH"
+      ;;
+    --search-title)
+      if [ -z "$2" ]; then
+        CMD_INPUT="$(ui_prompt "$TXT_MENU_MAIN_SEARCH_TITLE_PROMPT")"
+        [ -n "$CMD_INPUT" ] || _app_usage 1
+      else
+        CMD_INPUT="$2"
+        shift_count=2
+      fi
+      CMD_MAIN_ACTION="$TXT_MENU_MAIN_SEARCH_TITLE"
       ;;
     -S | --sort-by)
       if [ -z "$2" ]; then

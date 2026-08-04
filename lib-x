@@ -1737,7 +1737,7 @@ $CLI_USER_LIST_DROPPED"
 }
 
 __fetch_calibre_db() {
-  if calibredb list --for-machine --fields all >"${CALIBRE_DB_JSON_FILE}.tmp"; then
+  if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" list --for-machine --fields all >"${CALIBRE_DB_JSON_FILE}.tmp"; then
     mv "${CALIBRE_DB_JSON_FILE}.tmp" "$CALIBRE_DB_JSON_FILE"
     __update_user_lists
   else
@@ -1764,7 +1764,7 @@ fetch_calibre_db() {
 }
 
 __fetch_calibre_categories() {
-  if calibredb list_categories --csv --dialect=excel-tab >"${CALIBRE_CATEGORIES_CSV_FILE}.tmp"; then
+  if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" list_categories --csv --dialect=excel-tab >"${CALIBRE_CATEGORIES_CSV_FILE}.tmp"; then
     mv "${CALIBRE_CATEGORIES_CSV_FILE}.tmp" "$CALIBRE_CATEGORIES_CSV_FILE"
   else
     rm -f "${CALIBRE_CATEGORIES_CSV_FILE}.tmp"
@@ -2207,7 +2207,7 @@ __menu_book_actions_remove_book() {
   book_id="$(printf '%s' "$STATE_CURRENT_BOOK" | jq -r '.id')"
 
   if ui_confirm "$TXT_MENU_BOOK_ACTIONS_REMOVE_CONFIRM $STATE_CURRENT_BOOK_TITLE?"; then
-    if calibredb remove "$book_id"; then
+    if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" remove "$book_id"; then
       ui_notify "$TXT_MENU_BOOK_ACTIONS_REMOVED_SUCCESS"
     fi
     __fetch_calibre_db
@@ -2248,13 +2248,13 @@ title_sort"
     "$TXT_MENU_BACK" | "") break ;;
     *)
       book_id="$(printf '%s' "$STATE_CURRENT_BOOK" | jq -r '.id')"
-      calibredb show_metadata "$book_id"
+      calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" show_metadata "$book_id"
       val="$(ui_prompt "$TXT_MENU_BOOK_ACTIONS_PROMPT_NEW_VAL $field")"
 
       if [ -n "$val" ] && ui_confirm "$TXT_MENU_BOOK_ACTIONS_CONFIRM_UPDATE $field to $val?"; then
-        calibredb set_metadata "$book_id" --field "$field:$val"
-        calibredb embed_metadata "$book_id"
-        calibredb backup_metadata
+        calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" set_metadata "$book_id" --field "$field:$val"
+        calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" embed_metadata "$book_id"
+        calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" backup_metadata
         __fetch_calibre_db
         __fetch_calibre_categories
       fi
@@ -2349,7 +2349,7 @@ zip"
   if ui_confirm "$TXT_MENU_BOOK_ACTIONS_CONVERT_CONFIRM $STATE_CURRENT_BOOK_TITLE to $output_format?"; then
     if ebook-convert "$book_path" "$output_file"; then
       book_id="$(printf '%s' "$STATE_CURRENT_BOOK" | jq -r '.id')"
-      if calibredb add_format "$book_id" "$output_file"; then
+      if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" add_format "$book_id" "$output_file"; then
         __fetch_calibre_db
         __fetch_calibre_categories
         ui_notify "$TXT_MENU_BOOK_ACTIONS_CONVERTED"
@@ -2633,10 +2633,10 @@ __menu_miscellaneous_add_books_from_folder() {
 ' "$TXT_MISC_ADD_BOOKS_FROM_FOLDER_OPTIONS"
   custom_args="$(ui_prompt "$TXT_MENU_MISC_ADD_BOOKS_OPTIONS_PROMPT")"
 
-  printf 'calibredb add %s %s\n' "$custom_args" "$books_dir"
+  printf 'calibredb --library-path "%s" add %s %s\n' "$CONFIG_CALIBRE_LIBRARY_PATH" "$custom_args" "$books_dir"
   if ui_confirm "$TXT_MENU_ACTION_CONFIRM"; then
     # shellcheck disable=SC2086
-    if calibredb add $custom_args "$books_dir"; then
+    if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" add $custom_args "$books_dir"; then
       __fetch_calibre_db
       __fetch_calibre_categories
     else
@@ -2675,12 +2675,12 @@ __menu_miscellaneous_add_books() {
   printf "\n================================================================================\n"
   custom_args="$(ui_prompt "$TXT_MENU_MISC_ADD_BOOKS_OPTIONS_PROMPT" | tr " " '\t')"
 
-  printf 'calibredb add %s %s\n' "$custom_args" "$book_paths"
+  printf 'calibredb --library-path "%s" add %s %s\n' "$CONFIG_CALIBRE_LIBRARY_PATH" "$custom_args" "$book_paths"
   if ui_confirm "$TXT_MENU_ACTION_CONFIRM"; then
     old_ifs="$IFS"
     IFS="$(printf '\t')"
     # shellcheck disable=SC2086
-    if calibredb add $custom_args $book_paths; then
+    if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" add $custom_args $book_paths; then
       __fetch_calibre_db
       __fetch_calibre_categories
     else

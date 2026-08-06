@@ -1408,7 +1408,7 @@ fzf_preview() {
 
 if [ "$CONFIG_PREVIEW_IMAGES_ENABLE" = 'true' ];then
   if [ -s "$cover" ];then
-    fzf_preview "$cover" 2>/dev/null;
+    fzf_preview "$cover"
   fi
 fi
 

@@ -1414,7 +1414,7 @@ fi
 
 draw_divider
 
-printf "${THEME_FZF_PREVIEW_TITLE}${THEME_BOLD}%s${THEME_RESET}\n" "$title"
+printf "${THEME_FZF_PREVIEW_TITLE}${THEME_BOLD}%s${THEME_RESET}\n" "$rtitle"
 
 draw_divider
 
@@ -1786,6 +1786,7 @@ def escape:
 [
   "id=" + (.id // "" | @sh),
   "uuid=" + (.uuid // "" | @sh),
+  "rtitle=" + (.rtitle // "" | @sh),
   "title=" + (.title // "" | @sh),
   "cover=" + (.cover // "" | @sh),
   "identifiers=" + ([.identifiers | to_entries | .[] | (.key) + " " + (.value)] | join(", ") // "" | @sh),
@@ -1814,7 +1815,11 @@ _fetch_calibre_db_all() {
       .
     end
     | to_entries
-    | map(.value.title=\"\(.key+1|tostring| if (.|length) < 2 then \"0\" + . else . end) \" + .value.title)
+    | map(
+        (.key+1|tostring| if length < 2 then \"0\" + . else . end) as \$idx
+        | .value.rtitle= .value.title
+        | .value.title= \$idx + \" \" + .value.title
+      )
     | map(.value)
     | .[]
     | $CALIBRE_CONVERT_TO_ASSIGNMENTS_JQ

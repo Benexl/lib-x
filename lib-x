@@ -1781,7 +1781,7 @@ def escape:
 [
   "id=" + (.id // "" | @sh),
   "uuid=" + (.uuid // "" | @sh),
-  "title=" + (.title // "" | sub("^[0-9]+ "; "") | @sh),
+  "title=" + (.title // "" | @sh),
   "cover=" + (.cover // "" | @sh),
   "identifiers=" + ([.identifiers | to_entries | .[] | (.key) + " " + (.value)] | join(", ") // "" | @sh),
   "languages=" + (.languages | join(", ") // "" | @sh),

@@ -2533,6 +2533,7 @@ CLI_NAME
 printf '%s' "$init_text"
 EOF
     ENV="$init_file" _util_terminal_exec sh -i
+    rm "$init_file"
   fi
 
 }

@@ -1066,13 +1066,30 @@ __ui_fzf_launcher_with_preview() {
   local preview_script
 
   preview_script="\
-TXT_PREVIEW_INSTALL_VIEWER='$TXT_PREVIEW_INSTALL_VIEWER'
-CONFIG_PREVIEW_IMAGES_RENDERER='$CONFIG_PREVIEW_IMAGES_RENDERER'
 CLI_PLATFORM='$CLI_PLATFORM'
+
+TXT_PREVIEW_INSTALL_VIEWER='$TXT_PREVIEW_INSTALL_VIEWER'
+
+CONFIG_PREVIEW_IMAGES_RENDERER='$CONFIG_PREVIEW_IMAGES_RENDERER'
+
+THEME_HEADER_COLOR='$THEME_HEADER_COLOR'
+THEME_FZF_ICON_COLOR_PRIMARY='$THEME_FZF_ICON_COLOR_PRIMARY'
+THEME_FZF_ICON_COLOR_SECONDARY='$THEME_FZF_ICON_COLOR_SECONDARY'
+THEME_FZF_ICON_COLOR_ACCENT='$THEME_FZF_ICON_COLOR_ACCENT'
+THEME_FZF_ICON_COLOR_ERROR='$THEME_FZF_ICON_COLOR_ERROR'
+THEME_FZF_PREVIEW_TITLE='$THEME_FZF_PREVIEW_TITLE'
+THEME_FZF_PREVIEW_KEY='$THEME_FZF_PREVIEW_KEY'
+THEME_FZF_PREVIEW_VALUE='$THEME_FZF_PREVIEW_VALUE'
 THEME_FZF_PREVIEW_DIVIDER='$THEME_FZF_PREVIEW_DIVIDER'
+THEME_BOLD='$THEME_BOLD'
 THEME_RESET='$THEME_RESET'
-preview_script_path='{1}'
-[ -s \"\$preview_script_path\" ] && . \"\$preview_script_path\"\
+THEME_RESET='$THEME_RESET'
+
+preview_script_path={1}
+
+if [ -s '$CLI_FZF_PREVIEW_SCRIPT' ];then
+  [ -s \"\$preview_script_path\" ] && . \"\$preview_script_path\"\ && . '$CLI_FZF_PREVIEW_SCRIPT'
+fi
 "
 
   multi_select="$2"
@@ -1383,215 +1400,120 @@ fzf_preview() {
     printf "%s" "$TXT_PREVIEW_INSTALL_VIEWER"
   fi
 }
-EOF
-  fi
-}
 
-__preview_fzf_generate_script_for_item() {
-  local data_item
-  local raw_title
-  local cover
-  local identifiers
-  local languages
-  local tags
-  local authors
-  local size
-  local publisher
-  local publish_date
-  local series
-  local comments
-  local isbn
-  local formats
-  local last_modified
-  local date_added
-
-  data_item="$1"
-
-  eval "$(printf "%s" "$data_item" | jq -r '
-    def format_timestamp:
-      if . != "" then
-        sub("[+]00:00$"; "Z") | fromdateiso8601 | strflocaltime("%B %d, %Y at %I:%M %p")
-      end;
-
-    def format_size:
-      if . >= 1073741824 then
-      "\((. / 1073741824 * 100 | round) / 100) GB"
-      elif . >= 1048576 then
-        "\((. / 1048576 * 100 | round) / 100) MB"
-      elif . >= 1024 then
-        "\((. / 1024 * 100 | round) / 100) KB"
-      else
-        "\(.) Bytes"
-      end;
-
-    [
-      "id=" + (.id // "" | @sh | @sh ),
-      "uuid=" + (.uuid // "" | @sh | @sh ),
-      "title=" + (.title // "" | sub("^[0-9]+ "; "") | @sh | @sh ),
-      "raw_title=" + (.title // "" | @sh ),
-      "cover=" + (.cover // "" | @sh | @sh ),
-      "identifiers=" + ([.identifiers | to_entries | .[] | (.key) + " " + (.value)] | join(", ") // "" | @sh | @sh ),
-      "languages=" + (.languages | join(", ") // "" | @sh | @sh ),
-      "tags=" + (.tags | join(", ") // "" | @sh | @sh ),
-      "authors=" + (.authors // "" | @sh | @sh ),
-      "size=" + (.size // "" | format_size | @sh | @sh ),
-      "series=" + (.series // "" | @sh | @sh ),
-      "publisher=" + (.publisher // "" | @sh | @sh ),
-      "publish_date=" + (.pubdate // "" | if . == "0101-01-01T00:00:00+00:00" then "" end | format_timestamp | @sh | @sh ),
-      "series_index=" + (.series_index // "" | @sh | @sh ),
-      "comments=" + (.comments // "" | @sh | @sh ),
-      "isbn=" + (.isbn // "" | @sh | @sh ),
-      "formats=" + (.formats[] | sub("^.+\\."; "") // "" | @sh | @sh ),
-      "last_modified=" + (.last_modified // "" | format_timestamp | @sh | @sh ),
-      "date_added=" + (.timestamp // "" | format_timestamp | @sh | @sh )
-    ] | join("\n")
-')"
-
-  preview_script_path="$CLI_PREVIEW_SCRIPTS_DIR/$(_util_generate_hash "$raw_title").sh"
-
-  cat <<EOF >"$preview_script_path"
-#!/usr/bin/env sh
 # ==============================================================================
-# This script is generated dynamically for each preview item and is executed
-# by fzf when that item is previewed. You can customize the content and layout
-# of the preview by modifying the way this script is generated in
-# __preview_fzf_generate_script_for_item function.
-# You can also use any utilities or functions defined in the shared script
-# ($CLI_FZF_PREVIEW_SCRIPT)
-# to render images or format text.
+# here is where the magic starts
 # ==============================================================================
 
-if [ -s "$CLI_FZF_PREVIEW_SCRIPT" ];then
-  . "$CLI_FZF_PREVIEW_SCRIPT"
-else
-  exit 1
-fi
-
-if [ '$CONFIG_PREVIEW_IMAGES_ENABLE' = 'true' ];then
-  cover=$cover
-  if [ -s "\$cover" ];then
-    fzf_preview "\$cover" 2>/dev/null;
+if [ "$CONFIG_PREVIEW_IMAGES_ENABLE" = 'true' ];then
+  if [ -s "$cover" ];then
+    fzf_preview "$cover" 2>/dev/null;
   fi
 fi
 
 draw_divider
 
-title=$title
-printf "${THEME_FZF_PREVIEW_TITLE}${THEME_BOLD}%s${THEME_RESET}\n" "\$title"
+printf "${THEME_FZF_PREVIEW_TITLE}${THEME_BOLD}%s${THEME_RESET}\n" "$title"
 
 draw_divider
 
-authors=$authors
-if [ -n "\$authors" ];then
-  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Authors:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$authors"
+if [ -n "$authors" ];then
+  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Authors:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "$authors"
 fi
 
-publisher=$publisher
-if [ -n "\$publisher" ]; then
-  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Publisher:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$publisher"
+if [ -n "$publisher" ]; then
+  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Publisher:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "$publisher"
 fi
 
-series=$series
-if [ -n "\$series" ]; then
-  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Series:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$series"
+if [ -n "$series" ]; then
+  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Series:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "$series"
 fi
 
-if [ -n "\$authors" ] || [ -n "\$publisher" ] || [ -n "\$series" ]; then
+if [ -n "$authors" ] || [ -n "$publisher" ] || [ -n "$series" ]; then
   draw_divider
 fi
 
-tags=$tags
-if [ -n "\$tags" ]; then
-  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Tags:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$tags"
+if [ -n "$tags" ]; then
+  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Tags:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "$tags"
 fi
 
-formats=$formats
-if [ -n "\$formats" ]; then
-  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Formats:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$formats"
+if [ -n "$formats" ]; then
+  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Formats:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "$formats"
 fi
 
-languages=$languages
-if [ -n "\$languages" ]; then
-  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Languages:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$languages"
+if [ -n "$languages" ]; then
+  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Languages:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "$languages"
 fi
 
-if [ -n "\$tags" ] || [ -n "\$formats" ] || [ -n "\$languages" ]; then
+if [ -n "$tags" ] || [ -n "$formats" ] || [ -n "$languages" ]; then
 draw_divider
 fi
 
-identifiers=$identifiers
-if [ -n "\$identifiers" ]; then
-  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Identifiers:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$identifiers"
+if [ -n "$identifiers" ]; then
+  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Identifiers:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "$identifiers"
 fi
 
-isbn=$isbn
-if [ -n "\$isbn" ]; then
-  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Isbn:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$isbn"
+if [ -n "$isbn" ]; then
+  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Isbn:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "$isbn"
 fi
 
-if [ -n "\$identifiers" ] || [ -n "\$isbn" ]; then
+if [ -n "$identifiers" ] || [ -n "$isbn" ]; then
   draw_divider
 fi
 
-size=$size
-if [ -n "\$size" ]; then
-  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Size:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$size"
+if [ -n "$size" ]; then
+  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Size:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "$size"
 fi
 
-publish_date=$publish_date
-if [ -n "\$publish_date" ]; then
-  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Publish Date:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$publish_date"
+if [ -n "$publish_date" ]; then
+  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Publish Date:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "$publish_date"
 fi
 
-last_modified=$last_modified
-if [ -n "\$last_modified" ]; then
-  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Last Modified:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$last_modified"
+if [ -n "$last_modified" ]; then
+  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Last Modified:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "$last_modified"
 fi
 
-date_added=$date_added
-if [ -n "\$date_added" ]; then
-  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Date Added:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$date_added"
+if [ -n "$date_added" ]; then
+  printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}Date Added:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "$date_added"
 fi
 
-if [ -n "\$size" ] || [ -n "\$publish_date" ] || [ -n "\$last_modified" ] || [ -n "\$last_modified" ]; then
+if [ -n "$size" ] || [ -n "$publish_date" ] || [ -n "$last_modified" ] || [ -n "$last_modified" ]; then
   draw_divider
 fi
 
-comments=$comments
-if [ -n "\$comments" ]; then
-  printf "${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "\$comments"
+if [ -n "$comments" ]; then
+  printf "${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "$comments"
 fi
 EOF
-}
-
-_preview_fzf_generate_script() {
-  local data_to_preview
-  local data_item
-
-  data_to_preview="$1"
-
-  __preview_fzf_create_shared_script
-
-  printf "%s" "$data_to_preview" | jq -c '.[]' | while IFS= read -r data_item; do
-    __preview_fzf_generate_script_for_item "$data_item"
-  done
+  fi
 }
 
 _preview_fzf() {
-  local data_to_preview
-  data_to_preview="$1"
+  local id
+  local title
 
+  __preview_fzf_create_shared_script </dev/null
   while IFS= read -r line; do
-    if [ "$CONFIG_PREVIEW_ENABLE" = "true" ]; then
-      printf '%s/%s.sh|%s\n' "$CLI_PREVIEW_SCRIPTS_DIR" "$(_util_generate_hash "$line")" "$line"
-    else
-      printf '%s\n' "$line"
-    fi
-  done
+    case "$line" in
+    id*)
+      eval "$line"
+      if [ "$CONFIG_PREVIEW_ENABLE" = "true" ]; then
+        preview_script_path="$CLI_PREVIEW_SCRIPTS_DIR/$id.env"
 
-  if [ "$CONFIG_PREVIEW_ENABLE" = "true" ]; then
-    _preview_fzf_generate_script "$data_to_preview" </dev/null &
-  fi
+        printf '%s|%s\n' "$preview_script_path" "$title"
+
+        if ! [ -s "$preview_script_path" ]; then
+          printf '%s\n' "$line" >"$preview_script_path"
+        fi
+      else
+        printf '%s\n' "$title"
+      fi
+      ;;
+    *)
+      printf '%s\n' "$line"
+      ;;
+    esac
+  done
 }
 
 preview_fzf() {
@@ -1599,46 +1521,24 @@ preview_fzf() {
 }
 
 _preview_rofi() {
-  local data_to_preview
-  local input_titles
-  local input_count
-  local output_count
-  local others
-  local output
-  output="$CLI_CURRENT_STATE_DIR/rofi-preview-output-$$-$(date +%s).txt"
+  local title
+  local cover
 
-  data_to_preview="$1"
-
-  if [ "$CONFIG_PREVIEW_ENABLE" = "true" ] && [ -n "$data_to_preview" ]; then
-    input_titles="$(cat)"
-
-    # shellcheck disable=SC2141
-    printf "%s" "$data_to_preview" | jq --compact-output '.[]' | while IFS='\n' read -r entry; do
-      local title
-      local cover
-
-      eval "$(printf '%s' "$entry" | jq -r '[
-        "title=" + (.title // "" | @sh),
-        "cover=" + (.cover // "" | @sh)
-        ] | join("\n")')"
-
-      if [ -s "$cover" ]; then
+  while IFS= read -r line; do
+    case "$line" in
+    id*)
+      eval "$line"
+      if [ "$CONFIG_PREVIEW_ENABLE" = "true" ]; then
         printf '%s\0icon\x1f%s\n' "$title" "$cover"
       else
         printf '%s\n' "$title"
       fi
-    done | tee "$output"
-
-    input_count="$(printf "%s" "$input_titles" | wc -l)"
-    output_count="$(wc -l <"$output")"
-    others="$((input_count + 1 - output_count))"
-
-    if [ "$others" -gt 0 ]; then
-      printf '%s' "$input_titles" | tail -n "$others"
-    fi
-  else
-    cat
-  fi
+      ;;
+    *)
+      printf '%s\n' "$line"
+      ;;
+    esac
+  done
 }
 
 preview_rofi() {
@@ -1686,21 +1586,7 @@ _state_push() {
   current_state_dir="$CLI_CURRENT_STATE_DIR/$STATE_CURRENT"
   mkdir -p "$current_state_dir"
 
-  cat <<EOF >"$current_state_dir/state.env"
-#!/usr/bin/env sh
-# ==============================================================================
-# This file contains the state of $CLI_NAME at the current time or sometime in
-# the past.
-# ==============================================================================
-
-STATE_CURRENT_CATEGORY='$(printf "%s" "$STATE_CURRENT_CATEGORY" | sed "s/'/'\\\\''/g")'
-
-STATE_CURRENT_BOOKS='$(printf "%s" "$STATE_CURRENT_BOOKS" | sed "s/'/'\\\\''/g")'
-STATE_CURRENT_BOOK_TITLES='$(printf "%s" "$STATE_CURRENT_BOOK_TITLES" | sed "s/'/'\\\\''/g")'
-
-STATE_CURRENT_BOOK='$(printf "%s" "$STATE_CURRENT_BOOK" | sed "s/'/'\\\\''/g")'
-STATE_CURRENT_BOOK_TITLE='$(printf "%s" "$STATE_CURRENT_BOOK_TITLE" | sed "s/'/'\\\\''/g")'
-EOF
+  STATE_CURRENT_BOOKS="$current_state_dir/current-books.env"
 }
 
 _state_pop() {
@@ -1872,6 +1758,48 @@ def sort_calibre_db($key):
     end;
 '
 
+CALIBRE_CONVERT_TO_ASSIGNMENTS_JQ='
+def format_timestamp:
+  if . != "" then
+    sub("[+]00:00$"; "Z") | fromdateiso8601 | strflocaltime("%B %d, %Y at %I:%M %p")
+  end;
+
+def format_size:
+  if . >= 1073741824 then
+  "\((. / 1073741824 * 100 | round) / 100) GB"
+  elif . >= 1048576 then
+    "\((. / 1048576 * 100 | round) / 100) MB"
+  elif . >= 1024 then
+    "\((. / 1024 * 100 | round) / 100) KB"
+  else
+    "\(.) Bytes"
+  end;
+
+def escape:
+  gsub("\n"; "\\n");
+  
+[
+  "id=" + (.id // "" | @sh),
+  "uuid=" + (.uuid // "" | @sh),
+  "title=" + (.title // "" | sub("^[0-9]+ "; "") | @sh),
+  "cover=" + (.cover // "" | @sh),
+  "identifiers=" + ([.identifiers | to_entries | .[] | (.key) + " " + (.value)] | join(", ") // "" | @sh),
+  "languages=" + (.languages | join(", ") // "" | @sh),
+  "tags=" + (.tags | join(", ") // "" | @sh),
+  "authors=" + (.authors // "" | @sh),
+  "size=" + (.size // "" | format_size | @sh),
+  "series=" + (.series // "" | @sh),
+  "publisher=" + (.publisher // "" | @sh),
+  "publish_date=" + (.pubdate // "" | if . == "0101-01-01T00:00:00+00:00" then "" end | format_timestamp | @sh),
+  "series_index=" + (.series_index // "" | @sh),
+  "comments=" + (.comments // "" | escape | @sh),
+  "isbn=" + (.isbn // "" | @sh),
+  "formats=" + (.formats[] | sub("^.+\\."; "") // "" | @sh),
+  "last_modified=" + (.last_modified // "" | format_timestamp | @sh),
+  "date_added=" + (.timestamp // "" | format_timestamp | @sh)
+] | join(";")
+'
+
 _fetch_calibre_db_all() {
   _fetch_calibre_db | jq -r --arg sort_by "$1" "
     if \$sort_by != \"\" then
@@ -1883,6 +1811,8 @@ _fetch_calibre_db_all() {
     | to_entries
     | map(.value.title=\"\(.key+1|tostring| if (.|length) < 2 then \"0\" + . else . end) \" + .value.title)
     | map(.value)
+    | .[]
+    | $CALIBRE_CONVERT_TO_ASSIGNMENTS_JQ
   "
 }
 
@@ -2624,10 +2554,10 @@ $TXT_MENU_EXIT"
   while true; do
 
     if [ "$CMD_BOOK_RESULTS_SKIP" = "true" ]; then
-      choice="$(printf '%s' "$STATE_CURRENT_BOOK_TITLES" | head -n 1)"
+      choice="$(cat "$STATE_CURRENT_BOOKS" | head -n 1)"
       unset -v CMD_BOOK_RESULTS_SKIP
     else
-      choice="$(printf "%s\n%s" "$STATE_CURRENT_BOOK_TITLES" "$other_choices" | preview "$STATE_CURRENT_BOOKS" | ui_launcher_with_preview "$TXT_MENU_LIST_EXPLORER_PROMPT")"
+      choice="$(cat "$STATE_CURRENT_BOOKS" "$other_choices" | preview | ui_launcher_with_preview "$TXT_MENU_LIST_EXPLORER_PROMPT")"
     fi
 
     case "$choice" in
@@ -2995,9 +2925,8 @@ __menu_main_search_by_title() {
 }
 
 __menu_main_all() {
-  STATE_CURRENT_BOOKS="$(fetch_calibre_db_all "$CONFIG_SORT_BY")"
-  STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
   _state_push
+  fetch_calibre_db_all "$CONFIG_SORT_BY" >"$STATE_CURRENT_BOOKS"
   menu_book_list_explorer
   if [ -n "$CMD_EXIT" ]; then
     _util_byebye

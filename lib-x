@@ -1838,7 +1838,7 @@ fetch_calibre_db_all() {
 # CALIBRE: SEARCH FUNCTIONS
 # ==============================================================================
 _fetch_calibre_db_search() {
-  _fetch_calibre_db | jq --arg query "$1" --arg sort_by "$2" "
+  _fetch_calibre_db | jq -r --arg query "$1" --arg sort_by "$2" "
     map(select(
       (.title // \"\" | test(\$query; \"i\")) or
       (.authors // \"\" | test(\$query; \"i\")) or
@@ -2929,9 +2929,8 @@ __menu_main_search() {
     ' >"$CLI_SEARCH_HISTORY_FILE"
     fi
 
-    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search "$query" "$CONFIG_SORT_BY")"
-    STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
     _state_push
+    fetch_calibre_db_search "$query" "$CONFIG_SORT_BY" >"$STATE_CURRENT_BOOKS"
     menu_book_list_explorer
     if [ -n "$CMD_EXIT" ]; then
       _util_byebye
@@ -2987,9 +2986,8 @@ __menu_main_search_by_title() {
     ' >"$CLI_SEARCH_HISTORY_FILE"
     fi
 
-    STATE_CURRENT_BOOKS="$(fetch_calibre_db_search_title "$query" "$CONFIG_SORT_BY")"
-    STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
     _state_push
+    fetch_calibre_db_search_title "$query" "$CONFIG_SORT_BY" >"$STATE_CURRENT_BOOKS"
     menu_book_list_explorer
     if [ -n "$CMD_EXIT" ]; then
       _util_byebye
@@ -3088,7 +3086,7 @@ __menu_main_tags() {
     fetch_calibre_db_search_tag "$query" "$CONFIG_SORT_BY" >"$STATE_CURRENT_BOOKS"
     menu_book_list_explorer
     if [ -n "$CMD_EXIT" ]; then
-      _util_byebye
+      -r _util_byebye
     fi
   done
 }

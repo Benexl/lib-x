@@ -3087,7 +3087,7 @@ __menu_main_tags() {
     fetch_calibre_db_search_tag "$query" "$CONFIG_SORT_BY" >"$STATE_CURRENT_BOOKS"
     menu_book_list_explorer
     if [ -n "$CMD_EXIT" ]; then
-      -r _util_byebye
+      _util_byebye
     fi
   done
 }

@@ -341,8 +341,6 @@ __load_default_lang() {
   TXT_MENU_MAIN_SEARCH_OR_HISTORY_PROMPT="Search or select from history"
   TXT_MENU_MAIN_SEARCH_PROMPT="Enter search query"
   TXT_MENU_MAIN_SEARCH="Search"
-  TXT_MENU_MAIN_SEARCH_TITLE="Search Title"
-  TXT_MENU_MAIN_SEARCH_TITLE_PROMPT="Enter title query"
   TXT_MENU_MAIN_SERIES_PROMPT="Select Series"
   TXT_MENU_MAIN_SERIES="Series"
   TXT_MENU_MAIN_TAGS_PROMPT="Select Tag"
@@ -355,6 +353,8 @@ __load_default_lang() {
   TXT_MENU_MISC_ADD_BOOKS_OPTIONS_PROMPT="Enter Custom Options"
   TXT_MENU_MISC_ADD_BOOKS_PROMPT="Add Books"
   TXT_MENU_MISC_PROMPT="Select Action"
+  TXT_MENU_MISC_SEARCH_TITLE_PROMPT="Enter title query"
+  TXT_MENU_MISC_SEARCH_TITLE="Search Title"
   TXT_MENU_MISC_SYNC="Sync Data"
 
   TXT_ICON_MENU_BACK="󰌍"
@@ -388,11 +388,11 @@ __load_default_lang() {
   TXT_ICON_MENU_MAIN_RECENT=""
   TXT_ICON_MENU_MAIN_REREADING=""
   TXT_ICON_MENU_MAIN_SEARCH=""
-  TXT_ICON_MENU_MAIN_SEARCH_TITLE="󰋊"
   TXT_ICON_MENU_MAIN_SERIES="󱉟"
   TXT_ICON_MENU_MAIN_TAGS=""
   TXT_ICON_MENU_MISC_ADD_BOOKS="󰗛"
   TXT_ICON_MENU_MISC_ADD_BOOKS_FOLDER="󰉗"
+  TXT_ICON_MENU_MISC_SEARCH_TITLE=""
   TXT_ICON_MENU_MISC_SYNC="󰑓"
 
   TXT_MISC_ADD_BOOKS_OPTIONS='Options:
@@ -2760,6 +2760,63 @@ __menu_miscellaneous_sync() {
   fi
 }
 
+__menu_miscellaneous_search_by_title() {
+  local query
+  local sort
+  local search_history
+  local choice
+
+  while true; do
+    if [ "$CONFIG_SEARCH_HISTORY_ENABLE" = "true" ] && [ -s "$CLI_SEARCH_HISTORY_FILE" ]; then
+      search_history="$(cat "$CLI_SEARCH_HISTORY_FILE")"
+    else
+      search_history=""
+    fi
+
+    if [ -n "$CMD_INPUT" ]; then
+      query="$CMD_INPUT"
+      unset -v CMD_INPUT
+    else
+      if [ -z "$search_history" ]; then
+        query="$(ui_prompt "$TXT_MENU_MISC_SEARCH_TITLE_PROMPT")"
+      else
+        choice=$(printf "%s\n%s\n%s" "$TXT_MENU_MAIN_NEW_SEARCH" "$(printf '%s\n' "$search_history" | _util_reverse)" "$TXT_MENU_BACK" | ui_launcher "$TXT_MENU_MAIN_SEARCH_OR_HISTORY_PROMPT")
+        case "$choice" in
+        "$TXT_MENU_MAIN_NEW_SEARCH")
+          query="$(ui_prompt "$TXT_MENU_MISC_SEARCH_TITLE_PROMPT")"
+          ;;
+        "$TXT_MENU_BACK" | "") break ;;
+        *)
+          query="$choice"
+          ;;
+        esac
+      fi
+
+    fi
+    if [ -z "$query" ]; then
+      continue
+    fi
+
+    if [ "$CONFIG_SEARCH_HISTORY_ENABLE" = "true" ]; then
+      printf '%s\n' "$search_history" | awk -v query="$query" '
+    $0 != "" && $0 != query && !seen[$0]++ {
+      print $0
+    }
+    END {
+      print query
+    }
+    ' >"$CLI_SEARCH_HISTORY_FILE"
+    fi
+
+    _state_push
+    fetch_calibre_db_search_title "$query" "$CONFIG_SORT_BY" >"$STATE_CURRENT_BOOKS"
+    menu_book_list_explorer
+    if [ -n "$CMD_EXIT" ]; then
+      _util_byebye
+    fi
+  done
+}
+
 # shellcheck disable=SC2120
 _menu_miscellaneous() {
   local actions
@@ -2772,7 +2829,8 @@ _menu_miscellaneous() {
  ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MISC_ADD_BOOKS}${THEME_RESET}  ${TXT_MENU_MISC_ADD_BOOKS}
  ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MISC_ADD_BOOKS_FOLDER}${THEME_RESET}  ${TXT_MENU_MISC_ADD_BOOKS_FROM_FOLDER}
  ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MISC_SYNC}${THEME_RESET}  ${TXT_MENU_MISC_SYNC}
- ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BACK}${THEME_RESET}  ${TXT_MENU_BACK}
+ ${THEME_FZF_ICON_COLOR_SECONDARY}${TXT_ICON_MENU_MISC_SEARCH_TITLE}${THEME_RESET}  ${TXT_MENU_MISC_SEARCH_TITLE}
+ ${THEME_FZF_ICON_COLOR_SECONDARY}${TXT_ICON_MENU_BACK}${THEME_RESET}  ${TXT_MENU_BACK}
  ${THEME_FZF_ICON_COLOR_ERROR}${TXT_ICON_MENU_EXIT}${THEME_RESET}  ${TXT_MENU_EXIT}"
 
   if [ -n "$extra_menu_options" ] && [ -n "$extra_menu_options_handler" ]; then
@@ -2797,6 +2855,7 @@ _menu_miscellaneous() {
     case "$action" in
     "$TXT_MENU_MISC_ADD_BOOKS_FROM_FOLDER") __menu_miscellaneous_add_books_from_folder ;;
     "$TXT_MENU_MISC_ADD_BOOKS") __menu_miscellaneous_add_books ;;
+    "$TXT_MENU_MISC_SEARCH_TITLE") __menu_miscellaneous_search_by_title ;;
     "$TXT_MENU_MISC_SYNC") __menu_miscellaneous_sync ;;
     "$TXT_MENU_BACK" | "") break ;;
     "$TXT_MENU_EXIT") _util_byebye ;;
@@ -2940,63 +2999,6 @@ __menu_main_search() {
 
     _state_push
     fetch_calibre_db_search "$query" "$CONFIG_SORT_BY" >"$STATE_CURRENT_BOOKS"
-    menu_book_list_explorer
-    if [ -n "$CMD_EXIT" ]; then
-      _util_byebye
-    fi
-  done
-}
-
-__menu_main_search_by_title() {
-  local query
-  local sort
-  local search_history
-  local choice
-
-  while true; do
-    if [ "$CONFIG_SEARCH_HISTORY_ENABLE" = "true" ] && [ -s "$CLI_SEARCH_HISTORY_FILE" ]; then
-      search_history="$(cat "$CLI_SEARCH_HISTORY_FILE")"
-    else
-      search_history=""
-    fi
-
-    if [ -n "$CMD_INPUT" ]; then
-      query="$CMD_INPUT"
-      unset -v CMD_INPUT
-    else
-      if [ -z "$search_history" ]; then
-        query="$(ui_prompt "$TXT_MENU_MAIN_SEARCH_TITLE_PROMPT")"
-      else
-        choice=$(printf "%s\n%s\n%s" "$TXT_MENU_MAIN_NEW_SEARCH" "$(printf '%s\n' "$search_history" | _util_reverse)" "$TXT_MENU_BACK" | ui_launcher "$TXT_MENU_MAIN_SEARCH_OR_HISTORY_PROMPT")
-        case "$choice" in
-        "$TXT_MENU_MAIN_NEW_SEARCH")
-          query="$(ui_prompt "$TXT_MENU_MAIN_SEARCH_TITLE_PROMPT")"
-          ;;
-        "$TXT_MENU_BACK" | "") break ;;
-        *)
-          query="$choice"
-          ;;
-        esac
-      fi
-
-    fi
-    if [ -z "$query" ]; then
-      continue
-    fi
-
-    if [ "$CONFIG_SEARCH_HISTORY_ENABLE" = "true" ]; then
-      printf '%s\n' "$search_history" | awk -v query="$query" '
-    $0 != "" && $0 != query && !seen[$0]++ {
-      print $0
-    }
-    END {
-      print query
-    }
-    ' >"$CLI_SEARCH_HISTORY_FILE"
-    fi
-
-    _state_push
-    fetch_calibre_db_search_title "$query" "$CONFIG_SORT_BY" >"$STATE_CURRENT_BOOKS"
     menu_book_list_explorer
     if [ -n "$CMD_EXIT" ]; then
       _util_byebye
@@ -3269,7 +3271,6 @@ ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_COMPLETED}${THEME_RESET}  ${
 ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_DOCS}${THEME_RESET}  ${TXT_MENU_MAIN_DOCS}
 ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_RANDOM}${THEME_RESET}  ${TXT_MENU_MAIN_RANDOM}
 ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_SEARCH}${THEME_RESET}  ${TXT_MENU_MAIN_SEARCH}
-${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_SEARCH_TITLE}${THEME_RESET}  ${TXT_MENU_MAIN_SEARCH_TITLE}
 ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_ALL}${THEME_RESET}  ${TXT_MENU_MAIN_ALL}
 ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_SERIES}${THEME_RESET}  ${TXT_MENU_MAIN_SERIES}
 ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_AUTHORS}${THEME_RESET}  ${TXT_MENU_MAIN_AUTHORS}
@@ -3315,7 +3316,6 @@ $extra_menu_options"
     "$TXT_MENU_MAIN_DOCS") __menu_main_docs ;;
     "$TXT_MENU_MAIN_RANDOM") __menu_main_random ;;
     "$TXT_MENU_MAIN_SEARCH") __menu_main_search ;;
-    "$TXT_MENU_MAIN_SEARCH_TITLE") __menu_main_search_by_title ;;
     "$TXT_MENU_MAIN_ALL") __menu_main_all ;;
     "$TXT_MENU_MAIN_SERIES") __menu_main_series ;;
     "$TXT_MENU_MAIN_AUTHORS") __menu_main_authors ;;
@@ -3683,13 +3683,14 @@ _app_cmd_line_parser() {
       ;;
     --search-title)
       if [ -z "$2" ]; then
-        CMD_INPUT="$(ui_prompt "$TXT_MENU_MAIN_SEARCH_TITLE_PROMPT")"
+        CMD_INPUT="$(ui_prompt "$TXT_MENU_MISC_SEARCH_TITLE_PROMPT")"
         [ -n "$CMD_INPUT" ] || _app_usage 1
       else
         CMD_INPUT="$2"
         shift_count=2
       fi
-      CMD_MAIN_ACTION="$TXT_MENU_MAIN_SEARCH_TITLE"
+      CMD_MAIN_ACTION="$TXT_MENU_MAIN_MISC"
+      CMD_MISC_ACTION="$TXT_MENU_MISC_SEARCH_TITLE"
       ;;
     -S | --sort-by)
       if [ -z "$2" ]; then

@@ -1673,7 +1673,7 @@ __fetch_calibre_categories() {
 _fetch_calibre_categories() {
   local calibre_library_current_timestamp
 
-  calibre_library_current_timestamp="$(stat -c %Y "$CONFIG_CALIBRE_LIBRARY_PATH/metadata.db")"
+  calibre_library_current_timestamp="$(date -r "$CONFIG_CALIBRE_LIBRARY_PATH/metadata.db" +%s)"
 
   if ! [ -s "$CALIBRE_CATEGORIES_CSV_FILE" ] || ! [ -s "$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE" ] || [ "$calibre_library_current_timestamp" -gt "$(cat "$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE")" ]; then
     if __fetch_calibre_categories; then

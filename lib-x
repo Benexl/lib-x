@@ -92,7 +92,7 @@ readonly CLI_DEFAULT_THEME_FILE="$CLI_EXTENSIONS_DIR/langs/default.theme"
 readonly CLI_CONFIG_FILE="$CLI_CONFIG_DIR/config"
 readonly CLI_EXTENSIONS_DIR="$CLI_CONFIG_DIR/extensions"
 
-readonly CLI_CACHE_DIR="$XDG_CACHE_HOME/$CLI_APP_NAME/"
+readonly CLI_CACHE_DIR="$XDG_CACHE_HOME/$CLI_APP_NAME"
 mkdir -p \
   "$CLI_CONFIG_DIR" \
   "$CLI_EXTENSIONS_DIR" \

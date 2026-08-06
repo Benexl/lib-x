@@ -1548,7 +1548,7 @@ _state_init() {
 
   readonly CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE="$CLI_LIBRARY_CACHE_DIR/.calibre_library_timestamp"
   readonly CALIBRE_DB_JSON_FILE="$CLI_LIBRARY_CACHE_DIR/calibre_db.json"
-  readonly CALIBRE_CATEGORIES_CSV_FILE="$CLI_LIBRARY_CACHE_DIR/calibre_categories.csv"
+  readonly CALIBRE_CATEGORIES_CSV_FILE="$CLI_LIBRARY_CACHE_DIR/calibre_categories.tsv"
 
   mkdir -p \
     "$CLI_USER_LISTS" \

@@ -1550,7 +1550,7 @@ __state_clean_prev() {
 }
 
 _state_init() {
-  STATE_CALIBRE_LIBRARY_NAME="$(basename "$CONFIG_CALIBRE_LIBRARY_PATH")"
+  STATE_CALIBRE_LIBRARY_NAME="$(basename "$CONFIG_CALIBRE_LIBRARY_PATH" | sed 's/ /_/g')"
 
   readonly CLI_USER_LISTS="$CLI_CONFIG_DIR/$STATE_CALIBRE_LIBRARY_NAME/my-lists"
   readonly CLI_USER_LIST_RECENT="$CLI_CONFIG_DIR/recent.json"

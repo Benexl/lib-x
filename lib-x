@@ -1085,7 +1085,7 @@ THEME_BOLD='$THEME_BOLD'
 THEME_RESET='$THEME_RESET'
 THEME_RESET='$THEME_RESET'
 
-preview_script_path={1}
+preview_script_path='{1}'
 
 if [ -s '$CLI_FZF_PREVIEW_SCRIPT' ];then
   [ -s \"\$preview_script_path\" ] && . \"\$preview_script_path\" && . '$CLI_FZF_PREVIEW_SCRIPT'

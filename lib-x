@@ -171,9 +171,9 @@ __load_default_config() {
 
   : "${CONFIG_FZF_OPTS:="
   --ansi
-  --bind='alt-e:execute-silent(LIB_X_SEARCH_HISTORY_ENABLE=false lib-x --cmd-exit --book-skip --book-exit --edit-metadata --search-title \\\"\\\$(printf {} | sed -E \\\"s/^(.*\\.sh\\|)?[0-9]+ //g\\\") &)'
-  --bind='alt-r:execute(LIB_X_SEARCH_HISTORY_ENABLE=false lib-x --cmd-exit --book-skip --book-exit --remove-book --search-title \\\"\\\$(printf {} | sed -E \\\"s/^(.*\\.sh\\|)?[0-9]+ //g\\\")\\\")'
-  --bind='alt-v:execute-silent(LIB_X_SEARCH_HISTORY_ENABLE=false lib-x --cmd-exit --book-skip --book-exit --read --search-title  \\\"\\\$(printf {} | sed -E \\\"s/^(.*\\.sh\\|)?[0-9]+ //g\\\")\\\" &)'
+  --bind='alt-e:execute-silent(LIB_X_SEARCH_HISTORY_ENABLE=false lib-x --cmd-exit --book-skip --book-exit --edit-metadata --search-title \\\"\\\$(printf {} | sed -E \\\"s/^(.*\\.env\\|)?[0-9]+ //g\\\") &)'
+  --bind='alt-r:execute(LIB_X_SEARCH_HISTORY_ENABLE=false lib-x --cmd-exit --book-skip --book-exit --remove-book --search-title \\\"\\\$(printf {} | sed -E \\\"s/^(.*\\.env\\|)?[0-9]+ //g\\\")\\\")'
+  --bind='alt-v:execute-silent(LIB_X_SEARCH_HISTORY_ENABLE=false lib-x --cmd-exit --book-skip --book-exit --read --search-title  \\\"\\\$(printf {} | sed -E \\\"s/^(.*\\.env\\|)?[0-9]+ //g\\\")\\\" &)'
   --bind='ctrl-/:toggle-preview,ctrl-space:toggle-wrap+toggle-preview-wrap'
   --border
   --border-label=''

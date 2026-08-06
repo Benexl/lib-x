@@ -1816,6 +1816,35 @@ fetch_calibre_db_all() {
   _fetch_calibre_db_all "$@"
 }
 
+_fetch_calibre_db_random() {
+  local randoms
+
+  randoms="$(od -An -N$((CONFIG_RANDOM_BOOKS_LIMIT * 3 * 4)) -tu4 /dev/urandom)"
+  _fetch_calibre_db | jq -r --argjson no_of_random_books "$CONFIG_RANDOM_BOOKS_LIMIT" --arg sort_by "$1" --arg randoms "$randoms" "
+    . as \$db
+    | \$randoms | sub(\"\n\"; \" \"; \"g\") | split(\" \") | map(select(. != \"\")) | map(tonumber? // empty) | unique | .[:(\$no_of_random_books)] as \$random_list
+    | \$random_list | map(\$db[. % (\$db | length)])
+    | if \$sort_by != \"\" then
+        $CALIBRE_SORT_JQ
+        sort_calibre_db(\$sort_by)
+       else
+        .
+      end
+    | to_entries
+    | map(
+        (.key+1|tostring| if length < 2 then \"0\" + . else . end) as \$idx
+        | .value.rtitle= .value.title
+        | .value.title= \$idx + \" \" + .value.title
+      )
+    | map(.value)
+    | .[]
+    | $CALIBRE_CONVERT_TO_ASSIGNMENTS_JQ
+  "
+}
+
+fetch_calibre_db_random() {
+  _fetch_calibre_db_random
+}
 # ==============================================================================
 # CALIBRE: SEARCH FUNCTIONS
 # ==============================================================================
@@ -2849,21 +2878,8 @@ __menu_main_dropped() {
 }
 
 __menu_main_random() {
-  local randoms
-
-  randoms="$(od -An -N$((CONFIG_RANDOM_BOOKS_LIMIT * 3 * 4)) -tu4 /dev/urandom)"
-
-  STATE_CURRENT_BOOKS="$(
-    fetch_calibre_db | jq --argjson no_of_random_books "$CONFIG_RANDOM_BOOKS_LIMIT" --arg randoms "$randoms" '
-      . as $db
-      | $randoms | sub("\n"; " "; "g") | split(" ") | map(select(. != "")) | map(tonumber? // empty) | unique | .[:($no_of_random_books)] as $random_list
-      | $random_list | map($db[. % ($db | length)])
-      | to_entries
-      | map(.value.title="\(.key+1|tostring| if (.|length) < 2 then "0" + . else . end) " + .value.title)
-      | map(.value)'
-  )"
-  STATE_CURRENT_BOOK_TITLES="$(printf "%s\n" "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
   _state_push
+  fetch_calibre_db_random "$CONFIG_SORT_BY" >"$STATE_CURRENT_BOOKS"
   menu_book_list_explorer
 }
 

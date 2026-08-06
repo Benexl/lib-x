@@ -2826,23 +2826,30 @@ __menu_main_user_list_browser() {
     return
   fi
 
-  STATE_CURRENT_BOOKS="$(
-    jq '
-      reverse
-      | to_entries
-      | map(.value.title="\(.key+1|tostring| if (.|length) < 2 then "0" + . else . end) " + .value.title) 
-      | map(.value)
-    ' "$user_list_path"
-  )"
+  _state_push
+  jq -r --arg sort_by "$CONFIG_SORT_BY" "
+    reverse
+    | if \$sort_by != \"\" then
+      $CALIBRE_SORT_JQ
+      sort_calibre_db(\$sort_by)
+      else
+      .
+    end
+    | to_entries
+    | map(
+        (.key+1|tostring| if length < 2 then \"0\" + . else . end) as \$idx
+        | .value.rtitle= .value.title
+        | .value.title= \$idx + \" \" + .value.title
+      )
+    | map(.value)
+    | .[]
+    | $CALIBRE_CONVERT_TO_ASSIGNMENTS_JQ
+  " "$user_list_path" >"$STATE_CURRENT_BOOKS"
 
-  if [ "$STATE_CURRENT_BOOKS" = "[]" ]; then
+  if ! [ -s "$STATE_CURRENT_BOOKS" ]; then
     ui_notify_warning "$TXT_WARNING_USER_LIST_EMPTY"
     return
   fi
-
-  STATE_CURRENT_BOOK_TITLES="$(printf '%s' "$STATE_CURRENT_BOOKS" | jq -r '.[].title')"
-
-  _state_push
   menu_book_list_explorer
 }
 

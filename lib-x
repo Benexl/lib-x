@@ -3545,7 +3545,7 @@ complete -c $CLI_NAME -n "__fish_use_subcommand" -l reading-list -d "Open Readin
 complete -c $CLI_NAME -n "__fish_use_subcommand" -l recent -d "Open Recent books directly"
 complete -c $CLI_NAME -n "__fish_use_subcommand" -l paused -d "Open Paused books directly"
 complete -c $CLI_NAME -n "__fish_use_subcommand" -l rereading -d "Open Re-reading books directly"
-complete -c $CLI_NAME -n "__fish_use_subcommand" -l planing -d "Open Planing books directly"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l planning -d "Open Planning books directly"
 complete -c $CLI_NAME -n "__fish_use_subcommand" -l completed -d "Open Completed books directly"
 complete -c $CLI_NAME -n "__fish_use_subcommand" -l docs -d "Open Docs list directly"
 complete -c $CLI_NAME -n "__fish_use_subcommand" -l dropped -d "Open Dropped list directly"

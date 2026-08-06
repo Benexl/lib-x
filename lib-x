@@ -86,40 +86,17 @@ XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 
 readonly CLI_CONFIG_DIR="$XDG_CONFIG_HOME/$CLI_APP_NAME"
-readonly CLI_USER_LISTS="$CLI_CONFIG_DIR/my-lists"
-readonly CLI_EXTENSIONS_DIR="$CLI_CONFIG_DIR/extensions"
 readonly CLI_DEFAULT_LANG_FILE="$CLI_EXTENSIONS_DIR/langs/default.lang"
 readonly CLI_DEFAULT_THEME_FILE="$CLI_EXTENSIONS_DIR/langs/default.theme"
 
 readonly CLI_CONFIG_FILE="$CLI_CONFIG_DIR/config"
-readonly CLI_USER_LIST_RECENT="$CLI_CONFIG_DIR/recent.json"
+readonly CLI_EXTENSIONS_DIR="$CLI_CONFIG_DIR/extensions"
 
-readonly CLI_USER_LIST_READING="$CLI_USER_LISTS/reading.json"
-readonly CLI_USER_LIST_PAUSED="$CLI_USER_LISTS/paused.json"
-readonly CLI_USER_LIST_PLANNING="$CLI_USER_LISTS/planning.json"
-readonly CLI_USER_LIST_REREADING="$CLI_USER_LISTS/re-reading.json"
-readonly CLI_USER_LIST_COMPLETED="$CLI_USER_LISTS/completed.json"
-readonly CLI_USER_LIST_DROPPED="$CLI_USER_LISTS/dropped.json"
-readonly CLI_USER_LIST_DOCS="$CLI_USER_LISTS/docs.json"
-
-readonly CLI_CACHE_DIR="$XDG_CACHE_HOME/$CLI_APP_NAME"
-readonly CLI_STATE_DIR="$CLI_CACHE_DIR/state"
-readonly CLI_CURRENT_STATE_DIR="$CLI_STATE_DIR/${CLI_START_TIME}-$$"
-
-readonly CLI_SEARCH_HISTORY_FILE="$CLI_CACHE_DIR/search-history.txt"
-readonly CLI_PREVIEW_SCRIPTS_DIR="$CLI_CACHE_DIR/previews"
-readonly CLI_FZF_PREVIEW_SCRIPT="$CLI_PREVIEW_SCRIPTS_DIR/fzf-preview.sh"
-
-readonly CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE="$CLI_CACHE_DIR/.calibre_library_timestamp"
-readonly CALIBRE_DB_JSON_FILE="$CLI_CACHE_DIR/calibre_db.json"
-readonly CALIBRE_CATEGORIES_CSV_FILE="$CLI_CACHE_DIR/calibre_categories.csv"
-
+readonly CLI_CACHE_DIR="$XDG_CACHE_HOME/$CLI_APP_NAME/"
 mkdir -p \
   "$CLI_CONFIG_DIR" \
-  "$CLI_USER_LISTS" \
   "$CLI_EXTENSIONS_DIR" \
-  "$CLI_CURRENT_STATE_DIR" \
-  "$CLI_PREVIEW_SCRIPTS_DIR"
+  "$CLI_CACHE_DIR"
 
 # ==============================================================================
 # DECLARATIONS FOR LSP
@@ -1573,6 +1550,36 @@ __state_clean_prev() {
 }
 
 _state_init() {
+  STATE_CALIBRE_LIBRARY_NAME="$(basename "$CONFIG_CALIBRE_LIBRARY_PATH")"
+
+  readonly CLI_USER_LISTS="$CLI_CONFIG_DIR/$STATE_CALIBRE_LIBRARY_NAME/my-lists"
+  readonly CLI_USER_LIST_RECENT="$CLI_CONFIG_DIR/recent.json"
+
+  readonly CLI_USER_LIST_READING="$CLI_USER_LISTS/reading.json"
+  readonly CLI_USER_LIST_PAUSED="$CLI_USER_LISTS/paused.json"
+  readonly CLI_USER_LIST_PLANNING="$CLI_USER_LISTS/planning.json"
+  readonly CLI_USER_LIST_REREADING="$CLI_USER_LISTS/re-reading.json"
+  readonly CLI_USER_LIST_COMPLETED="$CLI_USER_LISTS/completed.json"
+  readonly CLI_USER_LIST_DROPPED="$CLI_USER_LISTS/dropped.json"
+  readonly CLI_USER_LIST_DOCS="$CLI_USER_LISTS/docs.json"
+
+  readonly CLI_LIBRARY_CACHE_DIR="$CLI_CACHE_DIR/$STATE_CALIBRE_LIBRARY_NAME"
+  readonly CLI_STATE_DIR="$CLI_LIBRARY_CACHE_DIR/state"
+  readonly CLI_CURRENT_STATE_DIR="$CLI_STATE_DIR/${CLI_START_TIME}-$$"
+
+  readonly CLI_SEARCH_HISTORY_FILE="$CLI_LIBRARY_CACHE_DIR/search-history.txt"
+  readonly CLI_PREVIEW_SCRIPTS_DIR="$CLI_LIBRARY_CACHE_DIR/previews"
+  readonly CLI_FZF_PREVIEW_SCRIPT="$CLI_PREVIEW_SCRIPTS_DIR/fzf-preview.sh"
+
+  readonly CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE="$CLI_LIBRARY_CACHE_DIR/.calibre_library_timestamp"
+  readonly CALIBRE_DB_JSON_FILE="$CLI_LIBRARY_CACHE_DIR/calibre_db.json"
+  readonly CALIBRE_CATEGORIES_CSV_FILE="$CLI_LIBRARY_CACHE_DIR/calibre_categories.csv"
+
+  mkdir -p \
+    "$CLI_USER_LISTS" \
+    "$CLI_CURRENT_STATE_DIR" \
+    "$CLI_PREVIEW_SCRIPTS_DIR"
+
   STATE_CURRENT=0
 
   STATE_CURRENT_CATEGORY=""

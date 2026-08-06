@@ -1510,7 +1510,11 @@ _preview_fzf() {
       fi
       ;;
     *)
-      printf '%s\n' "$line"
+      if [ "$CONFIG_PREVIEW_ENABLE" = "true" ]; then
+        printf '|%s\n' "$line"
+      else
+        printf '%s\n' "$line"
+      fi
       ;;
     esac
   done
@@ -2557,7 +2561,12 @@ $TXT_MENU_EXIT"
       choice="$(cat "$STATE_CURRENT_BOOKS" | head -n 1)"
       unset -v CMD_BOOK_RESULTS_SKIP
     else
-      choice="$(cat "$STATE_CURRENT_BOOKS" "$other_choices" | preview | ui_launcher_with_preview "$TXT_MENU_LIST_EXPLORER_PROMPT")"
+      choice="$(
+        {
+          cat "$STATE_CURRENT_BOOKS"
+          printf '%s\n' "$other_choices"
+        } | preview | ui_launcher_with_preview "$TXT_MENU_LIST_EXPLORER_PROMPT"
+      )"
     fi
 
     case "$choice" in

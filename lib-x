@@ -505,6 +505,15 @@ Direct menu shortcuts & Overrides
   --recent                       Open your Recent books directly
   --all                          Browse all books in your library directly
 
+  --add-to-reading               Add the selected book to your Reading list
+  --add-to-paused                Add the selected book to your Paused list
+  --add-to-planning              Add the selected book to your Planning list
+  --add-to-rereading             Add the selected book to your Re-reading list
+  --add-to-docs                  Add the selected book to your Docs list
+  --add-to-completed             Add the selected book to your Completed list
+  --add-to-dropped               Add the selected book to your Dropped list
+  --remove-from-lists            Remove the selected book from all my lists
+
 ────────────────────────────────────────────────────────────────────
 Sub‑commands:
   completions                    Generate shell completion definitions
@@ -2241,7 +2250,12 @@ ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_COMPLETED}${THEME_RESET}  $T
 ${THEME_FZF_ICON_COLOR_ERROR}${TXT_ICON_MENU_MAIN_DROPPED}${THEME_RESET}  $TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_REMOVE
 ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BACK}${THEME_RESET}  $TXT_MENU_BACK"
 
-    list="$(printf '%s' "$lists" | ui_launcher "$TXT_MENU_BOOK_ACTIONS_USER_LISTS_PROMPT" | sed 's/.*  //g')"
+    if [ -n "$CMD_INPUT" ]; then
+      list="$CMD_INPUT"
+      unset -v CMD_INPUT
+    else
+      list="$(printf '%s' "$lists" | ui_launcher "$TXT_MENU_BOOK_ACTIONS_USER_LISTS_PROMPT" | sed 's/.*  //g')"
+    fi
 
     case "$list" in
     "$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_READING") manage_user_list "$CLI_USER_LIST_READING" ;;
@@ -3562,6 +3576,14 @@ complete -c $CLI_NAME -n "__fish_use_subcommand" -l random -d "Browse random boo
 complete -c $CLI_NAME -n "__fish_use_subcommand" -l misc -l miscellaneous -d "Open Miscellaneous menu directly"
 
 complete -c $CLI_NAME -n "__fish_use_subcommand" -l read -d "Read the selected book"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l add-to-reading -d "Add the selected book to the Reading list"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l add-to-paused -d "Add the selected book to the Paused list"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l add-to-planning -d "Add the selected book to the Planning list"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l add-to-rereading -d "Add the selected book to the Re-reading list"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l add-to-docs -d "Add the selected book to the Docs list"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l add-to-completed -d "Add the selected book to the Completed list"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l add-to-dropped -d "Add the selected book to the Dropped list"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l remove-from-lists -d "Remove the selected book from all lists"
 complete -c $CLI_NAME -n "__fish_use_subcommand" -l edit-metadata -d "Edit metadata of the selected book"
 complete -c $CLI_NAME -n "__fish_use_subcommand" -l remove-book -d "Remove the selected book"
 complete -c $CLI_NAME -n "__fish_use_subcommand" -l viewer -d "Open the selected book in the Calibre viewer"
@@ -3666,6 +3688,38 @@ _app_cmd_line_parser() {
     --misc | --miscellaneous) CMD_MAIN_ACTION="$TXT_MENU_MAIN_MISC" ;;
     --read) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_READ" ;;
     --manage-my-lists) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS" ;;
+    --add-to-reading)
+      CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS"
+      CMD_INPUT="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_READING"
+      ;;
+    --add-to-paused)
+      CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS"
+      CMD_INPUT="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_PAUSED"
+      ;;
+    --add-to-planning)
+      CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS"
+      CMD_INPUT="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_PLANNING"
+      ;;
+    --add-to-rereading)
+      CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS"
+      CMD_INPUT="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_RE_READING"
+      ;;
+    --add-to-docs)
+      CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS"
+      CMD_INPUT="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_DOCS"
+      ;;
+    --add-to-completed)
+      CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS"
+      CMD_INPUT="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_COMPLETED"
+      ;;
+    --add-to-dropped)
+      CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS"
+      CMD_INPUT="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_DROPPED"
+      ;;
+    --remove-from-lists)
+      CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS"
+      CMD_INPUT="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_REMOVE"
+      ;;
     --edit-metadata) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_EDIT_METADATA" ;;
     --remove-book) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_REMOVE_BOOK" ;;
     --viewer) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_VIEWER" ;;

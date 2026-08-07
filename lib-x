@@ -149,6 +149,7 @@ __load_default_config() {
   : "${CONFIG_FZF_OPTS:="
   --ansi
   --bind='alt-e:execute(LIB_X_SEARCH_HISTORY_ENABLE=false $CLI_PATH --cmd-exit --book-skip --book-exit --edit-metadata --search-title \\\"\\\$(printf {} | sed -E \\\"s/^(.*\\.env\\|)?[0-9]+ //g\\\")\\\")'
+  --bind='alt-m:execute(LIB_X_SEARCH_HISTORY_ENABLE=false $CLI_PATH --cmd-exit --book-skip --book-exit --manage-my-lists --search-title \\\"\\\$(printf {} | sed -E \\\"s/^(.*\\.env\\|)?[0-9]+ //g\\\")\\\")'
   --bind='alt-r:execute(LIB_X_SEARCH_HISTORY_ENABLE=false $CLI_PATH --cmd-exit --book-skip --book-exit --remove-book --search-title \\\"\\\$(printf {} | sed -E \\\"s/^(.*\\.env\\|)?[0-9]+ //g\\\")\\\")'
   --bind='alt-v:execute-silent(LIB_X_SEARCH_HISTORY_ENABLE=false $CLI_PATH --cmd-exit --book-skip --book-exit --read --search-title  \\\"\\\$(printf {} | sed -E \\\"s/^(.*\\.env\\|)?[0-9]+ //g\\\")\\\" &)'
   --bind='ctrl-/:toggle-preview,ctrl-space:toggle-wrap+toggle-preview-wrap'
@@ -3664,6 +3665,7 @@ _app_cmd_line_parser() {
     --random) CMD_MAIN_ACTION="$TXT_MENU_MAIN_RANDOM" ;;
     --misc | --miscellaneous) CMD_MAIN_ACTION="$TXT_MENU_MAIN_MISC" ;;
     --read) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_READ" ;;
+    --manage-my-lists) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS" ;;
     --edit-metadata) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_EDIT_METADATA" ;;
     --remove-book) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_REMOVE_BOOK" ;;
     --viewer) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_VIEWER" ;;

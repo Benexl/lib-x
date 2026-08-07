@@ -2,7 +2,7 @@
 
 # 📚 lib-x
 
-**Manage and read your calibre books from the terminal or app launcher.**
+**Browse your Calibre Library from your terminal or app launcher.**
 
 [![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/Benexl/lib-x?style=flat-square)](https://github.com/Benexl/lib-x/issues)
 [![GitHub License](https://img.shields.io/github/license/Benexl/lib-x?style=flat-square)](https://github.com/Benexl/lib-x/blob/master/LICENSE)

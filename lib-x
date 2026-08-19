@@ -3103,7 +3103,9 @@ menu_miscellaneous() {
 # MENUS: MAIN
 # ==============================================================================
 __menu_main_user_list_browser() {
-  local user_list_path="$1"
+  local cached_list
+  local user_list_path
+  user_list_path="$1"
 
   if ! [ -s "$user_list_path" ]; then
     ui_notify_warning "$TXT_WARNING_USER_LIST_EMPTY"
@@ -3111,7 +3113,10 @@ __menu_main_user_list_browser() {
   fi
 
   _state_push
-  jq -r --arg sort_by "$CONFIG_SORT_BY" "
+
+  cached_list="$CLI_LIBRARY_CACHE_DIR/.user-$2"
+  if ! [ -s "$cached_list" ] || ! [ "$(_util_get_file_timestamp "$cached_list")" -gt "$(_util_get_file_timestamp "$user_list_path")" ]; then
+    jq -r --arg sort_by "$CONFIG_SORT_BY" "
     reverse
     | if \$sort_by != \"\" then
       $CALIBRE_SORT_JQ
@@ -3128,7 +3133,9 @@ __menu_main_user_list_browser() {
     | map(.value)
     | .[]
     | $CALIBRE_CONVERT_TO_ASSIGNMENTS_JQ
-  " "$user_list_path" >"$STATE_CURRENT_BOOKS"
+  " "$user_list_path" >"$cached_list"
+  fi
+  cat "$cached_list" >"$STATE_CURRENT_BOOKS"
 
   if ! [ -s "$STATE_CURRENT_BOOKS" ]; then
     ui_notify_warning "$TXT_WARNING_USER_LIST_EMPTY"

@@ -1693,7 +1693,17 @@ fetch_calibre_categories() {
 }
 
 _fetch_calibre_category() {
-  fetch_calibre_categories | awk -v category="$1" -v FS='\t' '$1 == category {print $2}'
+  local cached_category
+  cached_category="$CLI_LIBRARY_CACHE_DIR/.$1"
+
+  if ! [ -s "$cached_category" ] || ! [ "$(_util_get_file_timestamp "$CALIBRE_CATEGORIES_CSV_FILE")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
+    if fetch_calibre_categories | awk -v category="$1" -v FS='\t' '$1 == category {print $2}' >"$cached_category.tmp"; then
+      mv "$cached_category.tmp" "$cached_category"
+    else
+      _ui_notify_critical "$TXT_FETCH_FAILED: category $1"
+    fi
+  fi
+  cat "$cached_category"
 }
 
 fetch_calibre_category() {

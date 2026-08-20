@@ -523,8 +523,7 @@ Sub‑commands:
 
 ────────────────────────────────────────────────────────────────────
 Incase of any questions join the discord server $CLI_DISCORD_URL
-or read the FAQ at $CLI_REPO_URL
-"
+or read the readme and especially the FAQ section at $CLI_REPO_URL"
 
   TXT_APP_USAGE_COMPLETIONS="\
 Generate shell completions for $CLI_NAME

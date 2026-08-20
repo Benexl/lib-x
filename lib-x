@@ -3102,23 +3102,30 @@ __menu_main_user_list_browser() {
   cached_list="$CLI_LIBRARY_CACHE_DIR/.user-$2"
   if ! [ -s "$cached_list" ] || ! [ "$(_util_get_file_timestamp "$cached_list")" -gt "$(_util_get_file_timestamp "$user_list_path")" ]; then
     jq -r --arg sort_by "$CONFIG_SORT_BY" "
-    reverse
-    | if \$sort_by != \"\" then
-      $CALIBRE_SORT_JQ
-      sort_calibre_db(\$sort_by)
-      else
-      .
-    end
-    | to_entries
-    | map(
-        (.key+1|tostring| if length < 2 then \"0\" + . else . end) as \$idx
-        | .value.rtitle= .value.title
-        | .value.title= \$idx + \" \" + .value.title
-      )
-    | map(.value)
-    | .[]
-    | $CALIBRE_CONVERT_TO_ASSIGNMENTS_JQ
-  " "$user_list_path" >"$cached_list"
+      reverse
+      | if \$sort_by != \"\" then
+        $CALIBRE_SORT_JQ
+        sort_calibre_db(\$sort_by)
+        else
+        .
+      end
+      | to_entries
+      | map(
+          (.key+1|tostring| if length < 2 then \"0\" + . else . end) as \$idx
+          | .value.rtitle= .value.title
+          | .value.title= \$idx + \" \" + .value.title
+        )
+      | map(.value)
+      | .[]
+      | $CALIBRE_CONVERT_TO_ASSIGNMENTS_JQ
+      " "$user_list_path" >"$cached_list.tmp"
+
+    # shellcheck disable=SC2181
+    if [ "$?" = "0" ]; then
+      mv "$cached_list.tmp" "$cached_list"
+    else
+      _ui_notify_critical "$TXT_FAILED_TO_FETCH: list $2"
+    fi
   fi
   cat "$cached_list" >"$STATE_CURRENT_BOOKS"
 

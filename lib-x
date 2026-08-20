@@ -1612,6 +1612,24 @@ _state_pop() {
   STATE_CURRENT_BOOK="$current_state_dir/book.json"
 }
 
+_state_fetch_current_books() {
+  cat "$STATE_CURRENT_BOOKS"
+}
+
+# shellcheck disable=SC2317
+_state_fetch_current_category() {
+  cat "$STATE_CURRENT_CATEGORY"
+}
+
+_state_fetch_current_book_title() {
+  cat "$STATE_CURRENT_BOOK_TITLE"
+}
+
+# shellcheck disable=SC2317
+_state_fetch_current_book() {
+  cat "$STATE_CURRENT_BOOK"
+}
+
 # ==============================================================================
 # CALIBRE
 # ==============================================================================

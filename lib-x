@@ -229,7 +229,6 @@ __load_env_config() {
 }
 
 __load_default_lang() {
-  TXT_BYEBYE="Have a good day"
   TXT_CONFIRM_DEFAULT="Default"
   TXT_DEP_MISSING_CALIBREDB="calibredb is required but not found in PATH."
   TXT_DEP_MISSING_DIFF="diff is not installed. Skipping update diff display."
@@ -900,7 +899,6 @@ _util_transform_lines() {
 }
 
 _util_byebye() {
-  # printf '%s %s\n' "$TXT_BYEBYE" "$USER"
   exit
 }
 

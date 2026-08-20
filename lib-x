@@ -1875,21 +1875,7 @@ __fetch_calibre_db_random() {
 }
 
 _fetch_calibre_db_random() {
-
-  local cached_fetch
-  if ! [ "$1" = "" ]; then
-    hash="$(_util_generate_hash "$@")"
-  fi
-  cached_fetch="$CLI_FETCH_CACHE_DIR/random-$hash.sh"
-
-  if ! [ -s "$cached_fetch" ] || ! [ "$(_util_get_file_timestamp "$cached_fetch")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
-    if __fetch_calibre_db_random "$@" >"$cached_fetch.tmp"; then
-      mv "$cached_fetch.tmp" "$cached_fetch"
-    else
-      _ui_notify_critical "$TXT_FAILED_TO_FETCH: random"
-    fi
-  fi
-  cat "$cached_fetch"
+  __fetch_calibre_db_random "$@"
 }
 
 fetch_calibre_db_random() {

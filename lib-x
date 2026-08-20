@@ -1548,13 +1548,13 @@ _state_init() {
   readonly CLI_USER_LIST_COMPLETED="$CLI_USER_LISTS/completed.json"
   readonly CLI_USER_LIST_DROPPED="$CLI_USER_LISTS/dropped.json"
   readonly CLI_USER_LIST_DOCS="$CLI_USER_LISTS/docs.json"
+  readonly CLI_USER_SEARCH_HISTORY="$CLI_USER_LISTS/.search-history.txt"
 
   readonly CLI_LIBRARY_CACHE_DIR="$CLI_CACHE_DIR/$STATE_CALIBRE_LIBRARY_NAME"
   readonly CLI_STATE_DIR="$CLI_LIBRARY_CACHE_DIR/state"
   readonly CLI_CURRENT_STATE_DIR="$CLI_STATE_DIR/${CLI_START_TIME}-$$"
   readonly CLI_FETCH_CACHE_DIR="$CLI_LIBRARY_CACHE_DIR/fetch"
 
-  readonly CLI_SEARCH_HISTORY_FILE="$CLI_LIBRARY_CACHE_DIR/search-history.txt"
   readonly CLI_PREVIEW_SCRIPTS_DIR="$CLI_LIBRARY_CACHE_DIR/previews"
   readonly CLI_FZF_PREVIEW_SCRIPT="$CLI_PREVIEW_SCRIPTS_DIR/fzf-preview.sh"
 
@@ -3017,8 +3017,8 @@ __menu_miscellaneous_search_by_title() {
   local choice
 
   while true; do
-    if [ "$CONFIG_SEARCH_HISTORY_ENABLE" = "true" ] && [ -s "$CLI_SEARCH_HISTORY_FILE" ]; then
-      search_history="$(cat "$CLI_SEARCH_HISTORY_FILE")"
+    if [ "$CONFIG_SEARCH_HISTORY_ENABLE" = "true" ] && [ -s "$CLI_USER_SEARCH_HISTORY" ]; then
+      search_history="$(cat "$CLI_USER_SEARCH_HISTORY")"
     else
       search_history=""
     fi
@@ -3055,7 +3055,7 @@ __menu_miscellaneous_search_by_title() {
     END {
       print query
     }
-    ' >"$CLI_SEARCH_HISTORY_FILE"
+    ' >"$CLI_USER_SEARCH_HISTORY"
     fi
 
     _state_push
@@ -3221,8 +3221,8 @@ __menu_main_search() {
   local choice
 
   while true; do
-    if [ "$CONFIG_SEARCH_HISTORY_ENABLE" = "true" ] && [ -s "$CLI_SEARCH_HISTORY_FILE" ]; then
-      search_history="$(cat "$CLI_SEARCH_HISTORY_FILE")"
+    if [ "$CONFIG_SEARCH_HISTORY_ENABLE" = "true" ] && [ -s "$CLI_USER_SEARCH_HISTORY" ]; then
+      search_history="$(cat "$CLI_USER_SEARCH_HISTORY")"
     else
       search_history=""
     fi
@@ -3258,7 +3258,7 @@ __menu_main_search() {
     END {
       print query
     }
-    ' >"$CLI_SEARCH_HISTORY_FILE"
+    ' >"$CLI_USER_SEARCH_HISTORY"
     fi
 
     _state_push

@@ -900,7 +900,7 @@ _util_transform_lines() {
 }
 
 _util_byebye() {
-  printf '%s %s\n' "$TXT_BYEBYE" "$USER"
+  # printf '%s %s\n' "$TXT_BYEBYE" "$USER"
   exit
 }
 

@@ -2150,9 +2150,9 @@ _manage_user_list_add() {
     user_list="[]"
   fi
 
-  printf '%s' "$user_list" | jq --argjson book "$(cat "$STATE_CURRENT_BOOK")" --arg limit "$limit" '
-    map(select(.id != $book.id))
-    | . + [$book]
+  printf '%s' "$user_list" | jq --slurpfile book "$STATE_CURRENT_BOOK" --arg limit "$limit" '
+    map(select(.id != $book[0].id))
+    | . + [$book[0]]
     | if ($limit | type) == "number" and (. | length) > $limit then
         .[((. | length) - $limit):]
       end
@@ -2182,8 +2182,8 @@ $CLI_USER_LIST_DROPPED"
     fi
 
     user_list="$(cat "$user_list_path")"
-    printf '%s' "$user_list" | jq --argjson book "$(cat "$STATE_CURRENT_BOOK")" '
-    map(select(.id != $book.id))
+    printf '%s' "$user_list" | jq --slurpfile book "$STATE_CURRENT_BOOK" '
+    map(select(.id != $book[0].id))
     ' >"$user_list_path"
   done
 }
@@ -2226,7 +2226,7 @@ __menu_book_actions_read() {
     manage_user_list_add "$CLI_USER_LIST_RECENT" "$CONFIG_RECENT_BOOKS_LIMIT"
   fi
 
-  book_path="$(cat "$STATE_CURRENT_BOOK" | jq -r '.formats[0]')"
+  book_path="$(jq -r '.formats[0]' "$STATE_CURRENT_BOOK")"
 
   if [ -n "$CONFIG_READER" ]; then
     reader="$(
@@ -2290,7 +2290,7 @@ ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BACK}${THEME_RESET}  $TXT_MENU_BA
 __menu_book_actions_remove_book() {
   local book_id
 
-  book_id="$(cat "$STATE_CURRENT_BOOK" | jq -r '.id')"
+  book_id="$(jq -r '.id' "$STATE_CURRENT_BOOK")"
 
   if ui_confirm "$TXT_MENU_BOOK_ACTIONS_REMOVE_CONFIRM $(cat "$STATE_CURRENT_BOOK_TITLE")?"; then
     if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" remove "$book_id"; then
@@ -2333,7 +2333,7 @@ title_sort"
     case "$field" in
     "$TXT_MENU_BACK" | "") break ;;
     *)
-      book_id="$(cat "$STATE_CURRENT_BOOK" | jq -r '.id')"
+      book_id="$(jq -r '.id' "$STATE_CURRENT_BOOK")"
       calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" show_metadata "$book_id"
       val="$(ui_prompt "$TXT_MENU_BOOK_ACTIONS_PROMPT_NEW_VAL $field")"
 
@@ -2354,7 +2354,7 @@ __menu_book_actions_pick_format() {
   local formats
   local format
 
-  formats="$(cat "$STATE_CURRENT_BOOK" | jq -r '.formats[]')"
+  formats="$(jq -r '.formats[]' "$STATE_CURRENT_BOOK")"
 
   if [ -z "$formats" ]; then
     ui_notify_warning "$TXT_MENU_BOOK_ACTIONS_NO_FORMATS"
@@ -2434,7 +2434,7 @@ zip"
 
   if ui_confirm "$TXT_MENU_BOOK_ACTIONS_CONVERT_CONFIRM $(cat "$STATE_CURRENT_BOOK_TITLE") to $output_format?"; then
     if ebook-convert "$book_path" "$output_file"; then
-      book_id="$(cat "$STATE_CURRENT_BOOK" | jq -r '.id')"
+      book_id="$(jq -r '.id' "$STATE_CURRENT_BOOK")"
       if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" add_format "$book_id" "$output_file"; then
         __fetch_calibre_db
         __fetch_calibre_categories
@@ -2663,7 +2663,7 @@ $TXT_MENU_EXIT"
   while true; do
     if [ "$CMD_BOOK_RESULTS_SKIP" = "true" ]; then
       unset -v CMD_BOOK_RESULTS_SKIP
-      eval "$(cat "$STATE_CURRENT_BOOKS" | head -n 1)"
+      eval "$(head -n 1 "$STATE_CURRENT_BOOKS")"
       choice="$title"
     else
       choice="$(

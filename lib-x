@@ -1563,7 +1563,7 @@ _state_init() {
   readonly CALIBRE_DB_TIMESTAMP="$(_util_get_file_timestamp "$CONFIG_CALIBRE_LIBRARY_PATH/metadata.db")"
 
   readonly CALIBRE_DB_JSON_FILE="$CLI_LIBRARY_CACHE_DIR/calibre_db.json"
-  readonly CALIBRE_CATEGORIES_CSV_FILE="$CLI_LIBRARY_CACHE_DIR/calibre_categories.tsv"
+  readonly CALIBRE_CATEGORIES_TSV_FILE="$CLI_LIBRARY_CACHE_DIR/calibre_categories.tsv"
 
   mkdir -p \
     "$CLI_USER_LISTS" \
@@ -1672,19 +1672,19 @@ fetch_calibre_db() {
 }
 
 __fetch_calibre_categories() {
-  if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" list_categories --csv --dialect=excel-tab >"${CALIBRE_CATEGORIES_CSV_FILE}.tmp"; then
-    mv "${CALIBRE_CATEGORIES_CSV_FILE}.tmp" "$CALIBRE_CATEGORIES_CSV_FILE"
+  if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" list_categories --csv --dialect=excel-tab >"${CALIBRE_CATEGORIES_TSV_FILE}.tmp"; then
+    mv "${CALIBRE_CATEGORIES_TSV_FILE}.tmp" "$CALIBRE_CATEGORIES_TSV_FILE"
   else
-    rm -f "${CALIBRE_CATEGORIES_CSV_FILE}.tmp"
+    rm -f "${CALIBRE_CATEGORIES_TSV_FILE}.tmp"
     return 1
   fi
 }
 
 _fetch_calibre_categories() {
-  if ! [ -s "$CALIBRE_CATEGORIES_CSV_FILE" ] || ! [ "$(_util_get_file_timestamp "$CALIBRE_CATEGORIES_CSV_FILE")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
+  if ! [ -s "$CALIBRE_CATEGORIES_TSV_FILE" ] || ! [ "$(_util_get_file_timestamp "$CALIBRE_CATEGORIES_TSV_FILE")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
     __fetch_calibre_categories
   fi
-  cat "$CALIBRE_CATEGORIES_CSV_FILE"
+  cat "$CALIBRE_CATEGORIES_TSV_FILE"
 }
 
 fetch_calibre_categories() {
@@ -1695,7 +1695,7 @@ _fetch_calibre_category() {
   local cached_category
   cached_category="$CLI_LIBRARY_CACHE_DIR/.$1"
 
-  if ! [ -s "$cached_category" ] || ! [ "$(_util_get_file_timestamp "$CALIBRE_CATEGORIES_CSV_FILE")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
+  if ! [ -s "$cached_category" ] || ! [ "$(_util_get_file_timestamp "$CALIBRE_CATEGORIES_TSV_FILE")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
     if fetch_calibre_categories | awk -v category="$1" -v FS='\t' '$1 == category {print $2}' >"$cached_category.tmp"; then
       mv "$cached_category.tmp" "$cached_category"
     else
@@ -2733,7 +2733,7 @@ __menu_book_actions_shell() {
     STATE_CURRENT \
     CLI_CURRENT_STATE_DIR \
     CALIBRE_DB_JSON_FILE \
-    CALIBRE_CATEGORIES_CSV_FILE \
+    CALIBRE_CATEGORIES_TSV_FILE \
     CLI_NAME
 
   init_text="\
@@ -2748,7 +2748,7 @@ STATE_CURRENT_BOOK
 STATE_CURRENT_BOOK_TITLE
 STATE_CURRENT
 CALIBRE_DB_JSON_FILE
-CALIBRE_CATEGORIES_CSV_FILE
+CALIBRE_CATEGORIES_TSV_FILE
 CLI_CURRENT_STATE_DIR 
 CLI_NAME
 "

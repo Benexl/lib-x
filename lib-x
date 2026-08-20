@@ -243,6 +243,7 @@ __load_default_lang() {
   TXT_DESKTOP_ENTRY_PROMPT="Create desktop entry?"
   TXT_EDITOR_NOT_FOUND="No editor found. Please set CONFIG_EDITOR or EDITOR."
   TXT_ERROR_INVALID_ACTION="Invalid action"
+  TXT_FETCH_FAILED="Failed to fetch"
   TXT_LAUNCHER_LABEL_FZF="Fzf"
   TXT_LAUNCHER_LABEL_ROFI="Rofi"
   TXT_LAUNCHER_UNKNOWN="Unknown launcher"

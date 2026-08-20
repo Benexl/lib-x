@@ -1485,7 +1485,7 @@ _preview_fzf() {
 }
 
 preview_fzf() {
-  _preview_fzf "$@"
+  _preview_fzf
 }
 
 _preview_rofi() {
@@ -1510,19 +1510,19 @@ _preview_rofi() {
 }
 
 preview_rofi() {
-  _preview_rofi "$@"
+  _preview_rofi
 }
 
 _preview() {
   case "$CONFIG_LAUNCHER" in
-  fzf) preview_fzf "$@" ;;
-  rofi) preview_rofi "$@" ;;
+  fzf) preview_fzf ;;
+  rofi) preview_rofi ;;
   *) cat ;;
   esac
 }
 
 preview() {
-  _preview "$@"
+  _preview
 }
 
 # ==============================================================================
@@ -2833,6 +2833,7 @@ menu_book_actions() {
 _menu_book_list_explorer() {
   local other_choices
   local choice
+  local rtitle
 
   other_choices="\
 $TXT_MENU_BACK

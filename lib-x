@@ -1559,7 +1559,8 @@ _state_init() {
   readonly CLI_FZF_PREVIEW_SCRIPT="$CLI_PREVIEW_SCRIPTS_DIR/fzf-preview.sh"
 
   # shellcheck disable=SC2155
-  readonly CALIBRE_DB_TIMESTAMP="$(_util_get_file_timestamp "$CONFIG_CALIBRE_LIBRARY_PATH/metadata.db")"
+  readonly CALIBRE_DB_TIMESTAMP="${LIB_X_CALIBRE_DB_TIMESTAMP:-$(_util_get_file_timestamp "$CONFIG_CALIBRE_LIBRARY_PATH/metadata.db")}"
+  export LIB_X_CALIBRE_DB_TIMESTAMP="$CALIBRE_DB_TIMESTAMP"
 
   readonly CALIBRE_DB_JSON_FILE="$CLI_LIBRARY_CACHE_DIR/calibre_db.json"
   readonly CALIBRE_CATEGORIES_TSV_FILE="$CLI_LIBRARY_CACHE_DIR/calibre_categories.tsv"

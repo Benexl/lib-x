@@ -2292,7 +2292,7 @@ __menu_book_actions_remove_book() {
 
   book_id="$(jq -r '.id' "$STATE_CURRENT_BOOK")"
 
-  if ui_confirm "$TXT_MENU_BOOK_ACTIONS_REMOVE_CONFIRM $(cat "$STATE_CURRENT_BOOK_TITLE")?"; then
+  if ui_confirm "$TXT_MENU_BOOK_ACTIONS_REMOVE_CONFIRM $(_state_fetch_current_book_title)?"; then
     if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" remove "$book_id"; then
       ui_notify "$TXT_MENU_BOOK_ACTIONS_REMOVED_SUCCESS"
     fi
@@ -2432,7 +2432,7 @@ zip"
 
   output_file="${book_path%.*}.$output_format"
 
-  if ui_confirm "$TXT_MENU_BOOK_ACTIONS_CONVERT_CONFIRM $(cat "$STATE_CURRENT_BOOK_TITLE") to $output_format?"; then
+  if ui_confirm "$TXT_MENU_BOOK_ACTIONS_CONVERT_CONFIRM $(_state_fetch_current_book_title) to $output_format?"; then
     if ebook-convert "$book_path" "$output_file"; then
       book_id="$(jq -r '.id' "$STATE_CURRENT_BOOK")"
       if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" add_format "$book_id" "$output_file"; then
@@ -2668,7 +2668,7 @@ $TXT_MENU_EXIT"
     else
       choice="$(
         {
-          cat "$STATE_CURRENT_BOOKS"
+          _state_fetch_current_books
           printf '%s\n' "$other_choices"
         } | preview | ui_launcher_with_preview "$TXT_MENU_LIST_EXPLORER_PROMPT"
       )"

@@ -1830,7 +1830,7 @@ _fetch_calibre_db_all() {
   if ! [ "$1" = "" ]; then
     hash="$(_util_generate_hash "$@")"
   fi
-  cached_fetch="$CLI_FETCH_CACHE_DIR/all-$hash.sh"
+  cached_fetch="$CLI_FETCH_CACHE_DIR/all-$hash.env"
 
   if ! [ -s "$cached_fetch" ] || ! [ "$(_util_get_file_timestamp "$cached_fetch")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
     if __fetch_calibre_db_all "$@" >"$cached_fetch.tmp"; then
@@ -1915,7 +1915,7 @@ _fetch_calibre_db_search() {
   if ! [ "$1" = "" ]; then
     hash="$(_util_generate_hash "$*")"
   fi
-  cached_fetch="$CLI_FETCH_CACHE_DIR/search-$hash.sh"
+  cached_fetch="$CLI_FETCH_CACHE_DIR/search-$hash.env"
 
   if ! [ -s "$cached_fetch" ] || ! [ "$(_util_get_file_timestamp "$cached_fetch")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
     if __fetch_calibre_db_search "$@" >"$cached_fetch.tmp"; then
@@ -1957,7 +1957,7 @@ _fetch_calibre_db_search_title() {
   if ! [ "$1" = "" ]; then
     hash="$(_util_generate_hash "$*")"
   fi
-  cached_fetch="$CLI_FETCH_CACHE_DIR/search_title-$hash.sh"
+  cached_fetch="$CLI_FETCH_CACHE_DIR/search_title-$hash.env"
 
   if ! [ -s "$cached_fetch" ] || ! [ "$(_util_get_file_timestamp "$cached_fetch")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
     if __fetch_calibre_db_search_title "$@" >"$cached_fetch.tmp"; then
@@ -1999,7 +1999,7 @@ _fetch_calibre_db_search_series() {
   if ! [ "$1" = "" ]; then
     hash="$(_util_generate_hash "$*")"
   fi
-  cached_fetch="$CLI_FETCH_CACHE_DIR/search_series-$hash.sh"
+  cached_fetch="$CLI_FETCH_CACHE_DIR/search_series-$hash.env"
 
   if ! [ -s "$cached_fetch" ] || ! [ "$(_util_get_file_timestamp "$cached_fetch")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
     if __fetch_calibre_db_search_series "$@" >"$cached_fetch.tmp"; then
@@ -2041,7 +2041,7 @@ _fetch_calibre_db_search_author() {
   if ! [ "$1" = "" ]; then
     hash="$(_util_generate_hash "$*")"
   fi
-  cached_fetch="$CLI_FETCH_CACHE_DIR/search_author-$hash.sh"
+  cached_fetch="$CLI_FETCH_CACHE_DIR/search_author-$hash.env"
 
   if ! [ -s "$cached_fetch" ] || ! [ "$(_util_get_file_timestamp "$cached_fetch")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
     if __fetch_calibre_db_search_author "$@" >"$cached_fetch.tmp"; then
@@ -2083,7 +2083,7 @@ _fetch_calibre_db_search_tag() {
   if ! [ "$1" = "" ]; then
     hash="$(_util_generate_hash "$*")"
   fi
-  cached_fetch="$CLI_FETCH_CACHE_DIR/search_tag-$hash.sh"
+  cached_fetch="$CLI_FETCH_CACHE_DIR/search_tag-$hash.env"
 
   if ! [ -s "$cached_fetch" ] || ! [ "$(_util_get_file_timestamp "$cached_fetch")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
     if __fetch_calibre_db_search_tag "$@" >"$cached_fetch.tmp"; then
@@ -2125,7 +2125,7 @@ _fetch_calibre_db_search_format() {
   if ! [ "$1" = "" ]; then
     hash="$(_util_generate_hash "$*")"
   fi
-  cached_fetch="$CLI_FETCH_CACHE_DIR/search_format-$hash.sh"
+  cached_fetch="$CLI_FETCH_CACHE_DIR/search_format-$hash.env"
 
   if ! [ -s "$cached_fetch" ] || ! [ "$(_util_get_file_timestamp "$cached_fetch")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
     if __fetch_calibre_db_search_format "$@" >"$cached_fetch.tmp"; then
@@ -2167,7 +2167,7 @@ _fetch_calibre_db_search_language() {
   if ! [ "$1" = "" ]; then
     hash="$(_util_generate_hash "$*")"
   fi
-  cached_fetch="$CLI_FETCH_CACHE_DIR/search_language-$hash.sh"
+  cached_fetch="$CLI_FETCH_CACHE_DIR/search_language-$hash.env"
 
   if ! [ -s "$cached_fetch" ] || ! [ "$(_util_get_file_timestamp "$cached_fetch")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
     if __fetch_calibre_db_search_language "$@" >"$cached_fetch.tmp"; then
@@ -2209,7 +2209,7 @@ _fetch_calibre_db_search_rating() {
   if ! [ "$1" = "" ]; then
     hash="$(_util_generate_hash "$*")"
   fi
-  cached_fetch="$CLI_FETCH_CACHE_DIR/search_rating-$hash.sh"
+  cached_fetch="$CLI_FETCH_CACHE_DIR/search_rating-$hash.env"
 
   if ! [ -s "$cached_fetch" ] || ! [ "$(_util_get_file_timestamp "$cached_fetch")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
     if __fetch_calibre_db_search_rating "$@" >"$cached_fetch.tmp"; then
@@ -2251,7 +2251,7 @@ _fetch_calibre_db_search_publisher() {
   if ! [ "$1" = "" ]; then
     hash="$(_util_generate_hash "$*")"
   fi
-  cached_fetch="$CLI_FETCH_CACHE_DIR/search_publisher-$hash.sh"
+  cached_fetch="$CLI_FETCH_CACHE_DIR/search_publisher-$hash.env"
 
   if ! [ -s "$cached_fetch" ] || ! [ "$(_util_get_file_timestamp "$cached_fetch")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
     if __fetch_calibre_db_search_publisher "$@" >"$cached_fetch.tmp"; then
@@ -2293,7 +2293,7 @@ _fetch_calibre_db_search_identifier() {
   if ! [ "$1" = "" ]; then
     hash="$(_util_generate_hash "$*")"
   fi
-  cached_fetch="$CLI_FETCH_CACHE_DIR/search_identifier-$hash.sh"
+  cached_fetch="$CLI_FETCH_CACHE_DIR/search_identifier-$hash.env"
 
   if ! [ -s "$cached_fetch" ] || ! [ "$(_util_get_file_timestamp "$cached_fetch")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
     if __fetch_calibre_db_search_identifier "$@" >"$cached_fetch.tmp"; then
@@ -3099,7 +3099,7 @@ __menu_main_user_list_browser() {
 
   _state_push
 
-  cached_list="$CLI_LIBRARY_CACHE_DIR/.user-$2"
+  cached_list="$CLI_LIBRARY_CACHE_DIR/.user-$2.env"
   if ! [ -s "$cached_list" ] || ! [ "$(_util_get_file_timestamp "$cached_list")" -gt "$(_util_get_file_timestamp "$user_list_path")" ]; then
     jq -r --arg sort_by "$CONFIG_SORT_BY" "
       reverse

@@ -229,7 +229,6 @@ __load_env_config() {
 }
 
 __load_default_lang() {
-  TXT_BYEBYE="Have a good day"
   TXT_CONFIRM_DEFAULT="Default"
   TXT_DEP_MISSING_CALIBREDB="calibredb is required but not found in PATH."
   TXT_DEP_MISSING_DIFF="diff is not installed. Skipping update diff display."
@@ -244,6 +243,7 @@ __load_default_lang() {
   TXT_DESKTOP_ENTRY_PROMPT="Create desktop entry?"
   TXT_EDITOR_NOT_FOUND="No editor found. Please set CONFIG_EDITOR or EDITOR."
   TXT_ERROR_INVALID_ACTION="Invalid action"
+  TXT_FETCH_FAILED="Failed to fetch"
   TXT_LAUNCHER_LABEL_FZF="Fzf"
   TXT_LAUNCHER_LABEL_ROFI="Rofi"
   TXT_LAUNCHER_UNKNOWN="Unknown launcher"
@@ -869,6 +869,10 @@ _util_generate_hash() {
   fi
 }
 
+_util_get_file_timestamp() {
+  date +%s -r "$1"
+}
+
 _util_reverse() {
   if _dep_ch tac; then
     tac
@@ -896,7 +900,6 @@ _util_transform_lines() {
 }
 
 _util_byebye() {
-  printf '%s %s\n' "$TXT_BYEBYE" "$USER"
   exit
 }
 
@@ -1483,7 +1486,7 @@ _preview_fzf() {
 }
 
 preview_fzf() {
-  _preview_fzf "$@"
+  _preview_fzf
 }
 
 _preview_rofi() {
@@ -1508,19 +1511,19 @@ _preview_rofi() {
 }
 
 preview_rofi() {
-  _preview_rofi "$@"
+  _preview_rofi
 }
 
 _preview() {
   case "$CONFIG_LAUNCHER" in
-  fzf) preview_fzf "$@" ;;
-  rofi) preview_rofi "$@" ;;
+  fzf) preview_fzf ;;
+  rofi) preview_rofi ;;
   *) cat ;;
   esac
 }
 
 preview() {
-  _preview "$@"
+  _preview
 }
 
 # ==============================================================================
@@ -1550,19 +1553,23 @@ _state_init() {
   readonly CLI_LIBRARY_CACHE_DIR="$CLI_CACHE_DIR/$STATE_CALIBRE_LIBRARY_NAME"
   readonly CLI_STATE_DIR="$CLI_LIBRARY_CACHE_DIR/state"
   readonly CLI_CURRENT_STATE_DIR="$CLI_STATE_DIR/${CLI_START_TIME}-$$"
+  readonly CLI_FETCH_CACHE_DIR="$CLI_LIBRARY_CACHE_DIR/fetch"
 
   readonly CLI_SEARCH_HISTORY_FILE="$CLI_LIBRARY_CACHE_DIR/search-history.txt"
   readonly CLI_PREVIEW_SCRIPTS_DIR="$CLI_LIBRARY_CACHE_DIR/previews"
   readonly CLI_FZF_PREVIEW_SCRIPT="$CLI_PREVIEW_SCRIPTS_DIR/fzf-preview.sh"
 
-  readonly CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE="$CLI_LIBRARY_CACHE_DIR/.calibre_library_timestamp"
+  # shellcheck disable=SC2155
+  readonly CALIBRE_DB_TIMESTAMP="$(_util_get_file_timestamp "$CONFIG_CALIBRE_LIBRARY_PATH/metadata.db")"
+
   readonly CALIBRE_DB_JSON_FILE="$CLI_LIBRARY_CACHE_DIR/calibre_db.json"
-  readonly CALIBRE_CATEGORIES_CSV_FILE="$CLI_LIBRARY_CACHE_DIR/calibre_categories.tsv"
+  readonly CALIBRE_CATEGORIES_TSV_FILE="$CLI_LIBRARY_CACHE_DIR/calibre_categories.tsv"
 
   mkdir -p \
     "$CLI_USER_LISTS" \
     "$CLI_CURRENT_STATE_DIR" \
-    "$CLI_PREVIEW_SCRIPTS_DIR"
+    "$CLI_PREVIEW_SCRIPTS_DIR" \
+    "$CLI_FETCH_CACHE_DIR"
 
   STATE_CURRENT=0
 
@@ -1654,14 +1661,8 @@ __fetch_calibre_db() {
 }
 
 _fetch_calibre_db() {
-  local calibre_library_current_timestamp
-
-  calibre_library_current_timestamp="$(date -r "$CONFIG_CALIBRE_LIBRARY_PATH/metadata.db" +%s)"
-
-  if ! [ -s "$CALIBRE_DB_JSON_FILE" ] || ! [ -s "$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE" ] || [ "$calibre_library_current_timestamp" -gt "$(cat "$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE")" ]; then
-    if __fetch_calibre_db; then
-      printf "%s" "$calibre_library_current_timestamp" >"$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE"
-    fi
+  if ! [ -s "$CALIBRE_DB_JSON_FILE" ] || ! [ "$(_util_get_file_timestamp "$CALIBRE_DB_JSON_FILE")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
+    __fetch_calibre_db
   fi
   cat "$CALIBRE_DB_JSON_FILE"
 }
@@ -1671,25 +1672,19 @@ fetch_calibre_db() {
 }
 
 __fetch_calibre_categories() {
-  if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" list_categories --csv --dialect=excel-tab >"${CALIBRE_CATEGORIES_CSV_FILE}.tmp"; then
-    mv "${CALIBRE_CATEGORIES_CSV_FILE}.tmp" "$CALIBRE_CATEGORIES_CSV_FILE"
+  if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" list_categories --csv --dialect=excel-tab >"${CALIBRE_CATEGORIES_TSV_FILE}.tmp"; then
+    mv "${CALIBRE_CATEGORIES_TSV_FILE}.tmp" "$CALIBRE_CATEGORIES_TSV_FILE"
   else
-    rm -f "${CALIBRE_CATEGORIES_CSV_FILE}.tmp"
+    rm -f "${CALIBRE_CATEGORIES_TSV_FILE}.tmp"
     return 1
   fi
 }
 
 _fetch_calibre_categories() {
-  local calibre_library_current_timestamp
-
-  calibre_library_current_timestamp="$(date -r "$CONFIG_CALIBRE_LIBRARY_PATH/metadata.db" +%s)"
-
-  if ! [ -s "$CALIBRE_CATEGORIES_CSV_FILE" ] || ! [ -s "$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE" ] || [ "$calibre_library_current_timestamp" -gt "$(cat "$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE")" ]; then
-    if __fetch_calibre_categories; then
-      printf "%s" "$calibre_library_current_timestamp" >"$CALIBRE_LIBRARY_CACHED_TIMESTAMP_FILE"
-    fi
+  if ! [ -s "$CALIBRE_CATEGORIES_TSV_FILE" ] || ! [ "$(_util_get_file_timestamp "$CALIBRE_CATEGORIES_TSV_FILE")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
+    __fetch_calibre_categories
   fi
-  cat "$CALIBRE_CATEGORIES_CSV_FILE"
+  cat "$CALIBRE_CATEGORIES_TSV_FILE"
 }
 
 fetch_calibre_categories() {
@@ -1697,7 +1692,17 @@ fetch_calibre_categories() {
 }
 
 _fetch_calibre_category() {
-  fetch_calibre_categories | awk -v category="$1" -v FS='\t' '$1 == category {print $2}'
+  local cached_category
+  cached_category="$CLI_LIBRARY_CACHE_DIR/.$1"
+
+  if ! [ -s "$cached_category" ] || ! [ "$(_util_get_file_timestamp "$CALIBRE_CATEGORIES_TSV_FILE")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
+    if fetch_calibre_categories | awk -v category="$1" -v FS='\t' '$1 == category {print $2}' >"$cached_category.tmp"; then
+      mv "$cached_category.tmp" "$cached_category"
+    else
+      _ui_notify_critical "$TXT_FETCH_FAILED: category $1"
+    fi
+  fi
+  cat "$cached_category"
 }
 
 fetch_calibre_category() {
@@ -1801,7 +1806,7 @@ def escape:
 ] | join(";")
 '
 
-_fetch_calibre_db_all() {
+__fetch_calibre_db_all() {
   _fetch_calibre_db | jq -r --arg sort_by "$1" "
     if \$sort_by != \"\" then
       $CALIBRE_SORT_JQ
@@ -1821,11 +1826,30 @@ _fetch_calibre_db_all() {
   "
 }
 
+_fetch_calibre_db_all() {
+  local cached_fetch
+  local hash
+
+  if ! [ "$*" = "" ]; then
+    hash="$(_util_generate_hash "$@")"
+  fi
+  cached_fetch="$CLI_FETCH_CACHE_DIR/all-$hash.env"
+
+  if ! [ -s "$cached_fetch" ] || ! [ "$(_util_get_file_timestamp "$cached_fetch")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
+    if __fetch_calibre_db_all "$@" >"$cached_fetch.tmp"; then
+      mv "$cached_fetch.tmp" "$cached_fetch"
+    else
+      _ui_notify_critical "$TXT_FAILED_TO_FETCH: ALL"
+    fi
+  fi
+  cat "$cached_fetch"
+}
+
 fetch_calibre_db_all() {
   _fetch_calibre_db_all "$@"
 }
 
-_fetch_calibre_db_random() {
+__fetch_calibre_db_random() {
   local randoms
 
   randoms="$(od -An -N$((CONFIG_RANDOM_BOOKS_LIMIT * 3 * 4)) -tu4 /dev/urandom)"
@@ -1851,13 +1875,17 @@ _fetch_calibre_db_random() {
   "
 }
 
+_fetch_calibre_db_random() {
+  __fetch_calibre_db_random "$@"
+}
+
 fetch_calibre_db_random() {
-  _fetch_calibre_db_random
+  _fetch_calibre_db_random "$@"
 }
 # ==============================================================================
 # CALIBRE: SEARCH FUNCTIONS
 # ==============================================================================
-_fetch_calibre_db_search() {
+__fetch_calibre_db_search() {
   _fetch_calibre_db | jq -r --arg query "$1" --arg sort_by "$2" "
     map(select(
       (.title // \"\" | test(\$query; \"i\")) or
@@ -1885,11 +1913,30 @@ _fetch_calibre_db_search() {
   "
 }
 
+_fetch_calibre_db_search() {
+  local cached_fetch
+  local hash
+
+  if ! [ "$*" = "" ]; then
+    hash="$(_util_generate_hash "$*")"
+  fi
+  cached_fetch="$CLI_FETCH_CACHE_DIR/search-$hash.env"
+
+  if ! [ -s "$cached_fetch" ] || ! [ "$(_util_get_file_timestamp "$cached_fetch")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
+    if __fetch_calibre_db_search "$@" >"$cached_fetch.tmp"; then
+      mv "$cached_fetch.tmp" "$cached_fetch"
+    else
+      _ui_notify_critical "$TXT_FAILED_TO_FETCH: search"
+    fi
+  fi
+  cat "$cached_fetch"
+}
+
 fetch_calibre_db_search() {
   _fetch_calibre_db_search "$@"
 }
 
-_fetch_calibre_db_search_title() {
+__fetch_calibre_db_search_title() {
   _fetch_calibre_db | jq -r --arg title "$1" --arg sort_by "$2" "
     map(select((.title // \"\" | ascii_downcase) == (\$title|ascii_downcase)))
     | if \$sort_by != \"\" then
@@ -1910,11 +1957,30 @@ _fetch_calibre_db_search_title() {
   "
 }
 
+_fetch_calibre_db_search_title() {
+  local cached_fetch
+  local hash
+
+  if ! [ "$*" = "" ]; then
+    hash="$(_util_generate_hash "$*")"
+  fi
+  cached_fetch="$CLI_FETCH_CACHE_DIR/search_title-$hash.env"
+
+  if ! [ -s "$cached_fetch" ] || ! [ "$(_util_get_file_timestamp "$cached_fetch")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
+    if __fetch_calibre_db_search_title "$@" >"$cached_fetch.tmp"; then
+      mv "$cached_fetch.tmp" "$cached_fetch"
+    else
+      _ui_notify_critical "$TXT_FAILED_TO_FETCH: search_title"
+    fi
+  fi
+  cat "$cached_fetch"
+}
+
 fetch_calibre_db_search_title() {
   _fetch_calibre_db_search_title "$@"
 }
 
-_fetch_calibre_db_search_series() {
+__fetch_calibre_db_search_series() {
   _fetch_calibre_db | jq -r --arg series "$1" --arg sort_by "$2" "
     map(select(.series == \$series))
     | if \$sort_by != \"\" then
@@ -1935,11 +2001,30 @@ _fetch_calibre_db_search_series() {
   "
 }
 
+_fetch_calibre_db_search_series() {
+  local cached_fetch
+  local hash
+
+  if ! [ "$*" = "" ]; then
+    hash="$(_util_generate_hash "$*")"
+  fi
+  cached_fetch="$CLI_FETCH_CACHE_DIR/search_series-$hash.env"
+
+  if ! [ -s "$cached_fetch" ] || ! [ "$(_util_get_file_timestamp "$cached_fetch")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
+    if __fetch_calibre_db_search_series "$@" >"$cached_fetch.tmp"; then
+      mv "$cached_fetch.tmp" "$cached_fetch"
+    else
+      _ui_notify_critical "$TXT_FAILED_TO_FETCH: search_series"
+    fi
+  fi
+  cat "$cached_fetch"
+}
+
 fetch_calibre_db_search_series() {
   _fetch_calibre_db_search_series "$@"
 }
 
-_fetch_calibre_db_search_author() {
+__fetch_calibre_db_search_author() {
   _fetch_calibre_db | jq -r --arg author "$1" --arg sort_by "$2" "
   map(select((.authors | split(\",\") | index(\$author)) != null))
   | if \$sort_by != \"\" then
@@ -1955,16 +2040,35 @@ _fetch_calibre_db_search_author() {
         | .value.title= \$idx + \" \" + .value.title
       )
     | map(.value)
-    | .[]
-    | $CALIBRE_CONVERT_TO_ASSIGNMENTS_JQ
+| .[]
+      | $CALIBRE_CONVERT_TO_ASSIGNMENTS_JQ
   "
+}
+
+_fetch_calibre_db_search_author() {
+  local cached_fetch
+  local hash
+
+  if ! [ "$*" = "" ]; then
+    hash="$(_util_generate_hash "$*")"
+  fi
+  cached_fetch="$CLI_FETCH_CACHE_DIR/search_author-$hash.env"
+
+  if ! [ -s "$cached_fetch" ] || ! [ "$(_util_get_file_timestamp "$cached_fetch")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
+    if __fetch_calibre_db_search_author "$@" >"$cached_fetch.tmp"; then
+      mv "$cached_fetch.tmp" "$cached_fetch"
+    else
+      _ui_notify_critical "$TXT_FAILED_TO_FETCH: search_author"
+    fi
+  fi
+  cat "$cached_fetch"
 }
 
 fetch_calibre_db_search_author() {
   _fetch_calibre_db_search_author "$@"
 }
 
-_fetch_calibre_db_search_tag() {
+__fetch_calibre_db_search_tag() {
   _fetch_calibre_db | jq -r --arg tag "$1" --arg sort_by "$2" "
   map(select((.tags | index(\$tag)) != null))
   | if \$sort_by != \"\" then
@@ -1980,16 +2084,35 @@ _fetch_calibre_db_search_tag() {
         | .value.title= \$idx + \" \" + .value.title
       )
     | map(.value)
-    | .[]
-    | $CALIBRE_CONVERT_TO_ASSIGNMENTS_JQ
+| .[]
+      | $CALIBRE_CONVERT_TO_ASSIGNMENTS_JQ
   "
+}
+
+_fetch_calibre_db_search_tag() {
+  local cached_fetch
+  local hash
+
+  if ! [ "$*" = "" ]; then
+    hash="$(_util_generate_hash "$*")"
+  fi
+  cached_fetch="$CLI_FETCH_CACHE_DIR/search_tag-$hash.env"
+
+  if ! [ -s "$cached_fetch" ] || ! [ "$(_util_get_file_timestamp "$cached_fetch")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
+    if __fetch_calibre_db_search_tag "$@" >"$cached_fetch.tmp"; then
+      mv "$cached_fetch.tmp" "$cached_fetch"
+    else
+      _ui_notify_critical "$TXT_FAILED_TO_FETCH: search_tag"
+    fi
+  fi
+  cat "$cached_fetch"
 }
 
 fetch_calibre_db_search_tag() {
   _fetch_calibre_db_search_tag "$@"
 }
 
-_fetch_calibre_db_search_format() {
+__fetch_calibre_db_search_format() {
   _fetch_calibre_db | jq -r --arg format "$1" --arg sort_by "$2" "
   map(select(.formats[] | ascii_downcase | endswith(\".\\(\$format | ascii_downcase)\")))
   | if \$sort_by != \"\" then
@@ -2005,16 +2128,35 @@ _fetch_calibre_db_search_format() {
         | .value.title= \$idx + \" \" + .value.title
       )
     | map(.value)
-    | .[]
-    | $CALIBRE_CONVERT_TO_ASSIGNMENTS_JQ
+| .[]
+      | $CALIBRE_CONVERT_TO_ASSIGNMENTS_JQ
   "
+}
+
+_fetch_calibre_db_search_format() {
+  local cached_fetch
+  local hash
+
+  if ! [ "$*" = "" ]; then
+    hash="$(_util_generate_hash "$*")"
+  fi
+  cached_fetch="$CLI_FETCH_CACHE_DIR/search_format-$hash.env"
+
+  if ! [ -s "$cached_fetch" ] || ! [ "$(_util_get_file_timestamp "$cached_fetch")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
+    if __fetch_calibre_db_search_format "$@" >"$cached_fetch.tmp"; then
+      mv "$cached_fetch.tmp" "$cached_fetch"
+    else
+      _ui_notify_critical "$TXT_FAILED_TO_FETCH: search_format"
+    fi
+  fi
+  cat "$cached_fetch"
 }
 
 fetch_calibre_db_search_format() {
   _fetch_calibre_db_search_format "$@"
 }
 
-_fetch_calibre_db_search_language() {
+__fetch_calibre_db_search_language() {
   _fetch_calibre_db | jq -r --arg lang "$1" --arg sort_by "$2" "
   map(select(any(.languages[]; \$lang | test(.; \"i\"))))
   | if \$sort_by != \"\" then
@@ -2030,16 +2172,35 @@ _fetch_calibre_db_search_language() {
         | .value.title= \$idx + \" \" + .value.title
       )
     | map(.value)
-    | .[]
-    | $CALIBRE_CONVERT_TO_ASSIGNMENTS_JQ
+| .[]
+      | $CALIBRE_CONVERT_TO_ASSIGNMENTS_JQ
   "
+}
+
+_fetch_calibre_db_search_language() {
+  local cached_fetch
+  local hash
+
+  if ! [ "$*" = "" ]; then
+    hash="$(_util_generate_hash "$*")"
+  fi
+  cached_fetch="$CLI_FETCH_CACHE_DIR/search_language-$hash.env"
+
+  if ! [ -s "$cached_fetch" ] || ! [ "$(_util_get_file_timestamp "$cached_fetch")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
+    if __fetch_calibre_db_search_language "$@" >"$cached_fetch.tmp"; then
+      mv "$cached_fetch.tmp" "$cached_fetch"
+    else
+      _ui_notify_critical "$TXT_FAILED_TO_FETCH: search_language"
+    fi
+  fi
+  cat "$cached_fetch"
 }
 
 fetch_calibre_db_search_language() {
   _fetch_calibre_db_search_language "$@"
 }
 
-_fetch_calibre_db_search_rating() {
+__fetch_calibre_db_search_rating() {
   _fetch_calibre_db | jq -r --argjson rating "$1" --arg sort_by "$2" "
     map(select(.rating == \$rating ))
     | if \$sort_by != \"\" then
@@ -2060,11 +2221,30 @@ _fetch_calibre_db_search_rating() {
   "
 }
 
+_fetch_calibre_db_search_rating() {
+  local cached_fetch
+  local hash
+
+  if ! [ "$*" = "" ]; then
+    hash="$(_util_generate_hash "$*")"
+  fi
+  cached_fetch="$CLI_FETCH_CACHE_DIR/search_rating-$hash.env"
+
+  if ! [ -s "$cached_fetch" ] || ! [ "$(_util_get_file_timestamp "$cached_fetch")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
+    if __fetch_calibre_db_search_rating "$@" >"$cached_fetch.tmp"; then
+      mv "$cached_fetch.tmp" "$cached_fetch"
+    else
+      _ui_notify_critical "$TXT_FAILED_TO_FETCH: search_rating"
+    fi
+  fi
+  cat "$cached_fetch"
+}
+
 fetch_calibre_db_search_rating() {
   _fetch_calibre_db_search_rating "$@"
 }
 
-_fetch_calibre_db_search_publisher() {
+__fetch_calibre_db_search_publisher() {
   _fetch_calibre_db | jq -r --arg publisher "$1" --arg sort_by "$2" "
   map(select((.publisher // \"\" | split(\",\") | index(\$publisher)) != null))
     | if \$sort_by != \"\" then
@@ -2085,11 +2265,30 @@ _fetch_calibre_db_search_publisher() {
   "
 }
 
+_fetch_calibre_db_search_publisher() {
+  local cached_fetch
+  local hash
+
+  if ! [ "$*" = "" ]; then
+    hash="$(_util_generate_hash "$*")"
+  fi
+  cached_fetch="$CLI_FETCH_CACHE_DIR/search_publisher-$hash.env"
+
+  if ! [ -s "$cached_fetch" ] || ! [ "$(_util_get_file_timestamp "$cached_fetch")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
+    if __fetch_calibre_db_search_publisher "$@" >"$cached_fetch.tmp"; then
+      mv "$cached_fetch.tmp" "$cached_fetch"
+    else
+      _ui_notify_critical "$TXT_FAILED_TO_FETCH: search_publisher"
+    fi
+  fi
+  cat "$cached_fetch"
+}
+
 fetch_calibre_db_search_publisher() {
   _fetch_calibre_db_search_publisher "$@"
 }
 
-_fetch_calibre_db_search_identifier() {
+__fetch_calibre_db_search_identifier() {
   _fetch_calibre_db | jq -r --arg identifier "$1" --arg sort_by "$2" "
   map(select((.identifiers | to_entries[].key) == \$identifier))
   | if \$sort_by != \"\" then
@@ -2105,9 +2304,28 @@ _fetch_calibre_db_search_identifier() {
         | .value.title= \$idx + \" \" + .value.title
       )
     | map(.value)
-    | .[]
-    | $CALIBRE_CONVERT_TO_ASSIGNMENTS_JQ
+| .[]
+      | $CALIBRE_CONVERT_TO_ASSIGNMENTS_JQ
   "
+}
+
+_fetch_calibre_db_search_identifier() {
+  local cached_fetch
+  local hash
+
+  if ! [ "$*" = "" ]; then
+    hash="$(_util_generate_hash "$*")"
+  fi
+  cached_fetch="$CLI_FETCH_CACHE_DIR/search_identifier-$hash.env"
+
+  if ! [ -s "$cached_fetch" ] || ! [ "$(_util_get_file_timestamp "$cached_fetch")" -gt "$CALIBRE_DB_TIMESTAMP" ]; then
+    if __fetch_calibre_db_search_identifier "$@" >"$cached_fetch.tmp"; then
+      mv "$cached_fetch.tmp" "$cached_fetch"
+    else
+      _ui_notify_critical "$TXT_FAILED_TO_FETCH: search_identifier"
+    fi
+  fi
+  cat "$cached_fetch"
 }
 
 fetch_calibre_db_search_identifier() {
@@ -2515,7 +2733,7 @@ __menu_book_actions_shell() {
     STATE_CURRENT \
     CLI_CURRENT_STATE_DIR \
     CALIBRE_DB_JSON_FILE \
-    CALIBRE_CATEGORIES_CSV_FILE \
+    CALIBRE_CATEGORIES_TSV_FILE \
     CLI_NAME
 
   init_text="\
@@ -2530,7 +2748,7 @@ STATE_CURRENT_BOOK
 STATE_CURRENT_BOOK_TITLE
 STATE_CURRENT
 CALIBRE_DB_JSON_FILE
-CALIBRE_CATEGORIES_CSV_FILE
+CALIBRE_CATEGORIES_TSV_FILE
 CLI_CURRENT_STATE_DIR 
 CLI_NAME
 "
@@ -2638,6 +2856,7 @@ menu_book_actions() {
 _menu_book_list_explorer() {
   local other_choices
   local choice
+  local rtitle
 
   other_choices="\
 $TXT_MENU_BACK
@@ -2892,7 +3111,9 @@ menu_miscellaneous() {
 # MENUS: MAIN
 # ==============================================================================
 __menu_main_user_list_browser() {
-  local user_list_path="$1"
+  local cached_list
+  local user_list_path
+  user_list_path="$1"
 
   if ! [ -s "$user_list_path" ]; then
     ui_notify_warning "$TXT_WARNING_USER_LIST_EMPTY"
@@ -2900,24 +3121,36 @@ __menu_main_user_list_browser() {
   fi
 
   _state_push
-  jq -r --arg sort_by "$CONFIG_SORT_BY" "
-    reverse
-    | if \$sort_by != \"\" then
-      $CALIBRE_SORT_JQ
-      sort_calibre_db(\$sort_by)
-      else
-      .
-    end
-    | to_entries
-    | map(
-        (.key+1|tostring| if length < 2 then \"0\" + . else . end) as \$idx
-        | .value.rtitle= .value.title
-        | .value.title= \$idx + \" \" + .value.title
-      )
-    | map(.value)
-    | .[]
-    | $CALIBRE_CONVERT_TO_ASSIGNMENTS_JQ
-  " "$user_list_path" >"$STATE_CURRENT_BOOKS"
+
+  cached_list="$CLI_LIBRARY_CACHE_DIR/.user-$2.env"
+  if ! [ -s "$cached_list" ] || ! [ "$(_util_get_file_timestamp "$cached_list")" -gt "$(_util_get_file_timestamp "$user_list_path")" ]; then
+    jq -r --arg sort_by "$CONFIG_SORT_BY" "
+      reverse
+      | if \$sort_by != \"\" then
+        $CALIBRE_SORT_JQ
+        sort_calibre_db(\$sort_by)
+        else
+        .
+      end
+      | to_entries
+      | map(
+          (.key+1|tostring| if length < 2 then \"0\" + . else . end) as \$idx
+          | .value.rtitle= .value.title
+          | .value.title= \$idx + \" \" + .value.title
+        )
+      | map(.value)
+      | .[]
+      | $CALIBRE_CONVERT_TO_ASSIGNMENTS_JQ
+      " "$user_list_path" >"$cached_list.tmp"
+
+    # shellcheck disable=SC2181
+    if [ "$?" = "0" ]; then
+      mv "$cached_list.tmp" "$cached_list"
+    else
+      _ui_notify_critical "$TXT_FAILED_TO_FETCH: list $2"
+    fi
+  fi
+  cat "$cached_list" >"$STATE_CURRENT_BOOKS"
 
   if ! [ -s "$STATE_CURRENT_BOOKS" ]; then
     ui_notify_warning "$TXT_WARNING_USER_LIST_EMPTY"

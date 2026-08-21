@@ -356,6 +356,18 @@ __load_default_lang() {
   TXT_MENU_MISC_SEARCH_TITLE_PROMPT="Enter title query"
   TXT_MENU_MISC_SEARCH_TITLE="Search Title"
   TXT_MENU_MISC_SYNC="Sync Data"
+  TXT_MENU_MISC_FTS_SEARCH="Full Text Search"
+  TXT_MENU_MISC_FTS_SEARCH_WITH_CONTEXT="Full Text Search (with Context)"
+  TXT_MENU_MISC_FTS_INDEX="Manage FTS Index"
+  TXT_MENU_MISC_FTS_SEARCH_PROMPT="Enter full text search query"
+  TXT_MENU_MISC_FTS_INDEX_PROMPT="Select FTS Index Action"
+  TXT_MENU_MISC_FTS_INDEX_ENABLE="Enable FTS Indexing"
+  TXT_MENU_MISC_FTS_INDEX_DISABLE="Disable FTS Indexing"
+  TXT_MENU_MISC_FTS_INDEX_STATUS="Show Indexing Status"
+  TXT_MENU_MISC_FTS_INDEX_REINDEX="Re-index Library"
+  TXT_MENU_MISC_FTS_INDEX_REINDEX_WAIT="Re-index Library (wait for completion)"
+  TXT_MENU_MISC_FTS_NO_RESULTS="No results found for the given query."
+  TXT_MENU_MISC_FTS_CONTEXT_HEADER="Context"
 
   TXT_ICON_MENU_BACK="󰌍"
   TXT_ICON_MENU_BOOK_ACTIONS_ADD_LIST="󰤀"
@@ -363,37 +375,40 @@ __load_default_lang() {
   TXT_ICON_MENU_BOOK_ACTIONS_EDIT="󰏪"
   TXT_ICON_MENU_BOOK_ACTIONS_EDIT_METADATA="󱚌"
   TXT_ICON_MENU_BOOK_ACTIONS_METADATA="󰋼"
-  TXT_ICON_MENU_BOOK_ACTIONS_POLISH=""
-  TXT_ICON_MENU_BOOK_ACTIONS_READ=""
+  TXT_ICON_MENU_BOOK_ACTIONS_POLISH=""
+  TXT_ICON_MENU_BOOK_ACTIONS_READ=""
   TXT_ICON_MENU_BOOK_ACTIONS_REMOVE_BOOK="󰆴"
-  TXT_ICON_MENU_BOOK_ACTIONS_SHELL=""
-  TXT_ICON_MENU_BOOK_ACTIONS_VIEWER=""
+  TXT_ICON_MENU_BOOK_ACTIONS_SHELL=""
+  TXT_ICON_MENU_BOOK_ACTIONS_VIEWER=""
   TXT_ICON_MENU_EXIT="󰈆"
   TXT_ICON_MENU_MAIN_ALL="󰌱"
-  TXT_ICON_MENU_MAIN_AUTHORS=""
-  TXT_ICON_MENU_MAIN_COMPLETED=""
+  TXT_ICON_MENU_MAIN_AUTHORS=""
+  TXT_ICON_MENU_MAIN_COMPLETED=""
   TXT_ICON_MENU_MAIN_DOCS="󰈙"
-  TXT_ICON_MENU_MAIN_DROPPED=""
-  TXT_ICON_MENU_MAIN_EDIT_CONFIG=""
+  TXT_ICON_MENU_MAIN_DROPPED=""
+  TXT_ICON_MENU_MAIN_EDIT_CONFIG=""
   TXT_ICON_MENU_MAIN_FORMATS="󰉺"
   TXT_ICON_MENU_MAIN_IDENTIFIERS="󰁱"
-  TXT_ICON_MENU_MAIN_LANGUAGES=""
-  TXT_ICON_MENU_MAIN_MISC=""
-  TXT_ICON_MENU_MAIN_PAUSED=""
-  TXT_ICON_MENU_MAIN_PLANNING=""
-  TXT_ICON_MENU_MAIN_PUBLISHER=""
-  TXT_ICON_MENU_MAIN_RANDOM=""
-  TXT_ICON_MENU_MAIN_RATINGS=""
-  TXT_ICON_MENU_MAIN_READING=""
-  TXT_ICON_MENU_MAIN_RECENT=""
-  TXT_ICON_MENU_MAIN_REREADING=""
-  TXT_ICON_MENU_MAIN_SEARCH=""
+  TXT_ICON_MENU_MAIN_LANGUAGES=""
+  TXT_ICON_MENU_MAIN_MISC=""
+  TXT_ICON_MENU_MAIN_PAUSED=""
+  TXT_ICON_MENU_MAIN_PLANNING=""
+  TXT_ICON_MENU_MAIN_PUBLISHER=""
+  TXT_ICON_MENU_MAIN_RANDOM=""
+  TXT_ICON_MENU_MAIN_RATINGS=""
+  TXT_ICON_MENU_MAIN_READING=""
+  TXT_ICON_MENU_MAIN_RECENT=""
+  TXT_ICON_MENU_MAIN_REREADING=""
+  TXT_ICON_MENU_MAIN_SEARCH=""
   TXT_ICON_MENU_MAIN_SERIES="󱉟"
-  TXT_ICON_MENU_MAIN_TAGS=""
+  TXT_ICON_MENU_MAIN_TAGS=""
   TXT_ICON_MENU_MISC_ADD_BOOKS="󰗛"
   TXT_ICON_MENU_MISC_ADD_BOOKS_FOLDER="󰉗"
   TXT_ICON_MENU_MISC_SEARCH_TITLE=""
   TXT_ICON_MENU_MISC_SYNC="󰑓"
+  TXT_ICON_MENU_MISC_FTS_SEARCH=""
+  TXT_ICON_MENU_MISC_FTS_SEARCH_CONTEXT="󰒉"
+  TXT_ICON_MENU_MISC_FTS_INDEX="󰋼"
 
   TXT_MISC_ADD_BOOKS_OPTIONS='Options:
   -d, --duplicates      Add books to database even if they already exist.
@@ -2351,6 +2366,114 @@ fetch_calibre_db_search_identifier() {
 }
 
 # ==============================================================================
+# CALIBRE: FULL TEXT SEARCH FUNCTIONS
+# ==============================================================================
+__fetch_calibre_fts_search() {
+  local query
+  local sort_by
+  local fts_output
+  local matched_ids
+
+  query="$1"
+  sort_by="$2"
+
+  # Run calibredb fts_search and collect the matched book ids (JSON output)
+  fts_output="$(calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" \
+    fts_search --output-format json "$query" 2>/dev/null)"
+
+  [ -z "$fts_output" ] && return 0
+
+  # Extract ids from fts_search JSON: [{book_id:…}, …]
+  matched_ids="$(printf '%s' "$fts_output" | jq -r '[.[].book_id] | unique | @json')"
+  [ -z "$matched_ids" ] || [ "$matched_ids" = "null" ] || [ "$matched_ids" = "[]" ] && return 0
+
+  _fetch_calibre_db | jq -r --argjson ids "$matched_ids" --arg sort_by "$sort_by" "
+    map(select(.id as \$id | any(\$ids[]; . == \$id)))
+    | if \$sort_by != \"\" then
+        $CALIBRE_SORT_JQ
+        sort_calibre_db(\$sort_by)
+       else
+        .
+      end
+      | to_entries
+      | map(
+          (.key+1|tostring| if length < 2 then \"0\" + . else . end) as \$idx
+          | .value.rtitle= .value.title
+          | .value.title= \$idx + \" \" + .value.title
+        )
+      | map(.value)
+      | .[]
+      | $CALIBRE_CONVERT_TO_ASSIGNMENTS_JQ
+  "
+}
+
+_fetch_calibre_fts_search() {
+  __fetch_calibre_fts_search "$@"
+}
+
+fetch_calibre_fts_search() {
+  _fetch_calibre_fts_search "$@"
+}
+
+__fetch_calibre_fts_search_with_context() {
+  local query
+  local sort_by
+  local fts_output
+  local matched_ids
+
+  query="$1"
+  sort_by="$2"
+
+  # Run calibredb fts_search with snippets/context
+  fts_output="$(calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" \
+    fts_search --output-format json --include-snippets \
+    --match-start-marker '>>>' --match-end-marker '<<<' \
+    "$query" 2>/dev/null)"
+
+  [ -z "$fts_output" ] && return 0
+
+  matched_ids="$(printf '%s' "$fts_output" | jq -r '[.[].book_id] | unique | @json')"
+  [ -z "$matched_ids" ] || [ "$matched_ids" = "null" ] || [ "$matched_ids" = "[]" ] && return 0
+
+  # Merge book metadata with snippet text; emit as assignment lines with an
+  # extra "fts_snippet" variable so callers can display context.
+  _fetch_calibre_db | jq -r \
+    --argjson ids "$matched_ids" \
+    --argjson fts "$fts_output" \
+    --arg sort_by "$sort_by" "
+    map(select(.id as \$id | any(\$ids[]; . == \$id)))
+    | if \$sort_by != \"\" then
+        $CALIBRE_SORT_JQ
+        sort_calibre_db(\$sort_by)
+       else
+        .
+      end
+    | to_entries
+    | map(
+        (.key+1|tostring| if length < 2 then \"0\" + . else . end) as \$idx
+        | .value.rtitle= .value.title
+        | .value.title= \$idx + \" \" + .value.title
+        | .value.fts_snippet= (
+            \$fts | map(select(.book_id == .value.id))
+            | map(.text // \"\")
+            | join(\" … \")
+          )
+      )
+    | map(.value)
+    | .[]
+    | $CALIBRE_CONVERT_TO_ASSIGNMENTS_JQ + \";fts_snippet=\" + (.fts_snippet // \"\" | @sh)
+  "
+}
+
+_fetch_calibre_fts_search_with_context() {
+  __fetch_calibre_fts_search_with_context "$@"
+}
+
+fetch_calibre_fts_search_with_context() {
+  _fetch_calibre_fts_search_with_context "$@"
+}
+
+# ==============================================================================
 # USER LISTS
 # ==============================================================================
 _manage_user_list_add() {
@@ -3071,6 +3194,181 @@ __menu_miscellaneous_search_by_title() {
   done
 }
 
+__menu_miscellaneous_fts_search() {
+  local query
+  local search_history
+  local choice
+
+  while true; do
+    if [ "$CONFIG_SEARCH_HISTORY_ENABLE" = "true" ] && [ -s "$CLI_USER_SEARCH_HISTORY" ]; then
+      search_history="$(cat "$CLI_USER_SEARCH_HISTORY")"
+    else
+      search_history=""
+    fi
+
+    if [ -n "$CMD_INPUT" ]; then
+      query="$CMD_INPUT"
+      unset -v CMD_INPUT
+    else
+      if [ -z "$search_history" ]; then
+        query="$(ui_prompt "$TXT_MENU_MISC_FTS_SEARCH_PROMPT")"
+      else
+        choice=$(printf "%s\n%s\n%s" "$TXT_MENU_MAIN_NEW_SEARCH" "$(printf '%s\n' "$search_history" | _util_reverse)" "$TXT_MENU_BACK" | ui_launcher "$TXT_MENU_MAIN_SEARCH_OR_HISTORY_PROMPT")
+        case "$choice" in
+        "$TXT_MENU_MAIN_NEW_SEARCH")
+          query="$(ui_prompt "$TXT_MENU_MISC_FTS_SEARCH_PROMPT")"
+          ;;
+        "$TXT_MENU_BACK" | "") break ;;
+        *)
+          query="$choice"
+          ;;
+        esac
+      fi
+    fi
+
+    [ -z "$query" ] && continue
+
+    if [ "$CONFIG_SEARCH_HISTORY_ENABLE" = "true" ]; then
+      printf '%s\n' "$search_history" | awk -v query="$query" '
+    $0 != "" && $0 != query && !seen[$0]++ {
+      print $0
+    }
+    END {
+      print query
+    }
+    ' >"$CLI_USER_SEARCH_HISTORY"
+    fi
+
+    _state_push
+    fetch_calibre_fts_search "$query" "$CONFIG_SORT_BY" >"$STATE_CURRENT_BOOKS"
+
+    if ! [ -s "$STATE_CURRENT_BOOKS" ]; then
+      ui_notify_warning "$TXT_MENU_MISC_FTS_NO_RESULTS"
+      _state_pop
+    else
+      menu_book_list_explorer
+    fi
+
+    if [ -n "$CMD_EXIT" ]; then
+      _util_byebye
+    fi
+  done
+}
+
+__menu_miscellaneous_fts_search_with_context() {
+  local query
+  local search_history
+  local choice
+  local results
+  local snippet_view
+
+  while true; do
+    if [ "$CONFIG_SEARCH_HISTORY_ENABLE" = "true" ] && [ -s "$CLI_USER_SEARCH_HISTORY" ]; then
+      search_history="$(cat "$CLI_USER_SEARCH_HISTORY")"
+    else
+      search_history=""
+    fi
+
+    if [ -n "$CMD_INPUT" ]; then
+      query="$CMD_INPUT"
+      unset -v CMD_INPUT
+    else
+      if [ -z "$search_history" ]; then
+        query="$(ui_prompt "$TXT_MENU_MISC_FTS_SEARCH_PROMPT")"
+      else
+        choice=$(printf "%s\n%s\n%s" "$TXT_MENU_MAIN_NEW_SEARCH" "$(printf '%s\n' "$search_history" | _util_reverse)" "$TXT_MENU_BACK" | ui_launcher "$TXT_MENU_MAIN_SEARCH_OR_HISTORY_PROMPT")
+        case "$choice" in
+        "$TXT_MENU_MAIN_NEW_SEARCH")
+          query="$(ui_prompt "$TXT_MENU_MISC_FTS_SEARCH_PROMPT")"
+          ;;
+        "$TXT_MENU_BACK" | "") break ;;
+        *)
+          query="$choice"
+          ;;
+        esac
+      fi
+    fi
+
+    [ -z "$query" ] && continue
+
+    if [ "$CONFIG_SEARCH_HISTORY_ENABLE" = "true" ]; then
+      printf '%s\n' "$search_history" | awk -v query="$query" '
+    $0 != "" && $0 != query && !seen[$0]++ {
+      print $0
+    }
+    END {
+      print query
+    }
+    ' >"$CLI_USER_SEARCH_HISTORY"
+    fi
+
+    _state_push
+    results="$(fetch_calibre_fts_search_with_context "$query" "$CONFIG_SORT_BY")"
+
+    if [ -z "$results" ]; then
+      ui_notify_warning "$TXT_MENU_MISC_FTS_NO_RESULTS"
+      _state_pop
+    else
+      # Show a pager with all titles and their matching snippets before
+      # entering the interactive book list so the user can review context.
+      snippet_view="$(printf '%s\n' "$results" | awk -F';' '
+        {
+          title=""; snippet=""
+          for (i=1; i<=NF; i++) {
+            if ($i ~ /^rtitle=/) { title=substr($i, index($i,"=")+1); gsub(/^'"'"'|'"'"'$/, "", title) }
+            if ($i ~ /^fts_snippet=/) { snippet=substr($i, index($i,"=")+1); gsub(/^'"'"'|'"'"'$/, "", snippet) }
+          }
+          if (title != "") printf "%-50s  %s\n", title, snippet
+        }
+      ')"
+      printf '%s\n' "$snippet_view" | ui_pager
+
+      printf '%s\n' "$results" >"$STATE_CURRENT_BOOKS"
+      menu_book_list_explorer
+    fi
+
+    if [ -n "$CMD_EXIT" ]; then
+      _util_byebye
+    fi
+  done
+}
+
+__menu_miscellaneous_fts_index() {
+  local actions
+  local action
+
+  while true; do
+    actions="\
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MISC_FTS_INDEX}${THEME_RESET}  ${TXT_MENU_MISC_FTS_INDEX_STATUS}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MISC_FTS_INDEX}${THEME_RESET}  ${TXT_MENU_MISC_FTS_INDEX_ENABLE}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MISC_FTS_INDEX}${THEME_RESET}  ${TXT_MENU_MISC_FTS_INDEX_DISABLE}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MISC_FTS_INDEX}${THEME_RESET}  ${TXT_MENU_MISC_FTS_INDEX_REINDEX}
+${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MISC_FTS_INDEX}${THEME_RESET}  ${TXT_MENU_MISC_FTS_INDEX_REINDEX_WAIT}
+${THEME_FZF_ICON_COLOR_SECONDARY}${TXT_ICON_MENU_BACK}${THEME_RESET}  ${TXT_MENU_BACK}"
+
+    action="$(printf '%s' "$actions" | ui_launcher "$TXT_MENU_MISC_FTS_INDEX_PROMPT" | sed 's/.*  //g')"
+
+    case "$action" in
+    "$TXT_MENU_MISC_FTS_INDEX_STATUS")
+      calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" fts_index status | ui_pager
+      ;;
+    "$TXT_MENU_MISC_FTS_INDEX_ENABLE")
+      calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" fts_index enable
+      ;;
+    "$TXT_MENU_MISC_FTS_INDEX_DISABLE")
+      calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" fts_index disable
+      ;;
+    "$TXT_MENU_MISC_FTS_INDEX_REINDEX")
+      calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" fts_index reindex
+      ;;
+    "$TXT_MENU_MISC_FTS_INDEX_REINDEX_WAIT")
+      calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" fts_index reindex --wait-for-completion
+      ;;
+    "$TXT_MENU_BACK" | "") break ;;
+    esac
+  done
+}
+
 # shellcheck disable=SC2120
 _menu_miscellaneous() {
   local actions
@@ -3084,6 +3382,9 @@ _menu_miscellaneous() {
  ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MISC_ADD_BOOKS_FOLDER}${THEME_RESET}  ${TXT_MENU_MISC_ADD_BOOKS_FROM_FOLDER}
  ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MISC_SYNC}${THEME_RESET}  ${TXT_MENU_MISC_SYNC}
  ${THEME_FZF_ICON_COLOR_SECONDARY}${TXT_ICON_MENU_MISC_SEARCH_TITLE}${THEME_RESET}  ${TXT_MENU_MISC_SEARCH_TITLE}
+ ${THEME_FZF_ICON_COLOR_SECONDARY}${TXT_ICON_MENU_MISC_FTS_SEARCH}${THEME_RESET}  ${TXT_MENU_MISC_FTS_SEARCH}
+ ${THEME_FZF_ICON_COLOR_SECONDARY}${TXT_ICON_MENU_MISC_FTS_SEARCH_CONTEXT}${THEME_RESET}  ${TXT_MENU_MISC_FTS_SEARCH_WITH_CONTEXT}
+ ${THEME_FZF_ICON_COLOR_SECONDARY}${TXT_ICON_MENU_MISC_FTS_INDEX}${THEME_RESET}  ${TXT_MENU_MISC_FTS_INDEX}
  ${THEME_FZF_ICON_COLOR_SECONDARY}${TXT_ICON_MENU_BACK}${THEME_RESET}  ${TXT_MENU_BACK}
  ${THEME_FZF_ICON_COLOR_ERROR}${TXT_ICON_MENU_EXIT}${THEME_RESET}  ${TXT_MENU_EXIT}"
 
@@ -3111,6 +3412,9 @@ _menu_miscellaneous() {
     "$TXT_MENU_MISC_ADD_BOOKS") __menu_miscellaneous_add_books ;;
     "$TXT_MENU_MISC_SEARCH_TITLE") __menu_miscellaneous_search_by_title ;;
     "$TXT_MENU_MISC_SYNC") __menu_miscellaneous_sync ;;
+    "$TXT_MENU_MISC_FTS_SEARCH") __menu_miscellaneous_fts_search ;;
+    "$TXT_MENU_MISC_FTS_SEARCH_WITH_CONTEXT") __menu_miscellaneous_fts_search_with_context ;;
+    "$TXT_MENU_MISC_FTS_INDEX") __menu_miscellaneous_fts_index ;;
     "$TXT_MENU_BACK" | "") break ;;
     "$TXT_MENU_EXIT") _util_byebye ;;
     *)

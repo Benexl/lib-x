@@ -2765,7 +2765,7 @@ __menu_book_actions_edit() {
   fi
 
   if [ "$CONFIG_READING_PROCESS_DISOWN" = "true" ]; then
-    nohup ebook-edit "$book_path" >/dev/null 2>&1 &
+    (ebook-edit "$book_path" >/dev/null 2>&1 &)
   else
     ebook-edit "$book_path"
   fi

@@ -2392,8 +2392,7 @@ __fetch_calibre_fts_search() {
   sort_by="$2"
 
   # Run calibredb fts_search and collect the matched book ids (JSON output)
-  fts_output="$(calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" \
-    fts_search --output-format json "$query" 2>/dev/null)"
+  fts_output="$(calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" fts_search --output-format json "$query")"
 
   [ -z "$fts_output" ] && return 0
 

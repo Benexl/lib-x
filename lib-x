@@ -1583,15 +1583,30 @@ _state_init() {
 
 _state_push() {
   local current_state_dir
+  local previous_state_dir
+
+  previous_state_dir="$CLI_CURRENT_STATE_DIR/$STATE_CURRENT"
 
   STATE_CURRENT="$((STATE_CURRENT + 1))"
   current_state_dir="$CLI_CURRENT_STATE_DIR/$STATE_CURRENT"
   mkdir -p "$current_state_dir"
 
   STATE_CURRENT_CATEGORY="$current_state_dir/category.txt"
+  if [ -s "$previous_state_dir/category.txt" ]; then
+    cat "$previous_state_dir/category.txt" >"$STATE_CURRENT_CATEGORY"
+  fi
   STATE_CURRENT_BOOKS="$current_state_dir/books.env"
+  if [ -s "$previous_state_dir/books.env" ]; then
+    cat "$previous_state_dir/books.env" >"$STATE_CURRENT_BOOKS"
+  fi
   STATE_CURRENT_BOOK_TITLE="$current_state_dir/book-title.txt"
+  if [ -s "$previous_state_dir/book-title.txt" ]; then
+    cat "$previous_state_dir/book-title.txt" >"$STATE_CURRENT_BOOK_TITLE"
+  fi
   STATE_CURRENT_BOOK="$current_state_dir/book.json"
+  if [ -s "$previous_state_dir/book.json" ]; then
+    cat "$previous_state_dir/book.json" >"$STATE_CURRENT_BOOK"
+  fi
 }
 
 _state_pop() {

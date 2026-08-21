@@ -357,7 +357,6 @@ __load_default_lang() {
   TXT_MENU_MISC_SEARCH_TITLE="Search Title"
   TXT_MENU_MISC_SYNC="Sync Data"
   TXT_MENU_MISC_FTS_SEARCH="Full Text Search"
-  TXT_MENU_MISC_FTS_SEARCH_WITH_CONTEXT="Full Text Search (with Context)"
   TXT_MENU_MISC_FTS_INDEX="Manage FTS Index"
   TXT_MENU_MISC_FTS_SEARCH_PROMPT="Enter full text search query"
   TXT_MENU_MISC_FTS_INDEX_PROMPT="Select FTS Index Action"
@@ -407,7 +406,6 @@ __load_default_lang() {
   TXT_ICON_MENU_MISC_SEARCH_TITLE=""
   TXT_ICON_MENU_MISC_SYNC="󰑓"
   TXT_ICON_MENU_MISC_FTS_SEARCH=""
-  TXT_ICON_MENU_MISC_FTS_SEARCH_CONTEXT="󰒉"
   TXT_ICON_MENU_MISC_FTS_INDEX="󰋼"
 
   TXT_MISC_ADD_BOOKS_OPTIONS='Options:
@@ -2430,63 +2428,7 @@ fetch_calibre_fts_search() {
   _fetch_calibre_fts_search "$@"
 }
 
-__fetch_calibre_fts_search_with_context() {
-  local query
-  local sort_by
-  local fts_output
-  local matched_ids
 
-  query="$1"
-  sort_by="$2"
-
-  # Run calibredb fts_search with snippets/context
-  fts_output="$(calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" \
-    fts_search --output-format json --include-snippets \
-    --match-start-marker '>>>' --match-end-marker '<<<' \
-    "$query" 2>/dev/null)"
-
-  [ -z "$fts_output" ] && return 0
-
-  matched_ids="$(printf '%s' "$fts_output" | jq -r '[.[].book_id] | unique | @json')"
-  [ -z "$matched_ids" ] || [ "$matched_ids" = "null" ] || [ "$matched_ids" = "[]" ] && return 0
-
-  # Merge book metadata with snippet text; emit as assignment lines with an
-  # extra "fts_snippet" variable so callers can display context.
-  _fetch_calibre_db | jq -r \
-    --argjson ids "$matched_ids" \
-    --argjson fts "$fts_output" \
-    --arg sort_by "$sort_by" "
-    map(select(.id as \$id | any(\$ids[]; . == \$id)))
-    | if \$sort_by != \"\" then
-        $CALIBRE_SORT_JQ
-        sort_calibre_db(\$sort_by)
-       else
-        .
-      end
-    | to_entries
-    | map(
-        (.key+1|tostring| if length < 2 then \"0\" + . else . end) as \$idx
-        | .value.rtitle= .value.title
-        | .value.title= \$idx + \" \" + .value.title
-        | .value.fts_snippet= (
-            \$fts | map(select(.book_id == .value.id))
-            | map(.text // \"\")
-            | join(\" … \")
-          )
-      )
-    | map(.value)
-    | .[]
-    | $CALIBRE_CONVERT_TO_ASSIGNMENTS_JQ + \";fts_snippet=\" + (.fts_snippet // \"\" | @sh)
-  "
-}
-
-_fetch_calibre_fts_search_with_context() {
-  __fetch_calibre_fts_search_with_context "$@"
-}
-
-fetch_calibre_fts_search_with_context() {
-  _fetch_calibre_fts_search_with_context "$@"
-}
 
 # ==============================================================================
 # USER LISTS
@@ -3270,83 +3212,6 @@ __menu_miscellaneous_fts_search() {
   done
 }
 
-__menu_miscellaneous_fts_search_with_context() {
-  local query
-  local search_history
-  local choice
-  local results
-  local snippet_view
-
-  while true; do
-    if [ "$CONFIG_SEARCH_HISTORY_ENABLE" = "true" ] && [ -s "$CLI_USER_SEARCH_HISTORY" ]; then
-      search_history="$(cat "$CLI_USER_SEARCH_HISTORY")"
-    else
-      search_history=""
-    fi
-
-    if [ -n "$CMD_INPUT" ]; then
-      query="$CMD_INPUT"
-      unset -v CMD_INPUT
-    else
-      if [ -z "$search_history" ]; then
-        query="$(ui_prompt "$TXT_MENU_MISC_FTS_SEARCH_PROMPT")"
-      else
-        choice=$(printf "%s\n%s\n%s" "$TXT_MENU_MAIN_NEW_SEARCH" "$(printf '%s\n' "$search_history" | _util_reverse)" "$TXT_MENU_BACK" | ui_launcher "$TXT_MENU_MAIN_SEARCH_OR_HISTORY_PROMPT")
-        case "$choice" in
-        "$TXT_MENU_MAIN_NEW_SEARCH")
-          query="$(ui_prompt "$TXT_MENU_MISC_FTS_SEARCH_PROMPT")"
-          ;;
-        "$TXT_MENU_BACK" | "") break ;;
-        *)
-          query="$choice"
-          ;;
-        esac
-      fi
-    fi
-
-    [ -z "$query" ] && continue
-
-    if [ "$CONFIG_SEARCH_HISTORY_ENABLE" = "true" ]; then
-      printf '%s\n' "$search_history" | awk -v query="$query" '
-    $0 != "" && $0 != query && !seen[$0]++ {
-      print $0
-    }
-    END {
-      print query
-    }
-    ' >"$CLI_USER_SEARCH_HISTORY"
-    fi
-
-    _state_push
-    results="$(fetch_calibre_fts_search_with_context "$query" "$CONFIG_SORT_BY")"
-
-    if [ -z "$results" ]; then
-      ui_notify_warning "$TXT_MENU_MISC_FTS_NO_RESULTS"
-      _state_pop
-    else
-      # Show a pager with all titles and their matching snippets before
-      # entering the interactive book list so the user can review context.
-      snippet_view="$(printf '%s\n' "$results" | awk -F';' '
-        {
-          title=""; snippet=""
-          for (i=1; i<=NF; i++) {
-            if ($i ~ /^rtitle=/) { title=substr($i, index($i,"=")+1); gsub(/^'"'"'|'"'"'$/, "", title) }
-            if ($i ~ /^fts_snippet=/) { snippet=substr($i, index($i,"=")+1); gsub(/^'"'"'|'"'"'$/, "", snippet) }
-          }
-          if (title != "") printf "%-50s  %s\n", title, snippet
-        }
-      ')"
-      printf '%s\n' "$snippet_view" | ui_pager
-
-      printf '%s\n' "$results" >"$STATE_CURRENT_BOOKS"
-      menu_book_list_explorer
-    fi
-
-    if [ -n "$CMD_EXIT" ]; then
-      _util_byebye
-    fi
-  done
-}
 
 __menu_miscellaneous_fts_index() {
   local actions
@@ -3398,7 +3263,6 @@ _menu_miscellaneous() {
  ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MISC_SYNC}${THEME_RESET}  ${TXT_MENU_MISC_SYNC}
  ${THEME_FZF_ICON_COLOR_SECONDARY}${TXT_ICON_MENU_MISC_SEARCH_TITLE}${THEME_RESET}  ${TXT_MENU_MISC_SEARCH_TITLE}
  ${THEME_FZF_ICON_COLOR_SECONDARY}${TXT_ICON_MENU_MISC_FTS_SEARCH}${THEME_RESET}  ${TXT_MENU_MISC_FTS_SEARCH}
- ${THEME_FZF_ICON_COLOR_SECONDARY}${TXT_ICON_MENU_MISC_FTS_SEARCH_CONTEXT}${THEME_RESET}  ${TXT_MENU_MISC_FTS_SEARCH_WITH_CONTEXT}
  ${THEME_FZF_ICON_COLOR_SECONDARY}${TXT_ICON_MENU_MISC_FTS_INDEX}${THEME_RESET}  ${TXT_MENU_MISC_FTS_INDEX}
  ${THEME_FZF_ICON_COLOR_SECONDARY}${TXT_ICON_MENU_BACK}${THEME_RESET}  ${TXT_MENU_BACK}
  ${THEME_FZF_ICON_COLOR_ERROR}${TXT_ICON_MENU_EXIT}${THEME_RESET}  ${TXT_MENU_EXIT}"
@@ -3428,7 +3292,6 @@ _menu_miscellaneous() {
     "$TXT_MENU_MISC_SEARCH_TITLE") __menu_miscellaneous_search_by_title ;;
     "$TXT_MENU_MISC_SYNC") __menu_miscellaneous_sync ;;
     "$TXT_MENU_MISC_FTS_SEARCH") __menu_miscellaneous_fts_search ;;
-    "$TXT_MENU_MISC_FTS_SEARCH_WITH_CONTEXT") __menu_miscellaneous_fts_search_with_context ;;
     "$TXT_MENU_MISC_FTS_INDEX") __menu_miscellaneous_fts_index ;;
     "$TXT_MENU_BACK" | "") break ;;
     "$TXT_MENU_EXIT") _util_byebye ;;

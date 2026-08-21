@@ -3278,12 +3278,12 @@ _menu_miscellaneous() {
     fi
 
     case "$action" in
+    "$TXT_MENU_MISC_FTS_SEARCH") __menu_miscellaneous_fts_search ;;
     "$TXT_MENU_MISC_ADD_BOOKS_FROM_FOLDER") __menu_miscellaneous_add_books_from_folder ;;
     "$TXT_MENU_MISC_ADD_BOOKS") __menu_miscellaneous_add_books ;;
-    "$TXT_MENU_MISC_SEARCH_TITLE") __menu_miscellaneous_search_by_title ;;
-    "$TXT_MENU_MISC_SYNC") __menu_miscellaneous_sync ;;
-    "$TXT_MENU_MISC_FTS_SEARCH") __menu_miscellaneous_fts_search ;;
     "$TXT_MENU_MISC_FTS_INDEX") __menu_miscellaneous_fts_index ;;
+    "$TXT_MENU_MISC_SYNC") __menu_miscellaneous_sync ;;
+    "$TXT_MENU_MISC_SEARCH_TITLE") __menu_miscellaneous_search_by_title ;;
     "$TXT_MENU_BACK" | "") break ;;
     "$TXT_MENU_EXIT") _util_byebye ;;
     *)

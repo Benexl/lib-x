@@ -3162,7 +3162,10 @@ __menu_miscellaneous_fts_search() {
       if [ -z "$search_history" ]; then
         query="$(ui_prompt "$TXT_MENU_MISC_FTS_SEARCH_PROMPT")"
       else
-        choice=$(printf "%s\n%s\n%s" "$TXT_MENU_MAIN_NEW_SEARCH" "$(printf '%s\n' "$search_history" | _util_reverse)" "$TXT_MENU_BACK" | ui_launcher "$TXT_MENU_MAIN_SEARCH_OR_HISTORY_PROMPT")
+        choice=$(
+          printf "%s\n%s\n%s" "$TXT_MENU_MAIN_NEW_SEARCH" "$(printf '%s\n' "$search_history" | _util_reverse)" "$TXT_MENU_BACK" |
+            ui_launcher "$TXT_MENU_MAIN_SEARCH_OR_HISTORY_PROMPT"
+        )
         case "$choice" in
         "$TXT_MENU_MAIN_NEW_SEARCH")
           query="$(ui_prompt "$TXT_MENU_MISC_FTS_SEARCH_PROMPT")"

@@ -2949,6 +2949,7 @@ __menu_miscellaneous_add_books_from_folder() {
     if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" add $custom_args "$books_dir"; then
       __fetch_calibre_db
       __fetch_calibre_categories
+      CALIBRE_DB_TIMESTAMP="$(_util_get_file_timestamp "$CONFIG_CALIBRE_LIBRARY_PATH/metadata.db")"
     else
       ui_notify_error "$TXT_MENU_MISC_ADD_BOOKS_FROM_FOLDER_FAILED"
     fi
@@ -2993,6 +2994,7 @@ __menu_miscellaneous_add_books() {
     if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" add $custom_args $book_paths; then
       __fetch_calibre_db
       __fetch_calibre_categories
+      CALIBRE_DB_TIMESTAMP="$(_util_get_file_timestamp "$CONFIG_CALIBRE_LIBRARY_PATH/metadata.db")"
     else
       ui_notify_error "$TXT_MENU_MISC_ADD_BOOKS_FAILED"
     fi

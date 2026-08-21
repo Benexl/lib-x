@@ -2385,23 +2385,17 @@ fetch_calibre_fts_index() {
 __fetch_calibre_fts_search() {
   local query
   local sort_by
-  local fts_output
-  local matched_ids
+  local fts_results
 
   query="$1"
   sort_by="$2"
 
-  # Run calibredb fts_search and collect the matched book ids (JSON output)
-  fts_output="$(calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" fts_search --output-format json "$query")"
+  fts_results="$(calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" fts_search --output-format json "$query")"
 
-  [ -z "$fts_output" ] && return 0
+  [ -z "$fts_results" ] && return 1
 
-  # Extract ids from fts_search JSON: [{book_id:…}, …]
-  matched_ids="$(printf '%s' "$fts_output" | jq -r '[.[].book_id] | unique | @json')"
-  [ -z "$matched_ids" ] || [ "$matched_ids" = "null" ] || [ "$matched_ids" = "[]" ] && return 0
-
-  _fetch_calibre_db | jq -r --argjson ids "$matched_ids" --arg sort_by "$sort_by" "
-    map(select(.id as \$id | any(\$ids[]; . == \$id)))
+  _fetch_calibre_db | jq -r --argjson ftsResults "$fts_results" --arg sort_by "$sort_by" "
+    map(select(.id as \$id | any(\$ftsResults[].book_id; . == \$id)))
     | if \$sort_by != \"\" then
         $CALIBRE_SORT_JQ
         sort_calibre_db(\$sort_by)

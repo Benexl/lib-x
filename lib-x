@@ -3696,8 +3696,11 @@ __menu_main_identifiers() {
 }
 
 __menu_main_edit_config() {
+  local curr_launcher
+  curr_launcher="$CONFIG_LAUNCHER"
   _util_file_edit "$CLI_CONFIG_FILE"
   _load_config
+  CONFIG_LAUNCHER="$curr_launcher"
 }
 
 # shellcheck disable=SC2120

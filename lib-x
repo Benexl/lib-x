@@ -352,21 +352,20 @@ __load_default_lang() {
   TXT_MENU_MISC_ADD_BOOKS_FROM_FOLDER_PROMPT="Add Books From Folder"
   TXT_MENU_MISC_ADD_BOOKS_OPTIONS_PROMPT="Enter Custom Options"
   TXT_MENU_MISC_ADD_BOOKS_PROMPT="Add Books"
+  TXT_MENU_MISC_FTS_INDEX_DISABLE="Disable FTS Indexing"
+  TXT_MENU_MISC_FTS_INDEX_ENABLE="Enable FTS Indexing"
+  TXT_MENU_MISC_FTS_INDEX="Manage FTS Index"
+  TXT_MENU_MISC_FTS_INDEX_PROMPT="Select FTS Index Action"
+  TXT_MENU_MISC_FTS_INDEX_REINDEX="Re-index Library"
+  TXT_MENU_MISC_FTS_INDEX_REINDEX_WAIT="Re-index Library (wait for completion)"
+  TXT_MENU_MISC_FTS_INDEX_STATUS="Show Indexing Status"
+  TXT_MENU_MISC_FTS_NO_RESULTS="No results found for the given query."
+  TXT_MENU_MISC_FTS_SEARCH="Full Text Search"
+  TXT_MENU_MISC_FTS_SEARCH_PROMPT="Enter full text search query"
   TXT_MENU_MISC_PROMPT="Select Action"
   TXT_MENU_MISC_SEARCH_TITLE_PROMPT="Enter title query"
   TXT_MENU_MISC_SEARCH_TITLE="Search Title"
   TXT_MENU_MISC_SYNC="Sync Data"
-  TXT_MENU_MISC_FTS_SEARCH="Full Text Search"
-  TXT_MENU_MISC_FTS_INDEX="Manage FTS Index"
-  TXT_MENU_MISC_FTS_SEARCH_PROMPT="Enter full text search query"
-  TXT_MENU_MISC_FTS_INDEX_PROMPT="Select FTS Index Action"
-  TXT_MENU_MISC_FTS_INDEX_ENABLE="Enable FTS Indexing"
-  TXT_MENU_MISC_FTS_INDEX_DISABLE="Disable FTS Indexing"
-  TXT_MENU_MISC_FTS_INDEX_STATUS="Show Indexing Status"
-  TXT_MENU_MISC_FTS_INDEX_REINDEX="Re-index Library"
-  TXT_MENU_MISC_FTS_INDEX_REINDEX_WAIT="Re-index Library (wait for completion)"
-  TXT_MENU_MISC_FTS_NO_RESULTS="No results found for the given query."
-  TXT_MENU_MISC_FTS_CONTEXT_HEADER="Context"
 
   TXT_ICON_MENU_BACK="󰌍"
   TXT_ICON_MENU_BOOK_ACTIONS_ADD_LIST="󰤀"
@@ -403,10 +402,10 @@ __load_default_lang() {
   TXT_ICON_MENU_MAIN_TAGS=""
   TXT_ICON_MENU_MISC_ADD_BOOKS="󰗛"
   TXT_ICON_MENU_MISC_ADD_BOOKS_FOLDER="󰉗"
+  TXT_ICON_MENU_MISC_FTS_INDEX="󰋼"
+  TXT_ICON_MENU_MISC_FTS_SEARCH=""
   TXT_ICON_MENU_MISC_SEARCH_TITLE=""
   TXT_ICON_MENU_MISC_SYNC="󰑓"
-  TXT_ICON_MENU_MISC_FTS_SEARCH=""
-  TXT_ICON_MENU_MISC_FTS_INDEX="󰋼"
 
   TXT_MISC_ADD_BOOKS_OPTIONS='Options:
   -d, --duplicates      Add books to database even if they already exist.
@@ -2428,8 +2427,6 @@ fetch_calibre_fts_search() {
   _fetch_calibre_fts_search "$@"
 }
 
-
-
 # ==============================================================================
 # USER LISTS
 # ==============================================================================
@@ -3211,7 +3208,6 @@ __menu_miscellaneous_fts_search() {
     fi
   done
 }
-
 
 __menu_miscellaneous_fts_index() {
   local actions

@@ -2371,10 +2371,7 @@ fetch_calibre_db_search_identifier() {
 # CALIBRE: FULL TEXT SEARCH FUNCTIONS
 # ==============================================================================
 __fetch_calibre_fts_index() {
-  local action="$1"
-  local extra_arg="$2"
-  # shellcheck disable=SC2086
-  calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" fts_index "$action" $extra_arg
+  calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" fts_index "$@"
 }
 
 _fetch_calibre_fts_index() {

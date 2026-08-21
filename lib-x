@@ -2368,6 +2368,21 @@ fetch_calibre_db_search_identifier() {
 # ==============================================================================
 # CALIBRE: FULL TEXT SEARCH FUNCTIONS
 # ==============================================================================
+__fetch_calibre_fts_index() {
+  local action="$1"
+  local extra_arg="$2"
+  # shellcheck disable=SC2086
+  calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" fts_index "$action" $extra_arg
+}
+
+_fetch_calibre_fts_index() {
+  __fetch_calibre_fts_index "$@"
+}
+
+fetch_calibre_fts_index() {
+  _fetch_calibre_fts_index "$@"
+}
+
 __fetch_calibre_fts_search() {
   local query
   local sort_by
@@ -3350,19 +3365,19 @@ ${THEME_FZF_ICON_COLOR_SECONDARY}${TXT_ICON_MENU_BACK}${THEME_RESET}  ${TXT_MENU
 
     case "$action" in
     "$TXT_MENU_MISC_FTS_INDEX_STATUS")
-      calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" fts_index status | ui_pager
+      fetch_calibre_fts_index "status" | ui_pager
       ;;
     "$TXT_MENU_MISC_FTS_INDEX_ENABLE")
-      calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" fts_index enable
+      fetch_calibre_fts_index "enable"
       ;;
     "$TXT_MENU_MISC_FTS_INDEX_DISABLE")
-      calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" fts_index disable
+      fetch_calibre_fts_index "disable"
       ;;
     "$TXT_MENU_MISC_FTS_INDEX_REINDEX")
-      calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" fts_index reindex
+      fetch_calibre_fts_index "reindex"
       ;;
     "$TXT_MENU_MISC_FTS_INDEX_REINDEX_WAIT")
-      calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" fts_index reindex --wait-for-completion
+      fetch_calibre_fts_index "reindex" "--wait-for-completion"
       ;;
     "$TXT_MENU_BACK" | "") break ;;
     esac

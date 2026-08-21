@@ -767,8 +767,6 @@ _load_config() {
 # ==============================================================================
 _util_terminal_exec() {
   local term
-  local old_ifs
-  old_ifs="$IFS"
 
   if ! $CLI_IS_TERMINAL; then
     if [ -n "$CONFIG_TERMINAL_EXEC" ]; then
@@ -793,15 +791,10 @@ _util_terminal_exec() {
       ui_notify_error "$TXT_NO_TERMINAL_EXEC"
       return 1
     fi
-    IFS=" "
-    # shellcheck disable=SC2086
     $term "$@"
-    IFS="$old_ifs"
     return
   fi
-  IFS=" "
   "$@"
-  IFS="$old_ifs"
 }
 
 _util_open() {
@@ -1314,25 +1307,18 @@ ui_pager() {
 # CORE UI: LOADER
 # ==============================================================================
 __ui_default_loader() {
-  local cmd
-  cmd="$*"
-
   if _dep_ch gum; then
     # shellcheck disable=SC2086
-    gum spin $CONFIG_GUM_SPIN_OPTS --show-output -- $cmd
+    gum spin $CONFIG_GUM_SPIN_OPTS --show-output -- "$@"
   else
     printf '%s\n' "$TXT_LOADING" >/dev/stderr
-    $cmd
+    "$@"
   fi
-
 }
 
 __ui_rofi_loader() {
-  local cmd
-  cmd="$*"
-
   ui_notify "$TXT_LOADING"
-  $cmd
+  "$@"
 }
 
 _ui_loader() {

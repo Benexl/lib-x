@@ -45,10 +45,7 @@ _dep_ch() {
 }
 
 if ! _dep_ch local; then
-  eval '
-  local() {
-    :
-  }'
+  eval 'local() { :; }'
 fi
 
 # shellcheck disable=SC2155

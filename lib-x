@@ -244,6 +244,7 @@ __load_default_lang() {
   TXT_DESKTOP_ENTRY_PROMPT="Create desktop entry?"
   TXT_EDITOR_NOT_FOUND="No editor found. Please set CONFIG_EDITOR or EDITOR."
   TXT_ERROR_INVALID_ACTION="Invalid action"
+  TXT_FAILED_UPDATE_LIST="Failed to update list"
   TXT_FETCH_FAILED="Failed to fetch"
   TXT_LAUNCHER_LABEL_FZF="Fzf"
   TXT_LAUNCHER_LABEL_ROFI="Rofi"
@@ -2470,12 +2471,22 @@ _manage_user_list_add() {
   fi
 
   printf '%s' "$user_list" | jq --slurpfile book "$STATE_CURRENT_BOOK" --arg limit "$limit" '
-    map(select(.id != $book[0].id))
-    | . + [$book[0]]
-    | if ($limit | type) == "number" and (. | length) > $limit then
-        .[((. | length) - $limit):]
-      end
-    ' >"$user_list_path"
+    if $book[0] != null then
+      map(select(.id != $book[0].id))
+      | . + [$book[0]]
+      | if ($limit | type) == "number" and (. | length) > $limit then
+          .[((. | length) - $limit):]
+        end
+    end
+    ' >"$user_list_path.tmp"
+
+  # shellcheck disable=SC2181
+  if [ "$?" = 0 ] && [ -s "$user_list_path.tmp" ]; then
+    mv "$user_list_path.tmp" "$user_list_path"
+  else
+    ui_notify_error "$TXT_FAILED_UPDATE_LIST: $user_list_path"
+    rm "$user_list_path.tmp"
+  fi
 }
 
 manage_user_list_add() {

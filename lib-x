@@ -60,6 +60,7 @@ readonly CLI_PATH="$CLI_DIR/$CLI_NAME"
 case "$(uname -a)" in
 *ndroid*) readonly CLI_PLATFORM="android" ;;
 *Darwin*) readonly CLI_PLATFORM="mac" ;;
+*BSD*) readonly CLI_PLATFORM="bsd" ;;
 *WSL* | *microsoft* | *Microsoft*) readonly CLI_PLATFORM="linux" ;;
 *MINGW* | *MSYS* | *CYGWIN*) readonly CLI_PLATFORM="windows" ;;
 *) readonly CLI_PLATFORM="linux" ;;
@@ -882,7 +883,17 @@ _util_generate_hash() {
 }
 
 _util_get_file_timestamp() {
-  date +%s -r "$1"
+  case "$CLI_PLATFORM" in
+  linux | windows)
+    stat -c %Y "$1"
+    ;;
+  mac | bsd)
+    stat -f %m "$1"
+    ;;
+  *)
+    perl -e 'print((stat($ARGV[0]))[9])' "$1"
+    ;;
+  esac
 }
 
 _util_reverse() {

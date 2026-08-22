@@ -3011,7 +3011,7 @@ $TXT_MENU_EXIT"
       "$TXT_MENU_BACK" | "") _state_pop && break ;;
       "$TXT_MENU_EXIT") _util_byebye ;;
       *)
-        eval "$(awk -v c="$choice" 'index($0, c) {print; exit}' "$STATE_CURRENT_BOOKS")"
+        eval "$(sed -n "${choice%% *}p" "$STATE_CURRENT_BOOKS")"
         ;;
       esac
     fi

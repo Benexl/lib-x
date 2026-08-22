@@ -2840,6 +2840,7 @@ __menu_book_actions_show_metadata() {
 
 __menu_book_actions_shell() {
   local init_text
+  local init_file
   local user_shell
 
   export \
@@ -2876,16 +2877,19 @@ CLI_NAME
   if [ "$user_shell" = "fish" ]; then
     _util_terminal_exec fish --init-command "function fish_greeting;printf \"$init_text\";end"
   else
-    local init_file
-    init_file="$(mktemp "${TMPDIR:-/tmp}/lib_x_sh_init.XXXXXX")"
+    if _dep_ch mktemp; then
+      init_file="$(mktemp "${TMPDIR:-$CLI_CURRENT_STATE_DIR}/lib_x_sh_init.XXXXXX")"
+    else
+      init_file="${TMPDIR:-$CLI_CURRENT_STATE_DIR}/lib_x_sh_init.$(date +%s)"
+    fi
 
     cat <<EOF >"$init_file"
-printf '%s' "$init_text"
+printf '%s' "\\
+$init_text"
 EOF
     ENV="$init_file" _util_terminal_exec sh -i
     rm "$init_file"
   fi
-
 }
 
 # shellcheck disable=SC2120

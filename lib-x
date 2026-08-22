@@ -769,6 +769,10 @@ _util_ansi_strip() {
   sed -e 's/\033\[[0-9;]*[a-zA-Z]//g' -e 's/\033(B//g'
 }
 
+_util_random_n() {
+  dd if=/dev/urandom bs=4 count="$1" 2>/dev/null | od -An -tu4 | awk '{for(i=1;i<=NF;i++) print $i}'
+}
+
 _util_terminal_exec() {
   local term
 
@@ -1900,13 +1904,22 @@ fetch_calibre_db_all() {
 }
 
 __fetch_calibre_db_random() {
-  local randoms
-
-  randoms="$(od -An -N$((CONFIG_RANDOM_BOOKS_LIMIT * 3 * 4)) -tu4 /dev/urandom)"
-  _fetch_calibre_db | jq -r --argjson no_of_random_books "$CONFIG_RANDOM_BOOKS_LIMIT" --arg sort_by "$1" --arg randoms "$randoms" "
+  _fetch_calibre_db |
+    jq -r --argjson no_of_random_books "$CONFIG_RANDOM_BOOKS_LIMIT" --arg sort_by "$1" --arg randoms "$(_util_random_n "$((CONFIG_RANDOM_BOOKS_LIMIT * 2))")" "
     . as \$db
-    | \$randoms | sub(\"\n\"; \" \"; \"g\") | split(\" \") | map(select(. != \"\")) | map(tonumber? // empty) | unique | .[:(\$no_of_random_books)] as \$random_list
-    | \$random_list | map(\$db[. % (\$db | length)])
+    | (\$db | length) as \$db_length
+    | \$randoms
+    | split(\"\n\")
+    | map(tonumber? // empty)
+    | map(. % \$db_length)
+    | reduce .[] as \$item ({seen: {}, random_list: []};
+      (\$item | tostring) as \$key
+      | if .seen[\$key] == null and (.random_list | length) < \$no_of_random_books then
+        .seen[\$key] = true
+        | .random_list += [\$item]
+        end
+      )
+    | .random_list | map(\$db[.])
     | if \$sort_by != \"\" then
         $CALIBRE_SORT_JQ
         sort_calibre_db(\$sort_by)

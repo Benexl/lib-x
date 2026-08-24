@@ -117,6 +117,7 @@ __load_default_config() {
   : "${CONFIG_COLORS_ENABLE:=true}"
   : "${CONFIG_EDITOR:=${EDITOR:-vi}}"
   : "${CONFIG_FILE_EXPLORER:=fzf}"
+  : "${CONFIG_FILTER_DROPPED:=true}"
   : "${CONFIG_FZF_HEADER:="\$CLI_HEADER"}"
   : "${CONFIG_GUM_CONFIRM_OPTS:="--prompt.foreground #2ac3de --selected.foreground #1a1b26 --selected.background #2ac3de --unselected.foreground #585858"}"
   : "${CONFIG_GUM_FILTER_OPTS:="--prompt.foreground #2ac3de --indicator.foreground #2ac3de --selected-indicator.foreground #2ac3de --unselected-prefix.foreground #585858 --header.foreground #2ac3de --text.foreground #c0caf5 --cursor-text.foreground #c0caf5 --match.foreground #2ac3de --placeholder.foreground #585858  --prompt  > --indicator ◆ --selected-prefix  ◉  --unselected-prefix  ○  --placeholder Search..."}"
@@ -198,6 +199,7 @@ __load_env_config() {
   CONFIG_COLORS_ENABLE="${LIB_X_COLORS_ENABLE:-$CONFIG_COLORS_ENABLE}"
   CONFIG_EDITOR="${LIB_X_EDITOR:-$CONFIG_EDITOR}"
   CONFIG_FILE_EXPLORER="${LIB_X_FILE_EXPLORER:-$CONFIG_FILE_EXPLORER}"
+  CONFIG_FILTER_DROPPED="${LIB_X_FILTER_DROPPED:-$CONFIG_FILTER_DROPPED}"
   CONFIG_FZF_HEADER="${LIB_X_FZF_HEADER:-$CONFIG_FZF_HEADER}"
   CONFIG_FZF_OPTS="${LIB_X_FZF_OPTS:-$CONFIG_FZF_OPTS}"
   CONFIG_GUM_CONFIRM_OPTS="${LIB_X_GUM_CONFIRM_OPTS:-$CONFIG_GUM_CONFIRM_OPTS}"
@@ -665,6 +667,10 @@ CONFIG_EDITOR="$CONFIG_EDITOR"
 # Preferred file explorer when adding books from folders
 # Options: yazi, fzf (Default: fzf)
 CONFIG_FILE_EXPLORER="$CONFIG_FILE_EXPLORER"
+
+# Whether you would like to filter out dropped books from all menu
+# Options: true, false (Default: true)
+CONFIG_FILTER_DROPPED="$CONFIG_FILTER_DROPPED"
 
 # Custom options passed directly to fzf
 CONFIG_FZF_HEADER="\\
@@ -1862,13 +1868,17 @@ def escape:
 '
 
 __fetch_calibre_db_all() {
-  _fetch_calibre_db | jq -r --arg sort_by "$1" "
-    if \$sort_by != \"\" then
-      $CALIBRE_SORT_JQ
-      sort_calibre_db(\$sort_by)
-      else
-      .
+  _fetch_calibre_db | jq -r --arg exclude "$1" --arg sort_by "$2" "
+    if \$exclude != \"\" then
+      (\$exclude | split(\"\n\") | map({key: ., value: true}) | from_entries) as \$exclude_map 
+      | map(select(\$exclude_map[.id|tostring] | not))
     end
+    | if \$sort_by != \"\" then
+        $CALIBRE_SORT_JQ
+        sort_calibre_db(\$sort_by)
+      else
+        .
+      end
     | to_entries
     | map(
         (.key+1|tostring| if length < 2 then \"0\" + . else . end) as \$idx
@@ -1886,7 +1896,7 @@ _fetch_calibre_db_all() {
   local hash
 
   if ! [ "$*" = "" ]; then
-    hash="$(_util_generate_hash "$@")"
+    hash="$(_util_generate_hash "$*")"
   fi
   cached_fetch="$CLI_FETCH_CACHE_DIR/all-$hash.env"
 
@@ -2449,6 +2459,77 @@ _fetch_calibre_fts_search() {
 
 fetch_calibre_fts_search() {
   _fetch_calibre_fts_search "$@"
+}
+
+__fetch_user_list() {
+  local list_path
+
+  list_path="$1"
+  jq -r --arg sort_by "$CONFIG_SORT_BY" "
+    reverse
+    | if \$sort_by != \"\" then
+        $CALIBRE_SORT_JQ
+        sort_calibre_db(\$sort_by)
+      else
+        .
+      end
+    | to_entries
+    | map(
+        (.key+1|tostring| if length < 2 then \"0\" + . else . end) as \$idx
+        | .value.rtitle= .value.title
+        | .value.title= \$idx + \" \" + .value.title
+      )
+    | map(.value)
+    | .[]
+    | $CALIBRE_CONVERT_TO_ASSIGNMENTS_JQ
+    " "$list_path"
+}
+
+_fetch_user_list() {
+  local cached_fetch
+  local list_path
+  local list_name
+
+  list_path="$1"
+  list_name="$2"
+  cached_fetch="$CLI_LIBRARY_CACHE_DIR/.User-$list_name-sort-$CONFIG_SORT_BY.env"
+
+  if ! [ -s "$cached_fetch" ] || ! [ "$(_util_get_file_timestamp "$cached_fetch")" -gt "$(_util_get_file_timestamp "$list_path")" ]; then
+    if __fetch_user_list "$list_path" >"$cached_fetch.tmp"; then
+      mv "$cached_fetch.tmp" "$cached_fetch"
+    else
+      _ui_notify_critical "$TXT_FAILED_TO_FETCH: $list_name"
+    fi
+  fi
+  cat "$cached_fetch"
+}
+
+fetch_user_list() {
+  _fetch_user_list "$@"
+}
+
+__fetch_exclude() {
+  if [ -s "$CLI_USER_LIST_DROPPED" ]; then
+    fetch_user_list "$CLI_USER_LIST_DROPPED" "$TXT_MENU_MAIN_DROPPED" | sed -e 's/^id=//' -e 's/;uuid=.*$//'
+  fi
+}
+
+_fetch_exclude() {
+  local cached_fetch
+
+  cached_fetch="$CLI_FETCH_CACHE_DIR/exclude.txt"
+  if ! [ -s "$cached_fetch" ] || ! [ "$(_util_get_file_timestamp "$cached_fetch")" -gt "$(_util_get_file_timestamp "$CLI_USER_LIST_DROPPED")" ]; then
+    if __fetch_exclude >"$cached_fetch.tmp"; then
+      mv "$cached_fetch.tmp" "$cached_fetch"
+    else
+      _ui_notify_critical "$TXT_FAILED_TO_FETCH: exclude"
+    fi
+  fi
+  cat "$cached_fetch"
+}
+
+fetch_exclude() {
+  _fetch_exclude
 }
 
 # ==============================================================================
@@ -3351,51 +3432,25 @@ menu_miscellaneous() {
 # MENUS: MAIN
 # ==============================================================================
 __menu_main_user_list_browser() {
-  local cached_list
-  local user_list_path
-  user_list_path="$1"
+  local list_path
+  local list_name
 
-  if ! [ -s "$user_list_path" ]; then
+  list_path="$1"
+  list_name="$2"
+
+  if ! [ -s "$list_path" ]; then
     ui_notify_warning "$TXT_WARNING_USER_LIST_EMPTY"
     return
   fi
 
   _state_push
-
-  cached_list="$CLI_LIBRARY_CACHE_DIR/.user-$2.env"
-  if ! [ -s "$cached_list" ] || ! [ "$(_util_get_file_timestamp "$cached_list")" -gt "$(_util_get_file_timestamp "$user_list_path")" ]; then
-    jq -r --arg sort_by "$CONFIG_SORT_BY" "
-      reverse
-      | if \$sort_by != \"\" then
-        $CALIBRE_SORT_JQ
-        sort_calibre_db(\$sort_by)
-        else
-        .
-      end
-      | to_entries
-      | map(
-          (.key+1|tostring| if length < 2 then \"0\" + . else . end) as \$idx
-          | .value.rtitle= .value.title
-          | .value.title= \$idx + \" \" + .value.title
-        )
-      | map(.value)
-      | .[]
-      | $CALIBRE_CONVERT_TO_ASSIGNMENTS_JQ
-      " "$user_list_path" >"$cached_list.tmp"
-
-    # shellcheck disable=SC2181
-    if [ "$?" = "0" ]; then
-      mv "$cached_list.tmp" "$cached_list"
-    else
-      _ui_notify_critical "$TXT_FAILED_TO_FETCH: list $2"
-    fi
-  fi
-  cat "$cached_list" >"$STATE_CURRENT_BOOKS"
+  fetch_user_list "$list_path" "$list_name" >"$STATE_CURRENT_BOOKS"
 
   if ! [ -s "$STATE_CURRENT_BOOKS" ]; then
-    ui_notify_warning "$TXT_WARNING_USER_LIST_EMPTY"
+    ui_notify_warning "$TXT_WARNING_USER_LIST_EMPTY: $list_name"
     return
   fi
+
   menu_book_list_explorer
 }
 
@@ -3494,8 +3549,15 @@ __menu_main_search() {
 }
 
 __menu_main_all() {
+  local exclude
+
+  if [ "$CONFIG_FILTER_DROPPED" = "true" ]; then
+    exclude="$(fetch_exclude)"
+  fi
+
   _state_push
-  fetch_calibre_db_all "$CONFIG_SORT_BY" >"$STATE_CURRENT_BOOKS"
+  fetch_calibre_db_all "$exclude" "$CONFIG_SORT_BY" >"$STATE_CURRENT_BOOKS"
+
   menu_book_list_explorer
   if [ -n "$CMD_EXIT" ]; then
     _util_byebye

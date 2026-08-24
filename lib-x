@@ -2551,7 +2551,7 @@ _manage_user_list_add() {
     user_list="[]"
   fi
 
-  printf '%s' "$user_list" | jq --slurpfile book "$STATE_CURRENT_BOOK" --arg limit "$limit" '
+  printf '%s\n' "$user_list" | jq --slurpfile book "$STATE_CURRENT_BOOK" --arg limit "$limit" '
     if $book[0] != null then
       map(select(.id != $book[0].id))
       | . + [$book[0]]
@@ -2576,6 +2576,7 @@ manage_user_list_add() {
 
 _manage_user_list_remove() {
   local user_list_paths
+  local user_list
 
   user_list_paths="\
 $CLI_USER_LIST_READING
@@ -2586,7 +2587,7 @@ $CLI_USER_LIST_DOCS
 $CLI_USER_LIST_COMPLETED
 $CLI_USER_LIST_DROPPED"
 
-  printf '%s' "$user_list_paths" | while IFS= read -r user_list_path; do
+  printf '%s\n' "$user_list_paths" | while IFS= read -r user_list_path; do
 
     if ! [ -s "$user_list_path" ]; then
       continue
@@ -2594,8 +2595,16 @@ $CLI_USER_LIST_DROPPED"
 
     user_list="$(cat "$user_list_path")"
     printf '%s' "$user_list" | jq --slurpfile book "$STATE_CURRENT_BOOK" '
-    map(select(.id != $book[0].id))
-    ' >"$user_list_path"
+      map(select(.id != $book[0].id))
+      ' >"$user_list_path.tmp"
+
+    # shellcheck disable=SC2181
+    if [ "$?" = "0" ] && [ -s "$user_list_path.tmp" ]; then
+      mv "$user_list_path.tmp" "$user_list_path"
+    else
+      ui_notify_warning "$TXT_FAILED_UPDATE_LIST: $user_list_path"
+      rm "$user_list_path.tmp"
+    fi
   done
 }
 

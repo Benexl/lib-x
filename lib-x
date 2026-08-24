@@ -1374,8 +1374,8 @@ draw_divider() {
 }
 
 preview_kv() {
-  key=$1
-  value=$2
+  key="$1"
+  value="$2"
 
   if [ -n "$value" ]; then
     printf "${THEME_FZF_PREVIEW_KEY}${THEME_BOLD}%s:${THEME_RESET} ${THEME_FZF_PREVIEW_VALUE}%s${THEME_RESET}\n" "$key" "$value"
@@ -1383,7 +1383,7 @@ preview_kv() {
 }
 
 preview_img() {
-  file=$1
+  file="$1"
 
   dim=${FZF_PREVIEW_COLUMNS}x${FZF_PREVIEW_LINES}
   if [ "$dim" = "x" ]; then
@@ -1401,7 +1401,6 @@ preview_img() {
     else
       kitty icat --clear --transfer-mode=memory --unicode-placeholder --stdin=no --place="$dim@0x0" "$file" | sed "\$d" | sed "$(printf "\$s/\$/\033[m/")"
     fi
-
   elif [ -n "$GHOSTTY_BIN_DIR" ]; then
     if command -v kitten >/dev/null 2>&1; then
       kitten icat --clear --transfer-mode=memory --unicode-placeholder --stdin=no --place="$dim@0x0" "$file" | sed "\$d" | sed "$(printf "\$s/\$/\033[m/")"
@@ -1417,10 +1416,8 @@ preview_img() {
     *) chafa -s "$dim" "$file" ;;
     esac
     echo
-
   elif command -v imgcat >/dev/null; then
     imgcat -W "${dim%%x*}" -H "${dim##*x}" "$file"
-
   else
     printf "%s" "$TXT_PREVIEW_INSTALL_VIEWER"
   fi

@@ -4276,19 +4276,22 @@ _app_complete() {
   identifiers) fetch_calibre_category "identifiers" ;;
   titles) fetch_calibre_db | jq -r '.[].title' ;;
   *)
-    printf 'Usage: %s _complete <command>\n\n' "$CLI_NAME"
-    printf 'Commands:\n'
-    printf '  categories   List available category names\n'
-    printf '  authors      List all authors\n'
-    printf '  series       List all series\n'
-    printf '  tags         List all tags\n'
-    printf '  formats      List all formats\n'
-    printf '  languages    List all languages\n'
-    printf '  publishers   List all publishers\n'
-    printf '  ratings      List all ratings\n'
-    printf '  identifiers  List all identifiers\n'
-    printf '  titles       List all book titles\n'
-    printf '  help         Show this help\n'
+    cat <<EOF
+Usage: $CLI_NAME _complete <command>
+
+Commands:
+  categories   List available category names
+  authors      List all authors
+  series       List all series
+  tags         List all tags
+  formats      List all formats
+  languages    List all languages
+  publishers   List all publishers
+  ratings      List all ratings
+  identifiers  List all identifiers
+  titles       List all book titles
+  help         Show this help
+EOF
     exit 1
     ;;
   esac

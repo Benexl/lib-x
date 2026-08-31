@@ -1681,6 +1681,41 @@ _state_fetch_current_book() {
 # ==============================================================================
 # CALIBRE
 # ==============================================================================
+_calibre_db() {
+  case "$CLI_CALIBRE_INSTALLATION" in
+  flatpak) flatpak run --command=calibredb com.calibre_ebook.calibre "$@" ;;
+  *) calibredb "$@" ;;
+  esac
+}
+
+_calibre_ebook_viewer() {
+  case "$CLI_CALIBRE_INSTALLATION" in
+  flatpak) flatpak run --command=ebook-viewer com.calibre_ebook.calibre "$@" ;;
+  *) ebook-viewer "$@" ;;
+  esac
+}
+
+_calibre_ebook_convert() {
+  case "$CLI_CALIBRE_INSTALLATION" in
+  flatpak) flatpak run --command=ebook-convert com.calibre_ebook.calibre "$@" ;;
+  *) ebook-convert "$@" ;;
+  esac
+}
+
+_calibre_ebook_edit() {
+  case "$CLI_CALIBRE_INSTALLATION" in
+  flatpak) flatpak run --command=ebook-edit com.calibre_ebook.calibre "$@" ;;
+  *) ebook-edit "$@" ;;
+  esac
+}
+
+_calibre_ebook_polish() {
+  case "$CLI_CALIBRE_INSTALLATION" in
+  flatpak) flatpak run --command=ebook-polish com.calibre_ebook.calibre "$@" ;;
+  *) ebook-polish "$@" ;;
+  esac
+}
+
 __update_user_lists() {
   local user_list_paths
   local calibredb_data
@@ -1709,7 +1744,7 @@ $CLI_USER_LIST_DROPPED"
 }
 
 __fetch_calibre_db() {
-  if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" list --for-machine --fields all >"${CALIBRE_DB_JSON_FILE}.tmp"; then
+  if _calibre_db --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" list --for-machine --fields all >"${CALIBRE_DB_JSON_FILE}.tmp"; then
     mv "${CALIBRE_DB_JSON_FILE}.tmp" "$CALIBRE_DB_JSON_FILE"
     __update_user_lists
   else
@@ -1730,7 +1765,7 @@ fetch_calibre_db() {
 }
 
 __fetch_calibre_categories() {
-  if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" list_categories --csv --dialect=excel-tab >"${CALIBRE_CATEGORIES_TSV_FILE}.tmp"; then
+  if _calibre_db --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" list_categories --csv --dialect=excel-tab >"${CALIBRE_CATEGORIES_TSV_FILE}.tmp"; then
     mv "${CALIBRE_CATEGORIES_TSV_FILE}.tmp" "$CALIBRE_CATEGORIES_TSV_FILE"
   else
     rm -f "${CALIBRE_CATEGORIES_TSV_FILE}.tmp"
@@ -2407,7 +2442,7 @@ fetch_calibre_db_search_identifier() {
 # CALIBRE: FULL TEXT SEARCH FUNCTIONS
 # ==============================================================================
 __fetch_calibre_fts_index() {
-  calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" fts_index "$@"
+  _calibre_db --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" fts_index "$@"
 }
 
 _fetch_calibre_fts_index() {
@@ -2426,7 +2461,7 @@ __fetch_calibre_fts_search() {
   query="$1"
   sort_by="$2"
 
-  fts_results="$(calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" fts_search --output-format json "$query")"
+  fts_results="$(_calibre_db --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" fts_search --output-format json "$query")"
 
   [ -z "$fts_results" ] && return 1
 
@@ -2710,7 +2745,7 @@ __menu_book_actions_remove_book() {
   book_id="$(jq -r '.id' "$STATE_CURRENT_BOOK")"
 
   if ui_confirm "$TXT_MENU_BOOK_ACTIONS_REMOVE_CONFIRM $(_state_fetch_current_book_title)?"; then
-    if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" remove "$book_id"; then
+    if _calibre_db --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" remove "$book_id"; then
       ui_notify "$TXT_MENU_BOOK_ACTIONS_REMOVED_SUCCESS"
     fi
     __fetch_calibre_db
@@ -2751,13 +2786,13 @@ title_sort"
     "$TXT_MENU_BACK" | "") break ;;
     *)
       book_id="$(jq -r '.id' "$STATE_CURRENT_BOOK")"
-      calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" show_metadata "$book_id"
+      _calibre_db --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" show_metadata "$book_id"
       val="$(ui_prompt "$TXT_MENU_BOOK_ACTIONS_PROMPT_NEW_VAL $field")"
 
       if [ -n "$val" ] && ui_confirm "$TXT_MENU_BOOK_ACTIONS_CONFIRM_UPDATE $field to $val?"; then
-        calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" set_metadata "$book_id" --field "$field:$val"
-        calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" embed_metadata "$book_id"
-        calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" backup_metadata
+        _calibre_db --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" set_metadata "$book_id" --field "$field:$val"
+        _calibre_db --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" embed_metadata "$book_id"
+        _calibre_db --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" backup_metadata
         __fetch_calibre_db
         __fetch_calibre_categories
       fi
@@ -2802,9 +2837,9 @@ __menu_book_actions_viewer() {
   fi
 
   if [ "$CONFIG_READING_PROCESS_DISOWN" = "true" ]; then
-    (ebook-viewer "$book_path" >/dev/null 2>&1 &)
+    (_calibre_ebook_viewer "$book_path" >/dev/null 2>&1 &)
   else
-    ebook-viewer "$book_path"
+    _calibre_ebook_viewer "$book_path"
   fi
 }
 
@@ -2850,9 +2885,9 @@ zip"
   output_file="${book_path%.*}.$output_format"
 
   if ui_confirm "$TXT_MENU_BOOK_ACTIONS_CONVERT_CONFIRM $(_state_fetch_current_book_title) to $output_format?"; then
-    if ebook-convert "$book_path" "$output_file"; then
+    if _calibre_ebook_convert "$book_path" "$output_file"; then
       book_id="$(jq -r '.id' "$STATE_CURRENT_BOOK")"
-      if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" add_format "$book_id" "$output_file"; then
+      if _calibre_db --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" add_format "$book_id" "$output_file"; then
         __fetch_calibre_db
         __fetch_calibre_categories
         ui_notify "$TXT_MENU_BOOK_ACTIONS_CONVERTED"
@@ -2876,9 +2911,9 @@ __menu_book_actions_edit() {
   fi
 
   if [ "$CONFIG_READING_PROCESS_DISOWN" = "true" ]; then
-    (ebook-edit "$book_path" >/dev/null 2>&1 &)
+    (_calibre_ebook_edit "$book_path" >/dev/null 2>&1 &)
   else
-    ebook-edit "$book_path"
+    _calibre_ebook_edit "$book_path"
   fi
 }
 
@@ -2915,7 +2950,7 @@ __menu_book_actions_polish() {
   esac
 
   if ui_confirm "$TXT_MENU_BOOK_ACTIONS_POLISH_CONFIRM $action?"; then
-    if ebook-polish "$action" "$book_path"; then
+    if _calibre_ebook_polish "$action" "$book_path"; then
       ui_notify "$TXT_MENU_BOOK_ACTIONS_POLISHED"
     else
       ui_notify_error "$TXT_MENU_BOOK_ACTIONS_POLISH_FAILED"
@@ -3148,7 +3183,7 @@ __menu_miscellaneous_add_books_from_folder() {
   printf 'calibredb --library-path "%s" add %s %s\n' "$CONFIG_CALIBRE_LIBRARY_PATH" "$custom_args" "$books_dir"
   if ui_confirm "$TXT_MENU_ACTION_CONFIRM"; then
     # shellcheck disable=SC2086
-    if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" add $custom_args "$books_dir"; then
+    if _calibre_db --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" add $custom_args "$books_dir"; then
       __fetch_calibre_db
       __fetch_calibre_categories
       CALIBRE_DB_TIMESTAMP="$(_util_get_file_timestamp "$CONFIG_CALIBRE_LIBRARY_PATH/metadata.db")"
@@ -3193,7 +3228,7 @@ __menu_miscellaneous_add_books() {
     old_ifs="$IFS"
     IFS="$(printf '\t')"
     # shellcheck disable=SC2086
-    if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" add $custom_args $book_paths; then
+    if _calibre_db --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" add $custom_args $book_paths; then
       __fetch_calibre_db
       __fetch_calibre_categories
       CALIBRE_DB_TIMESTAMP="$(_util_get_file_timestamp "$CONFIG_CALIBRE_LIBRARY_PATH/metadata.db")"
@@ -4019,9 +4054,15 @@ Categories=Entertainment"
 }
 
 _app_core_dep_ch() {
-  ! _dep_ch "calibredb" >/dev/null 2>&1 && ui_notify_critical "$TXT_DEP_MISSING_CALIBREDB"
-  ! _dep_ch "jq" && ui_notify_critical "$TXT_DEP_MISSING_JQ"
-  ! _dep_ch "fzf" && ui_notify_critical "$TXT_DEP_MISSING_FZF"
+  if _dep_ch calibredb; then
+    readonly CLI_CALIBRE_INSTALLATION="default"
+  elif _dep_ch com.calibre_ebook.calibre; then
+    readonly CLI_CALIBRE_INSTALLATION="flatpak"
+  else
+    ui_notify_critical "$TXT_DEP_MISSING_CALIBREDB"
+  fi
+  ! _dep_ch jq && ui_notify_critical "$TXT_DEP_MISSING_JQ"
+  ! _dep_ch fzf && ui_notify_critical "$TXT_DEP_MISSING_FZF"
 }
 
 _app_cache_clean_up() {

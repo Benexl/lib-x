@@ -2831,11 +2831,6 @@ __menu_book_actions_viewer() {
 
   book_path="$(__menu_book_actions_pick_format)" || return 1
 
-  if ! _dep_ch ebook-viewer; then
-    ui_notify_error "$TXT_DEP_MISSING_EBOOK_VIEWER"
-    return 1
-  fi
-
   if [ "$CONFIG_READING_PROCESS_DISOWN" = "true" ]; then
     (_calibre_ebook_viewer "$book_path" >/dev/null 2>&1 &)
   else
@@ -2851,11 +2846,6 @@ __menu_book_actions_convert() {
   local book_id
 
   book_path="$(__menu_book_actions_pick_format)" || return 1
-
-  if ! _dep_ch ebook-convert; then
-    ui_notify_error "$TXT_DEP_MISSING_EBOOK_CONVERT"
-    return 1
-  fi
 
   formats="azw3
 cbz
@@ -2905,11 +2895,6 @@ __menu_book_actions_edit() {
 
   book_path="$(__menu_book_actions_pick_format)" || return 1
 
-  if ! _dep_ch ebook-edit; then
-    ui_notify_error "$TXT_DEP_MISSING_EBOOK_EDIT"
-    return 1
-  fi
-
   if [ "$CONFIG_READING_PROCESS_DISOWN" = "true" ]; then
     (_calibre_ebook_edit "$book_path" >/dev/null 2>&1 &)
   else
@@ -2923,11 +2908,6 @@ __menu_book_actions_polish() {
   local action
 
   book_path="$(__menu_book_actions_pick_format)" || return 1
-
-  if ! _dep_ch ebook-polish; then
-    ui_notify_error "$TXT_DEP_MISSING_EBOOK_POLISH"
-    return 1
-  fi
 
   options="\
 --add-soft-hyphens: Add soft hyphens to all words in the book

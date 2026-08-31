@@ -4209,16 +4209,16 @@ complete -c $CLI_NAME -n "__fish_use_subcommand" -l all -d "Browse all books dir
 complete -c $CLI_NAME -n "__fish_use_subcommand" -l random -d "Browse random books directly"
 complete -c $CLI_NAME -n "__fish_use_subcommand" -l misc -l miscellaneous -d "Open Miscellaneous menu directly"
 
-complete -c $CLI_NAME -n "__fish_use_subcommand" -l series -d "Browse books in a series" --require-parameter --no-files
-complete -c $CLI_NAME -n "__fish_use_subcommand" -l author -d "Browse books by author" --require-parameter --no-files
-complete -c $CLI_NAME -n "__fish_use_subcommand" -l tag -d "Browse books by tag" --require-parameter --no-files
-complete -c $CLI_NAME -n "__fish_use_subcommand" -l format -d "Browse books by format" --require-parameter --no-files
-complete -c $CLI_NAME -n "__fish_use_subcommand" -l language -d "Browse books by language" --require-parameter --no-files
-complete -c $CLI_NAME -n "__fish_use_subcommand" -l rating -d "Browse books by rating" --require-parameter --no-files
-complete -c $CLI_NAME -n "__fish_use_subcommand" -l publisher -d "Browse books by publisher" --require-parameter --no-files
-complete -c $CLI_NAME -n "__fish_use_subcommand" -l identifier -d "Browse books by identifier" --require-parameter --no-files
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l series -d "Browse books in a series" --require-parameter --no-files -a "($CLI_PATH _complete series)"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l author -d "Browse books by author" --require-parameter --no-files -a "($CLI_PATH _complete authors)"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l tag -d "Browse books by tag" --require-parameter --no-files -a "($CLI_PATH _complete tags)"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l format -d "Browse books by format" --require-parameter --no-files -a "($CLI_PATH _complete formats)"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l language -d "Browse books by language" --require-parameter --no-files -a "($CLI_PATH _complete languages)"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l rating -d "Browse books by rating" --require-parameter --no-files -a "($CLI_PATH _complete ratings)"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l publisher -d "Browse books by publisher" --require-parameter --no-files -a "($CLI_PATH _complete publishers)"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l identifier -d "Browse books by identifier" --require-parameter --no-files -a "($CLI_PATH _complete identifiers)"
 
-complete -c $CLI_NAME -n "__fish_use_subcommand" -l fts-search -d "Full Text Search" --require-parameter --no-files
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l fts-search -d "Full Text Search" --require-parameter --no-files -a "($CLI_PATH _complete titles)"
 complete -c $CLI_NAME -n "__fish_use_subcommand" -l fts-index -d "Manage FTS index" --require-parameter --no-files -a "status enable disable reindex reindex-wait"
 complete -c $CLI_NAME -n "__fish_use_subcommand" -l add-books -d "Add book files to library" --require-parameter -rF
 complete -c $CLI_NAME -n "__fish_use_subcommand" -l add-books-from-folder -d "Add books from folder" --require-parameter -F
@@ -4243,8 +4243,8 @@ complete -c $CLI_NAME -n "__fish_use_subcommand" -l show-metadata -d "Show metad
 complete -c $CLI_NAME -n "__fish_use_subcommand" -l shell -d "Open sub-shell with book state"
 complete -c $CLI_NAME -n "__fish_use_subcommand" -l shell-exec -d "Execute command in sub-shell with book state" --require-parameter
 
-# complete -c $CLI_NAME -n "__fish_use_subcommand" -s s -l search -d "Search for a book" --require-parameter --no-files -a "(_lib_x_complete_search)"
-# complete -c $CLI_NAME -n "__fish_use_subcommand" -l search-title -d "Search for a book by title (literal)" --require-parameter --no-files -a "(_lib_x_complete_search)"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -s s -l search -d "Search for a book" --require-parameter --no-files -a "($CLI_PATH _complete titles)"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l search-title -d "Search for a book by title (literal)" --require-parameter --no-files -a "($CLI_PATH _complete titles)"
 complete -c $CLI_NAME -n "__fish_use_subcommand" -s S -l sort-by -d "Sort books by field" --require-parameter --no-files -a 'author_sort authors comments cover formats identifiers isbn languages last_modified pubdate publisher rating series series_index size tags template timestamp title uuid'
 complete -c $CLI_NAME -n "__fish_use_subcommand" -s r -l no-of-random-books -d "Number of random books to show" --require-parameter --no-files -a "(seq 1 100)"
 
@@ -4255,6 +4255,44 @@ complete -c $CLI_NAME -n "__fish_seen_subcommand_from completions" -s z -l zsh -
 complete -c $CLI_NAME -n "__fish_seen_subcommand_from completions" -s h -l help -d "Show help for completions"
 EOF
 
+  exit 0
+}
+
+# ==============================================================================
+# APP: COMPLETE
+# ==============================================================================
+_app_complete() {
+  _load_config
+  _state_init
+
+  case "$1" in
+  categories) printf '%s\n' authors series tags formats languages rating publisher identifiers ;;
+  authors) fetch_calibre_category "authors" ;;
+  series) fetch_calibre_category "series" ;;
+  tags) fetch_calibre_category "tags" ;;
+  formats) fetch_calibre_category "formats" ;;
+  languages) fetch_calibre_category "languages" ;;
+  publishers) fetch_calibre_category "publisher" ;;
+  ratings) fetch_calibre_category "rating" ;;
+  identifiers) fetch_calibre_category "identifiers" ;;
+  titles) fetch_calibre_db | jq -r '.[].title' ;;
+  *)
+    printf 'Usage: %s _complete <command>\n\n' "$CLI_NAME"
+    printf 'Commands:\n'
+    printf '  categories   List available category names\n'
+    printf '  authors      List all authors\n'
+    printf '  series       List all series\n'
+    printf '  tags         List all tags\n'
+    printf '  formats      List all formats\n'
+    printf '  languages    List all languages\n'
+    printf '  publishers   List all publishers\n'
+    printf '  ratings      List all ratings\n'
+    printf '  identifiers  List all identifiers\n'
+    printf '  titles       List all book titles\n'
+    printf '  help         Show this help\n'
+    exit 1
+    ;;
+  esac
   exit 0
 }
 
@@ -4519,6 +4557,11 @@ _app_cmd_line_parser() {
       *) _app_usage_completions 1 ;;
       esac
       shift_count=2
+      ;;
+    _complete)
+      shift
+      _app_complete "$@"
+      return
       ;;
     *) _app_usage 1 ;;
     esac

@@ -235,11 +235,6 @@ __load_default_lang() {
   TXT_CONFIRM_DEFAULT="Default"
   TXT_DEP_MISSING_CALIBREDB="calibredb is required but not found in PATH."
   TXT_DEP_MISSING_DIFF="diff is not installed. Skipping update diff display."
-  TXT_DEP_MISSING_EBOOK_CONVERT="ebook-convert is required but not found in PATH."
-  TXT_DEP_MISSING_EBOOK_EDIT="ebook-edit is required but not found in PATH."
-  TXT_DEP_MISSING_EBOOK_META="ebook-meta is required but not found in PATH."
-  TXT_DEP_MISSING_EBOOK_POLISH="ebook-polish is required but not found in PATH."
-  TXT_DEP_MISSING_EBOOK_VIEWER="ebook-viewer is required but not found in PATH."
   TXT_DEP_MISSING_FZF="fzf is required but not found in PATH."
   TXT_DEP_MISSING_JQ="jq is required but not found in PATH."
   TXT_DESKTOP_ENTRY_COMMENT="Read and manage your calibre books from the terminal"
@@ -1681,6 +1676,48 @@ _state_fetch_current_book() {
 # ==============================================================================
 # CALIBRE
 # ==============================================================================
+_calibre_db() {
+  case "$CLI_CALIBRE_INSTALLATION" in
+  flatpak) flatpak run --command=calibredb com.calibre_ebook.calibre "$@" ;;
+  *) calibredb "$@" ;;
+  esac
+}
+
+_calibre_ebook_viewer() {
+  case "$CLI_CALIBRE_INSTALLATION" in
+  flatpak) flatpak run --command=ebook-viewer com.calibre_ebook.calibre "$@" ;;
+  *) ebook-viewer "$@" ;;
+  esac
+}
+
+_calibre_ebook_convert() {
+  case "$CLI_CALIBRE_INSTALLATION" in
+  flatpak) flatpak run --command=ebook-convert com.calibre_ebook.calibre "$@" ;;
+  *) ebook-convert "$@" ;;
+  esac
+}
+
+_calibre_ebook_edit() {
+  case "$CLI_CALIBRE_INSTALLATION" in
+  flatpak) flatpak run --command=ebook-edit com.calibre_ebook.calibre "$@" ;;
+  *) ebook-edit "$@" ;;
+  esac
+}
+
+_calibre_ebook_polish() {
+  case "$CLI_CALIBRE_INSTALLATION" in
+  flatpak) flatpak run --command=ebook-polish com.calibre_ebook.calibre "$@" ;;
+  *) ebook-polish "$@" ;;
+  esac
+}
+
+_calibre_ebook_meta() {
+  case "$CLI_CALIBRE_INSTALLATION" in
+  flatpak) flatpak run --command=ebook-meta com.calibre_ebook.calibre "$@" ;;
+  *) ebook-meta "$@" ;;
+  esac
+}
+
 __update_user_lists() {
   local user_list_paths
   local calibredb_data
@@ -1709,7 +1746,7 @@ $CLI_USER_LIST_DROPPED"
 }
 
 __fetch_calibre_db() {
-  if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" list --for-machine --fields all >"${CALIBRE_DB_JSON_FILE}.tmp"; then
+  if _calibre_db --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" list --for-machine --fields all >"${CALIBRE_DB_JSON_FILE}.tmp"; then
     mv "${CALIBRE_DB_JSON_FILE}.tmp" "$CALIBRE_DB_JSON_FILE"
     __update_user_lists
   else
@@ -1730,7 +1767,7 @@ fetch_calibre_db() {
 }
 
 __fetch_calibre_categories() {
-  if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" list_categories --csv --dialect=excel-tab >"${CALIBRE_CATEGORIES_TSV_FILE}.tmp"; then
+  if _calibre_db --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" list_categories --csv --dialect=excel-tab >"${CALIBRE_CATEGORIES_TSV_FILE}.tmp"; then
     mv "${CALIBRE_CATEGORIES_TSV_FILE}.tmp" "$CALIBRE_CATEGORIES_TSV_FILE"
   else
     rm -f "${CALIBRE_CATEGORIES_TSV_FILE}.tmp"
@@ -2407,7 +2444,7 @@ fetch_calibre_db_search_identifier() {
 # CALIBRE: FULL TEXT SEARCH FUNCTIONS
 # ==============================================================================
 __fetch_calibre_fts_index() {
-  calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" fts_index "$@"
+  _calibre_db --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" fts_index "$@"
 }
 
 _fetch_calibre_fts_index() {
@@ -2426,7 +2463,7 @@ __fetch_calibre_fts_search() {
   query="$1"
   sort_by="$2"
 
-  fts_results="$(calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" fts_search --output-format json "$query")"
+  fts_results="$(_calibre_db --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" fts_search --output-format json "$query")"
 
   [ -z "$fts_results" ] && return 1
 
@@ -2710,7 +2747,7 @@ __menu_book_actions_remove_book() {
   book_id="$(jq -r '.id' "$STATE_CURRENT_BOOK")"
 
   if ui_confirm "$TXT_MENU_BOOK_ACTIONS_REMOVE_CONFIRM $(_state_fetch_current_book_title)?"; then
-    if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" remove "$book_id"; then
+    if _calibre_db --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" remove "$book_id"; then
       ui_notify "$TXT_MENU_BOOK_ACTIONS_REMOVED_SUCCESS"
     fi
     __fetch_calibre_db
@@ -2751,13 +2788,13 @@ title_sort"
     "$TXT_MENU_BACK" | "") break ;;
     *)
       book_id="$(jq -r '.id' "$STATE_CURRENT_BOOK")"
-      calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" show_metadata "$book_id"
+      _calibre_db --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" show_metadata "$book_id"
       val="$(ui_prompt "$TXT_MENU_BOOK_ACTIONS_PROMPT_NEW_VAL $field")"
 
       if [ -n "$val" ] && ui_confirm "$TXT_MENU_BOOK_ACTIONS_CONFIRM_UPDATE $field to $val?"; then
-        calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" set_metadata "$book_id" --field "$field:$val"
-        calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" embed_metadata "$book_id"
-        calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" backup_metadata
+        _calibre_db --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" set_metadata "$book_id" --field "$field:$val"
+        _calibre_db --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" embed_metadata "$book_id"
+        _calibre_db --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" backup_metadata
         __fetch_calibre_db
         __fetch_calibre_categories
       fi
@@ -2796,15 +2833,10 @@ __menu_book_actions_viewer() {
 
   book_path="$(__menu_book_actions_pick_format)" || return 1
 
-  if ! _dep_ch ebook-viewer; then
-    ui_notify_error "$TXT_DEP_MISSING_EBOOK_VIEWER"
-    return 1
-  fi
-
   if [ "$CONFIG_READING_PROCESS_DISOWN" = "true" ]; then
-    (ebook-viewer "$book_path" >/dev/null 2>&1 &)
+    (_calibre_ebook_viewer "$book_path" >/dev/null 2>&1 &)
   else
-    ebook-viewer "$book_path"
+    _calibre_ebook_viewer "$book_path"
   fi
 }
 
@@ -2816,11 +2848,6 @@ __menu_book_actions_convert() {
   local book_id
 
   book_path="$(__menu_book_actions_pick_format)" || return 1
-
-  if ! _dep_ch ebook-convert; then
-    ui_notify_error "$TXT_DEP_MISSING_EBOOK_CONVERT"
-    return 1
-  fi
 
   formats="azw3
 cbz
@@ -2850,9 +2877,9 @@ zip"
   output_file="${book_path%.*}.$output_format"
 
   if ui_confirm "$TXT_MENU_BOOK_ACTIONS_CONVERT_CONFIRM $(_state_fetch_current_book_title) to $output_format?"; then
-    if ebook-convert "$book_path" "$output_file"; then
+    if _calibre_ebook_convert "$book_path" "$output_file"; then
       book_id="$(jq -r '.id' "$STATE_CURRENT_BOOK")"
-      if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" add_format "$book_id" "$output_file"; then
+      if _calibre_db --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" add_format "$book_id" "$output_file"; then
         __fetch_calibre_db
         __fetch_calibre_categories
         ui_notify "$TXT_MENU_BOOK_ACTIONS_CONVERTED"
@@ -2870,15 +2897,10 @@ __menu_book_actions_edit() {
 
   book_path="$(__menu_book_actions_pick_format)" || return 1
 
-  if ! _dep_ch ebook-edit; then
-    ui_notify_error "$TXT_DEP_MISSING_EBOOK_EDIT"
-    return 1
-  fi
-
   if [ "$CONFIG_READING_PROCESS_DISOWN" = "true" ]; then
-    (ebook-edit "$book_path" >/dev/null 2>&1 &)
+    (_calibre_ebook_edit "$book_path" >/dev/null 2>&1 &)
   else
-    ebook-edit "$book_path"
+    _calibre_ebook_edit "$book_path"
   fi
 }
 
@@ -2888,11 +2910,6 @@ __menu_book_actions_polish() {
   local action
 
   book_path="$(__menu_book_actions_pick_format)" || return 1
-
-  if ! _dep_ch ebook-polish; then
-    ui_notify_error "$TXT_DEP_MISSING_EBOOK_POLISH"
-    return 1
-  fi
 
   options="\
 --add-soft-hyphens: Add soft hyphens to all words in the book
@@ -2915,7 +2932,7 @@ __menu_book_actions_polish() {
   esac
 
   if ui_confirm "$TXT_MENU_BOOK_ACTIONS_POLISH_CONFIRM $action?"; then
-    if ebook-polish "$action" "$book_path"; then
+    if _calibre_ebook_polish "$action" "$book_path"; then
       ui_notify "$TXT_MENU_BOOK_ACTIONS_POLISHED"
     else
       ui_notify_error "$TXT_MENU_BOOK_ACTIONS_POLISH_FAILED"
@@ -2928,12 +2945,7 @@ __menu_book_actions_show_metadata() {
 
   book_path="$(__menu_book_actions_pick_format)" || return 1
 
-  if ! _dep_ch ebook-meta; then
-    ui_notify_error "$TXT_DEP_MISSING_EBOOK_META"
-    return 1
-  fi
-
-  ebook-meta "$book_path" | ui_pager
+  _calibre_ebook_meta "$book_path" | ui_pager
 }
 
 __menu_book_actions_shell() {
@@ -3148,7 +3160,7 @@ __menu_miscellaneous_add_books_from_folder() {
   printf 'calibredb --library-path "%s" add %s %s\n' "$CONFIG_CALIBRE_LIBRARY_PATH" "$custom_args" "$books_dir"
   if ui_confirm "$TXT_MENU_ACTION_CONFIRM"; then
     # shellcheck disable=SC2086
-    if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" add $custom_args "$books_dir"; then
+    if _calibre_db --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" add $custom_args "$books_dir"; then
       __fetch_calibre_db
       __fetch_calibre_categories
       CALIBRE_DB_TIMESTAMP="$(_util_get_file_timestamp "$CONFIG_CALIBRE_LIBRARY_PATH/metadata.db")"
@@ -3193,7 +3205,7 @@ __menu_miscellaneous_add_books() {
     old_ifs="$IFS"
     IFS="$(printf '\t')"
     # shellcheck disable=SC2086
-    if calibredb --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" add $custom_args $book_paths; then
+    if _calibre_db --library-path "$CONFIG_CALIBRE_LIBRARY_PATH" add $custom_args $book_paths; then
       __fetch_calibre_db
       __fetch_calibre_categories
       CALIBRE_DB_TIMESTAMP="$(_util_get_file_timestamp "$CONFIG_CALIBRE_LIBRARY_PATH/metadata.db")"
@@ -4019,9 +4031,15 @@ Categories=Entertainment"
 }
 
 _app_core_dep_ch() {
-  ! _dep_ch "calibredb" >/dev/null 2>&1 && ui_notify_critical "$TXT_DEP_MISSING_CALIBREDB"
-  ! _dep_ch "jq" && ui_notify_critical "$TXT_DEP_MISSING_JQ"
-  ! _dep_ch "fzf" && ui_notify_critical "$TXT_DEP_MISSING_FZF"
+  if _dep_ch calibredb; then
+    readonly CLI_CALIBRE_INSTALLATION="default"
+  elif _dep_ch com.calibre_ebook.calibre; then
+    readonly CLI_CALIBRE_INSTALLATION="flatpak"
+  else
+    ui_notify_critical "$TXT_DEP_MISSING_CALIBREDB"
+  fi
+  ! _dep_ch jq && ui_notify_critical "$TXT_DEP_MISSING_JQ"
+  ! _dep_ch fzf && ui_notify_critical "$TXT_DEP_MISSING_FZF"
 }
 
 _app_cache_clean_up() {
@@ -4064,18 +4082,6 @@ _app_completions_fish() {
   cat <<EOF
 # Fish completions for $CLI_NAME
 
-# ==========================================================================
-# Helpers
-# ==========================================================================
-function _lib_x_complete_search
-  for comp_line in (calibredb list_categories --csv 2>/dev/null)
-    echo (echo \$comp_line | cut -d , -f 1):(echo \$comp_line | cut -d , -f 2 | tr -d '"')
-  end
-end
-
-# ==========================================================================
-# Global options 
-# ==========================================================================
 complete -c $CLI_NAME -n "__fish_use_subcommand" -s h -l help -d "Show help and exit"
 complete -c $CLI_NAME -n "__fish_use_subcommand" -s v -l version -d "Show version and exit"
 complete -c $CLI_NAME -n "__fish_use_subcommand" -s e -l edit-config -d "Edit config file"
@@ -4099,9 +4105,6 @@ complete -c $CLI_NAME -n "__fish_use_subcommand" -l rofi-theme-pager -d "Rofi pa
 complete -c $CLI_NAME -n "__fish_use_subcommand" -s x -l extension -d "Load extension" --require-parameter --no-files -a '(find $ext_dir -follow -maxdepth 3 -type f 2>/dev/null | string replace "$ext_dir/" "" | sort)'
 complete -c $CLI_NAME -n "__fish_use_subcommand" -o xargs -l extension-arguments -d "The arguments to pass to cmd extension" --require-parameter --no-files
 
-# ==========================================================================
-# Menu shortcuts & Overrides
-# ==========================================================================
 complete -c $CLI_NAME -n "__fish_use_subcommand" -o ce -l cmd-exit -d "Exit after shortcut menu commandline options"
 complete -c $CLI_NAME -n "__fish_use_subcommand" -o bs -l book-skip -d "Skip item selection and auto‑pick first entry"
 complete -c $CLI_NAME -n "__fish_use_subcommand" -o be -l book-exit -d "Exit after performing a book action"
@@ -4135,15 +4138,12 @@ complete -c $CLI_NAME -n "__fish_use_subcommand" -l edit-book -d "Edit the selec
 complete -c $CLI_NAME -n "__fish_use_subcommand" -l polish -d "Polish the selected book"
 complete -c $CLI_NAME -n "__fish_use_subcommand" -l show-metadata -d "Show metadata of the selected book"
 
-complete -c $CLI_NAME -n "__fish_use_subcommand" -s s -l search -d "Search for a book" --require-parameter --no-files -a "(_lib_x_complete_search)"
-complete -c $CLI_NAME -n "__fish_use_subcommand" -l search-title -d "Search for a book by title (literal)" --require-parameter --no-files -a "(_lib_x_complete_search)"
+# complete -c $CLI_NAME -n "__fish_use_subcommand" -s s -l search -d "Search for a book" --require-parameter --no-files -a "(_lib_x_complete_search)"
+# complete -c $CLI_NAME -n "__fish_use_subcommand" -l search-title -d "Search for a book by title (literal)" --require-parameter --no-files -a "(_lib_x_complete_search)"
 complete -c $CLI_NAME -n "__fish_use_subcommand" -s S -l sort-by -d "Sort books by field" --require-parameter --no-files -a 'author_sort authors comments cover formats identifiers isbn languages last_modified pubdate publisher rating series series_index size tags template timestamp title uuid'
 complete -c $CLI_NAME -n "__fish_use_subcommand" -s g -l go-directly-to -d "Open sub-menu directly" --require-parameter --no-files -a 'All Reading-List Paused Planing Re-reading Completed Docs Random authors formats identifiers languages publisher rating series tags Recent Dropped'
 complete -c $CLI_NAME -n "__fish_use_subcommand" -s r -l no-of-random-books -d "Number of random books to show" --require-parameter --no-files -a "(seq 1 100)"
 
-# ==========================================================================
-# Completions subcommand
-# ==========================================================================
 complete -c $CLI_NAME -f -n "__fish_use_subcommand" -a completions -d "Generate shell completions"
 complete -c $CLI_NAME -n "__fish_seen_subcommand_from completions" -s f -l fish -d "Print fish completions"
 complete -c $CLI_NAME -n "__fish_seen_subcommand_from completions" -s b -l bash -d "Print bash completions"

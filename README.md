@@ -41,6 +41,7 @@
   - [Quick Start](#quick-start)
   - [Command-Line Options](#command-line-options)
   - [Environment Variables](#environment-variables)
+  - [Scripting & Keybindings](#scripting--keybindings)
   - [Examples & Workflows](#examples--workflows)
 - [Configuration](#configuration)
   - [Configuration File Location](#configuration-file-location)
@@ -67,15 +68,17 @@
   - View raw metadata
   - Open in Calibre's GUI Viewer (`ebook-viewer`)
   - Drop into a stateful interactive shell
+- **Smart Format Picker**: When a book has multiple formats, choose the right one to read — or set `CONFIG_PREFERRED_BOOK_FMT` / `LIB_X_PREFERRED_BOOK_FMT` to skip the prompt and always read your preferred format directly.
 - **Bulk Add Books**: Seamlessly add books from files or folders (integrates with `fzf` or `yazi` as a file chooser).
 - **Theming & Styling**: Theming support through `.theme` extensions with Tokyo Night as the default theme.
 - **Multi-language Support**: Loadable language files (`.lang`) to localize UI prompts and messages.
 - **Cover Art Previews**: High-quality book cover image rendering directly in the terminal using `chafa`, `icat`, or `imgcat`.
 - **Custom Readers**: Map specific formats (e.g., EPUB, PDF) to your preferred CLI/GUI reading apps.
-- **Scriptable Shortcuts**: Bypass menus and jump straight to specific lists, searches, or actions using direct command-line flags.
+- **Scriptable Shortcuts**: Bypass menus and jump straight to specific lists, searches, or actions using direct command-line flags — combinable with `--book-skip`, `--book-exit`, and `--cmd-exit` for fully headless scripting.
 - **Direct List Management**: Add/remove books to your reading lists directly from the command line (`--add-to-reading`, `--add-to-completed`, etc.).
 - **Dropped Book Filtering**: Automatically hides dropped books from all menus by default (`CONFIG_FILTER_DROPPED`).
-- **Stateful Sub-Shell Execution**: Drop into a shell pre-loaded with environment variables of your currently selected book for custom scripting or manual database interactions.
+- **Stateful Sub-Shell Execution**: Drop into a shell (or run `--shell-exec`) pre-loaded with environment variables of your currently selected book for custom scripting or manual database interactions.
+- **Extensible fzf Keybindings**: Ship with built-in binds (`alt-e`, `alt-m`, `alt-r`, `alt-v`) that run book actions straight from the results list, and are fully overridable via `CONFIG_FZF_OPTS`.
 - **Desktop Integration**: Generate a `.desktop` file to launch natively from application menus (Linux).
 - **Cache Management**: Automatically caches your Calibre database as JSON for lightning-fast speeds, cleaning up stale previews and data automatically (Default: 7 days).
 - **OS Support**: Works across Linux, macOS, Windows (via WSL/MSYS/Cygwin), and Android (Termux).
@@ -237,6 +240,8 @@ Can be paired with `--book-skip` (`-bs`) to auto-select the first result, and `-
 - `--edit-book` : Open in the Calibre eBook Editor.
 - `--polish` : Run `ebook-polish` on the selected book.
 - `--show-metadata` : View the raw metadata (using `ebook-meta`).
+- `--shell` : Open an interactive sub-shell pre-loaded with the selected book's state variables.
+- `--shell-exec <code>` : Execute a command in a sub-shell pre-loaded with the selected book's state variables (non-interactive, great for scripting & keybindings).
 
 #### Direct List Management (Skip the media action + list menus)
 
@@ -300,6 +305,85 @@ Almost all CLI options can be permanently set in `~/.config/lib-x/config` or ove
 - `LIB_X_FILTER_DROPPED` (`true` or `false` — hides dropped books from all menus)
 - `LIB_X_SEARCH_HISTORY_ENABLE` (`true` or `false`)
 - `LIB_X_READER` (e.g., `epub:zathura,pdf:evince`)
+- `LIB_X_PREFERRED_BOOK_FMT` (e.g., `epub`, `pdf`)
+
+---
+
+### Scripting & Keybindings
+
+`lib-x` is designed to be composable from the terminal, which makes it a great fit for shell scripts, window-manager keybindings, and extending its own `fzf` interface.
+
+#### Drop into a stateful sub-shell
+
+Selecting **Shell** from the Book Actions menu (or using `--shell`) drops you into a sub-shell pre-loaded with everything about the currently selected book:
+
+```bash
+lib-x --shell
+```
+
+Inside that shell (and via `--shell-exec`), these variables are exported:
+
+- `STATE_CURRENT_BOOK` - Raw JSON payload (UUIDs, authors, formats, tags)
+- `STATE_CURRENT_BOOK_TITLE` - Title of the selected book
+- `STATE_CURRENT_CATEGORY` - Current category filter (if any)
+- `STATE_CURRENT_BOOKS` - Path to the current book list file
+- `STATE_CURRENT` - Current state depth level
+- `CALIBRE_DB_JSON_FILE` - Path to the cached database
+- `CALIBRE_CATEGORIES_TSV_FILE` - Path to the cached categories file
+- `CLI_CURRENT_STATE_DIR` - Path to the current state directory
+- `CLI_NAME` - The CLI name (`lib-x`)
+
+You can pipe the book JSON through `jq` to run custom scripts, raw Calibre commands, or manipulate book files without leaving `lib-x`:
+
+```bash
+lib-x --shell-exec 'jq -r .title "$STATE_CURRENT_BOOK"'
+```
+
+#### Headless chaining for scripts & keybindings
+
+By combining the menu-skip flags with a direct action you can trigger book actions non-interactively — no TUI required:
+
+- `--cmd-exit` (`-ce`) : exit after the shortcut menu command-line options
+- `--book-skip` (`-bs`) : skip item selection and auto-pick the first result
+- `--book-exit` (`-be`) : exit immediately after the action
+
+For example, to read the first book matching a search without ever seeing a menu:
+
+```bash
+lib-x --cmd-exit --book-skip --book-exit --read --search-title "Dune"
+```
+
+You can also chain via `--shell-exec` to run arbitrary code for the matched book, or use `--search-title` to target a specific title in one shot.
+
+#### Built-in fzf keybindings
+
+When using the `fzf` launcher, `lib-x` ships sensible keybindings inside its default `CONFIG_FZF_OPTS` so you can act on a book directly from the results list:
+
+| Keybind   | Action              | Command used                                                                      |
+| :-------- | :------------------ | :-------------------------------------------------------------------------------- |
+| `alt-v`   | Read                | `… --cmd-exit --book-skip --book-exit --read --search-title`                      |
+| `alt-e`   | Edit Metadata       | `… --cmd-exit --book-skip --book-exit --edit-metadata --search-title`              |
+| `alt-m`   | Manage My Lists     | `… --cmd-exit --book-skip --book-exit --manage-my-lists --search-title`            |
+| `alt-r`   | Remove Book         | `… --cmd-exit --book-skip --book-exit --remove-book --search-title`                |
+| `ctrl-/`  | Toggle preview      | `toggle-preview`                                                                  |
+| `ctrl-space` | Toggle wrap      | `toggle-wrap+toggle-preview-wrap`                                                 |
+
+Each keybind parses the hovered book's title and re-invokes `lib-x` with `LIB_X_SEARCH_HISTORY_ENABLE=false` and the chained flags above, e.g. the read binding expands to:
+
+```bash
+LIB_X_SEARCH_HISTORY_ENABLE=false lib-x --cmd-exit --book-skip --book-exit \
+  --read --search-title "<hovered book title>"
+```
+
+Because `CONFIG_FZF_OPTS` is fully exposed in the generated config file (edit it with `lib-x --edit-config`), you can extend those binds or add your own. Append a `--bind` inside `CONFIG_FZF_OPTS` that calls `$CLI_PATH` the same way — for example, running `--shell-exec` on the hovered book:
+
+```bash
+--bind='alt-s:execute(LIB_X_SEARCH_HISTORY_ENABLE=false $CLI_PATH --cmd-exit --book-skip --book-exit --shell-exec "echo read: $STATE_CURRENT_BOOK_TITLE" --search-title "$(printf {} | sed -e "s/^[0-9][0-9]* //g" -e "s/^.*\.env|[0-9][0-9]* //g")")'
+```
+
+(Add that line inside the existing `CONFIG_FZF_OPTS="..."` block in your config file, before the closing quote.)
+
+> Tip: any custom bind that should not touch search history can prefix the command with `LIB_X_SEARCH_HISTORY_ENABLE=false`, exactly as the built-ins do.
 
 ---
 
@@ -401,6 +485,7 @@ lib-x --edit-config
 | `CONFIG_CALIBRE_LIBRARY_PATH` | `~/Calibre Library`     | Absolute path to your Calibre library database directory.                         |
 | `CONFIG_FILE_EXPLORER`        | `fzf`                   | File chooser used when adding books to the library. Options: `fzf`, `yazi`.       |
 | `CONFIG_READER`               | `""`                    | Mapping of `ext:command` (e.g. `epub:zathura`). Falls back to OS default if empty.|
+| `CONFIG_PREFERRED_BOOK_FMT`   | `""`                    | Preferred format (e.g. `epub`, `pdf`) used directly when reading. If unset and the book has multiple formats, a format picker is shown. |
 | `CONFIG_READING_PROCESS_DISOWN`| `true`                 | Detach reader process from terminal so `lib-x` can be closed without killing app. |
 | `CONFIG_SORT_BY`              | `""`                    | Default sort field (e.g. `author`, `size_asc`, `pubdate`).                        |
 | `CONFIG_RANDOM_BOOKS_LIMIT`   | `30`                    | Number of books to return when selecting "Random".                                |

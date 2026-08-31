@@ -145,6 +145,7 @@ __load_default_config() {
   : "${CONFIG_SEARCH_HISTORY_ENABLE:=true}"
   : "${CONFIG_TERMINAL_EXEC:=}"
   : "${CONFIG_SORT_BY:=}"
+  : "${CONFIG_PREFERRED_BOOK_FMT:=}"
   : "${CONFIG_UPDATE_CHECK:=true}"
 
   : "${CONFIG_FZF_OPTS:="
@@ -227,6 +228,7 @@ __load_env_config() {
   CONFIG_ROFI_THEME_PROMPT="${LIB_X_ROFI_THEME_PROMPT:-$CONFIG_ROFI_THEME_PROMPT}"
   CONFIG_SEARCH_HISTORY_ENABLE="${LIB_X_SEARCH_HISTORY_ENABLE:-$CONFIG_SEARCH_HISTORY_ENABLE}"
   CONFIG_SORT_BY="${LIB_X_SORT_BY:-$CONFIG_SORT_BY}"
+  CONFIG_PREFERRED_BOOK_FMT="${LIB_X_PREFERRED_BOOK_FMT:-$CONFIG_PREFERRED_BOOK_FMT}"
   CONFIG_TERMINAL_EXEC="${LIB_X_TERMINAL_EXEC:-$CONFIG_TERMINAL_EXEC}"
   CONFIG_UPDATE_CHECK="${LIB_X_UPDATE_CHECK:-$CONFIG_UPDATE_CHECK}"
 }
@@ -708,6 +710,11 @@ CONFIG_RANDOM_BOOKS_LIMIT="$CONFIG_RANDOM_BOOKS_LIMIT"
 # of ext:cmd
 # if not specified, the platforms open cmd would be used
 CONFIG_READER="$CONFIG_READER"
+
+# Preferred book format to read (e.g. epub, pdf, mobi)
+# If set, this format is used directly when reading.
+# Otherwise, a format menu is shown when the book has multiple formats.
+CONFIG_PREFERRED_BOOK_FMT="$CONFIG_PREFERRED_BOOK_FMT"
 
 # Disown the reading process so you can close $CLI_NAME without closing the book
 # Options: true, false (Default: true)
@@ -2675,12 +2682,20 @@ manage_user_list() {
 __menu_book_actions_read() {
   local book_path
   local reader
+  local formats
 
   if [ "$CONFIG_RECENT_BOOKS_UPDATE" = "true" ]; then
     manage_user_list_add "$CLI_USER_LIST_RECENT" "$CONFIG_RECENT_BOOKS_LIMIT"
   fi
 
-  book_path="$(jq -r '.formats[0]' "$STATE_CURRENT_BOOK")"
+  if [ -n "$CONFIG_PREFERRED_BOOK_FMT" ]; then
+    book_path="$(jq -r --arg fmt "$CONFIG_PREFERRED_BOOK_FMT" '
+      .formats[] | select(ascii_downcase | endswith("." + ($fmt | ascii_downcase)))' "$STATE_CURRENT_BOOK")"
+  fi
+
+  if [ -z "$book_path" ]; then
+    book_path="$(__menu_book_actions_pick_format)" || return 1
+  fi
 
   if [ -n "$CONFIG_READER" ]; then
     reader="$(

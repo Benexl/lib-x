@@ -45,6 +45,7 @@
 - [Configuration](#configuration)
   - [Configuration File Location](#configuration-file-location)
   - [Configuration Variables](#configuration-variables)
+- [Full Text Search](#full-text-search)
 - [Extensions](#extensions)
 - [Frequently Asked Questions (FAQ)](#frequently-asked-questions-faq)
 - [Contribution](#contribution)
@@ -53,8 +54,10 @@
 ## Features
 
 - **Multiple Launcher Support**: Browse with `fzf`, `rofi`, or `gum`, all supporting rich previews.
-- **Deep Calibre Integration**: Interface securely with your library via `calibredb`.
+- **Deep Calibre Integration**: Interface securely with your library via `calibredb`. Supports both native and **Flatpak** Calibre installations automatically.
 - **Search & Filter**: Search books using Calibre's native syntax, or browse directly by Authors, Series, Tags, Formats, Languages, Ratings, Publishers, and Identifiers.
+- **Full Text Search (FTS)**: Search inside the actual content of your books using Calibre's FTS engine. Manage the FTS index (enable, disable, reindex) directly from the Miscellaneous menu.
+- **Search History**: Automatically tracks your past search queries for quick recall. Shared across both regular search and FTS search.
 - **Personal Reading Lists**: Track your reading journey with built-in user lists (Reading, Paused, Planning, Re-reading, Completed, Dropped, Docs).
 - **Extensive Book Actions**: Directly from the terminal:
   - Read your books
@@ -63,12 +66,15 @@
   - Polish books (`ebook-polish`)
   - View raw metadata
   - Open in Calibre's GUI Viewer (`ebook-viewer`)
+  - Drop into a stateful interactive shell
 - **Bulk Add Books**: Seamlessly add books from files or folders (integrates with `fzf` or `yazi` as a file chooser).
 - **Theming & Styling**: Theming support through `.theme` extensions with Tokyo Night as the default theme.
 - **Multi-language Support**: Loadable language files (`.lang`) to localize UI prompts and messages.
 - **Cover Art Previews**: High-quality book cover image rendering directly in the terminal using `chafa`, `icat`, or `imgcat`.
 - **Custom Readers**: Map specific formats (e.g., EPUB, PDF) to your preferred CLI/GUI reading apps.
 - **Scriptable Shortcuts**: Bypass menus and jump straight to specific lists, searches, or actions using direct command-line flags.
+- **Direct List Management**: Add/remove books to your reading lists directly from the command line (`--add-to-reading`, `--add-to-completed`, etc.).
+- **Dropped Book Filtering**: Automatically hides dropped books from all menus by default (`CONFIG_FILTER_DROPPED`).
 - **Stateful Sub-Shell Execution**: Drop into a shell pre-loaded with environment variables of your currently selected book for custom scripting or manual database interactions.
 - **Desktop Integration**: Generate a `.desktop` file to launch natively from application menus (Linux).
 - **Cache Management**: Automatically caches your Calibre database as JSON for lightning-fast speeds, cleaning up stale previews and data automatically (Default: 7 days).
@@ -89,7 +95,7 @@
 
 **Required:**
 
-- `calibre` - Provides `calibredb` for database interactions.
+- `calibre` - Provides `calibredb` for database interactions. Both native and Flatpak installations are supported (Flatpak is auto-detected).
 - `fzf` - Main terminal launcher.
 - `jq` - For rapid JSON database parsing.
 - `sh` - Any POSIX-compliant shell (Bash, Zsh, Dash, etc.).
@@ -199,6 +205,7 @@ lib-x
 #### Search & Sort
 
 - `-s, --search <term>` : Prompt for (or immediately execute) a book search.
+- `--search-title <term>` : Search for a book by exact title (literal match, not regex).
 - `-S, --sort-by <field>` : Sort the books by a specific field (e.g., `author`, `size`, `timestamp`). Append `_asc` for ascending order (default is descending).
 - `-r, --no-of-random-books <num>` : Display a specific number of random books from your library.
 
@@ -215,7 +222,8 @@ All these options can be paired with `--cmd-exit` (`-ce`) so that backing out of
 - `--docs` : Open your documents list.
 - `--dropped` : Open dropped/abandoned books.
 - `--all` : Browse your entire Calibre library directly.
-- `--misc` : Open the miscellaneous menu (Sync, Add books).
+- `--random` : Browse random books directly.
+- `--misc` : Open the miscellaneous menu (Sync, Add books, FTS).
 
 #### Book Action Shortcuts (Skip the media action menu)
 
@@ -230,6 +238,19 @@ Can be paired with `--book-skip` (`-bs`) to auto-select the first result, and `-
 - `--polish` : Run `ebook-polish` on the selected book.
 - `--show-metadata` : View the raw metadata (using `ebook-meta`).
 
+#### Direct List Management (Skip the media action + list menus)
+
+These shortcuts add the selected book directly to a specific list, bypassing the "Manage My Lists" submenu.
+
+- `--add-to-reading` : Add the selected book to your Reading list.
+- `--add-to-paused` : Add the selected book to your Paused list.
+- `--add-to-planning` : Add the selected book to your Planning list.
+- `--add-to-rereading` : Add the selected book to your Re-reading list.
+- `--add-to-docs` : Add the selected book to your Docs list.
+- `--add-to-completed` : Add the selected book to your Completed list.
+- `--add-to-dropped` : Add the selected book to your Dropped list.
+- `--remove-from-lists` : Remove the selected book from all your lists.
+
 #### UI & Process Control
 
 - `-l, --launcher <fzf|rofi|gum>` : Override the default menu launcher.
@@ -240,6 +261,7 @@ Can be paired with `--book-skip` (`-bs`) to auto-select the first result, and `-
 - `-d, --disown-reading-process` : Detach the reading process from the terminal (default).
 - `-D, --no-disown-reading-process` : Keep the reading process attached to the terminal session.
 - `--private` : Do not update the recent history list when opening a book.
+- `--manage-my-lists` : Open the list management submenu for the selected book.
 
 #### Rofi specific
 
@@ -274,6 +296,10 @@ Almost all CLI options can be permanently set in `~/.config/lib-x/config` or ove
 - `LIB_X_PREVIEW_IMAGES_ENABLE` (`true` or `false`)
 - `LIB_X_PREVIEW_IMAGES_RENDERER` (`chafa`, `icat`, `imgcat`)
 - `LIB_X_FILE_EXPLORER` (`fzf`, `yazi`)
+- `LIB_X_SORT_BY` (e.g., `author`, `size_asc`, `pubdate`)
+- `LIB_X_FILTER_DROPPED` (`true` or `false` — hides dropped books from all menus)
+- `LIB_X_SEARCH_HISTORY_ENABLE` (`true` or `false`)
+- `LIB_X_READER` (e.g., `epub:zathura,pdf:evince`)
 
 ---
 
@@ -355,6 +381,7 @@ lib-x --edit-config
 | `CONFIG_EDITOR`                | `vi` (or `$EDITOR`) | Text editor used for editing config files, histories, and metadata.    |
 | `CONFIG_NOTIFICATION_DURATION` | `3`                 | Duration (in seconds) for desktop/CLI notifications to remain visible. |
 | `CONFIG_TERMINAL_EXEC`         | _auto-detected_     | The terminal emulator used to launch external interactive shell tools. |
+| `CONFIG_FILTER_DROPPED`        | `true`              | Automatically hide books in the "Dropped" list from all menus.         |
 
 #### Previews
 
@@ -365,6 +392,7 @@ lib-x --edit-config
 | `CONFIG_PREVIEW_IMAGES_RENDERER`   | `chafa` | Tool used to render images in the terminal. Options: `chafa`, `icat`, `imgcat`. |
 | `CONFIG_PREVIEW_IMAGES_CHAFA_ARGS` | `""`    | Pass custom arguments to `chafa`.                                               |
 | `CONFIG_PREVIEW_IMAGES_ICAT_ARGS`  | `""`    | Pass custom arguments to `icat` / `kitty +kitten icat`.                         |
+| `CONFIG_PREVIEW_IMAGES_IMGCAT_ARGS`| `""`    | Pass custom arguments to `imgcat`.                                              |
 
 #### Calibre & Book Management
 
@@ -381,7 +409,7 @@ lib-x --edit-config
 
 | Variable                       | Default | Description                                                                            |
 | :----------------------------- | :------ | :------------------------------------------------------------------------------------- |
-| `CONFIG_SEARCH_HISTORY_ENABLE` | `true`  | Save local search history to track and quickly recall past queries.                    |
+| `CONFIG_SEARCH_HISTORY_ENABLE` | `true`  | Save local search history to track and quickly recall past queries (shared across search and FTS). |
 | `CONFIG_RECENT_BOOKS_UPDATE`   | `true`  | Automatically log opened books to the "Recent" list.                                   |
 | `CONFIG_RECENT_BOOKS_LIMIT`    | `30`    | Number of books to keep in the recent history list.                                    |
 | `CONFIG_CACHE_RETENTION_DAYS`  | `7`     | Auto-clean stale preview images and shell scripts older than this duration.            |
@@ -394,11 +422,44 @@ lib-x --edit-config
 | :-------------------------- | :------------- | :-------------------------------------------------------------------------- |
 | `CONFIG_FZF_HEADER`         | _(logo)_       | Custom ASCII logo displayed at the top of the `fzf` menu.                   |
 | `CONFIG_FZF_OPTS`           | _(see config)_ | Fine‑tune `fzf` layout, colors, and bindings. Defaults to "Tokyo Night".    |
+| `CONFIG_GUM_CONFIRM_OPTS`   | _(see config)_ | Custom `gum confirm` styling options (foregrounds, colors).                 |
+| `CONFIG_GUM_FILTER_OPTS`    | _(see config)_ | Custom `gum filter` styling options (prompt, indicator, match highlighting).|
+| `CONFIG_GUM_INPUT_OPTS`     | _(see config)_ | Custom `gum input` styling options (prompt, cursor, placeholder).           |
+| `CONFIG_GUM_PAGER_OPTS`     | _(see config)_ | Custom `gum pager` styling options (line numbers, match highlighting).      |
+| `CONFIG_GUM_SPIN_OPTS`      | _(see config)_ | Custom `gum spin` styling options (spinner type, title).                    |
 | `CONFIG_ROFI_THEME_MAIN`    | `""`           | Path to a custom Rofi `.rasi` theme for the main menu.                      |
 | `CONFIG_ROFI_THEME_PREVIEW` | `""`           | Path to a custom Rofi `.rasi` theme for the preview menu.                   |
 | `CONFIG_ROFI_THEME_PROMPT`  | `""`           | Path to a custom Rofi `.rasi` theme for prompt dialogs.                     |
 | `CONFIG_ROFI_THEME_CONFIRM` | `""`           | Path to a custom Rofi `.rasi` theme for confirmation dialogs.               |
 | `CONFIG_ROFI_THEME_PAGER`   | `""`           | Path to a custom Rofi `.rasi` theme for the pager.                          |
+
+## Full Text Search
+
+`lib-x` integrates with Calibre's Full Text Search (FTS) engine, allowing you to search inside the actual content of your books — not just titles, authors, or tags.
+
+### Accessing FTS
+
+Navigate to **Miscellaneous > Full Text Search** from the main menu, or use the **Miscellaneous > Manage FTS Index** submenu to control the index.
+
+### FTS Index Management
+
+Before using FTS, you need to enable and build the index. From the **Manage FTS Index** submenu, you can:
+
+| Action                          | Description                                                        |
+| :------------------------------ | :----------------------------------------------------------------- |
+| **Show Indexing Status**        | View the current state of the FTS index.                           |
+| **Enable FTS Indexing**         | Enable the FTS index for your library.                             |
+| **Disable FTS Indexing**        | Disable the FTS index.                                             |
+| **Re-index Library**            | Start re-indexing the library in the background.                   |
+| **Re-index Library (wait)**     | Re-index and block until the process completes.                    |
+
+### Searching
+
+Once the index is enabled, select **Full Text Search** from the Miscellaneous menu. You will be prompted to enter a search query. Results are presented in the same book explorer UI as all other searches.
+
+FTS queries support Calibre's full text search syntax. See the [Calibre manual](https://manual.calibre-ebook.com/gui.html#full-text-search) for details on query syntax.
+
+> **Note:** FTS indexing is resource-intensive for large libraries. It is recommended to index in the background and only re-index after adding or modifying a significant number of books.
 
 ## Extensions
 
@@ -462,9 +523,15 @@ Image previews require a few components to work together:
 Selecting `Shell` from a book's action menu drops you into a subshell pre-loaded with all the data about that book. 
 
 Variables exported include:
-- `STATE_CURRENT_BOOK_TITLE`
-- `STATE_CURRENT_BOOK` (Raw JSON payload containing UUIDs, authors, formats, tags)
-- `CALIBRE_DB_JSON_FILE` (Path to the cached database)
+- `STATE_CURRENT_BOOK_TITLE` - Title of the selected book
+- `STATE_CURRENT_BOOK` - Raw JSON payload containing UUIDs, authors, formats, tags
+- `STATE_CURRENT_BOOKS` - Path to the current book list file
+- `STATE_CURRENT_CATEGORY` - Current category filter (if any)
+- `STATE_CURRENT` - Current state depth level
+- `CALIBRE_DB_JSON_FILE` - Path to the cached database
+- `CALIBRE_CATEGORIES_TSV_FILE` - Path to the cached categories file
+- `CLI_CURRENT_STATE_DIR` - Path to the current state directory
+- `CLI_NAME` - The CLI name (`lib-x`)
 
 This is incredibly powerful if you want to run custom scripts, write raw Calibre commands, or manipulate the book file manually without leaving `lib-x`. Use `jq` to parse the `$STATE_CURRENT_BOOK` payload.
 
@@ -485,6 +552,30 @@ Navigate to the directory you want to import, press `ENTER`, and `lib-x` will au
 
 All icons are defined in the language variables (`TXT_ICON_MENU_MAIN_SEARCH`, `TXT_ICON_MENU_BOOK_ACTIONS_READ`, etc.). 
 If you don't like them or your terminal doesn't support Nerd Fonts, create a custom `.lang` extension in `~/.config/lib-x/extensions/langs/` and override these variables with empty strings or standard ASCII characters. Load it via `CONFIG_AUTOLOADED_EXTENSIONS`.
+
+</details>
+
+<details>
+<summary><b>Does lib-x work with Flatpak Calibre?</b></summary>
+<br>
+
+Yes. `lib-x` automatically detects Flatpak Calibre installations (the `com.calibre_ebook.calibre` Flatpak package). When detected, all Calibre commands (`calibredb`, `ebook-viewer`, `ebook-convert`, etc.) are executed through `flatpak run` transparently. No manual configuration is required.
+
+</details>
+
+<details>
+<summary><b>How does Full Text Search (FTS) work?</b></summary>
+<br>
+
+FTS uses Calibre's built-in full text search engine to index the content of your books. You must first enable and build the index from **Miscellaneous > Manage FTS Index**. Once indexed, you can search inside book contents from **Miscellaneous > Full Text Search**. The index is stored by Calibre alongside your library database. Note that indexing can be resource-intensive for large libraries.
+
+</details>
+
+<details>
+<summary><b>How do I prevent dropped books from showing in menus?</b></summary>
+<br>
+
+By default, `lib-x` automatically hides books in your "Dropped" list from all menus. This is controlled by the `CONFIG_FILTER_DROPPED` variable (default: `true`). To show dropped books in all menus, set `CONFIG_FILTER_DROPPED=false` in your config file.
 
 </details>
 

@@ -105,7 +105,8 @@ CMD_EXIT=""
 CMD_BOOK_EXIT=""
 CMD_MAIN_ACTION=""
 CMD_MISC_ACTION=""
-CMD_INPUT=""
+CMD_BOOK_ACTION_INPUT=""
+CMD_MENU_ENTRY_INPUT=""
 
 # ==============================================================================
 # CONFIGURATION
@@ -2770,9 +2771,9 @@ ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_MAIN_COMPLETED}${THEME_RESET}  $T
 ${THEME_FZF_ICON_COLOR_ERROR}${TXT_ICON_MENU_MAIN_DROPPED}${THEME_RESET}  $TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_REMOVE
 ${THEME_FZF_ICON_COLOR_PRIMARY}${TXT_ICON_MENU_BACK}${THEME_RESET}  $TXT_MENU_BACK"
 
-    if [ -n "$CMD_INPUT" ]; then
-      list="$CMD_INPUT"
-      unset -v CMD_INPUT
+    if [ -n "$CMD_BOOK_ACTION_INPUT" ]; then
+      list="$CMD_BOOK_ACTION_INPUT"
+      unset -v CMD_BOOK_ACTION_INPUT
     else
       list="$(printf '%s' "$lists" | ui_launcher "$TXT_MENU_BOOK_ACTIONS_USER_LISTS_PROMPT" | sed 's/.*  //g')"
     fi
@@ -3015,14 +3016,14 @@ __menu_book_actions_shell() {
     CALIBRE_CATEGORIES_TSV_FILE \
     CLI_NAME
 
-  if [ -n "$CMD_INPUT" ]; then
+  if [ -n "$CMD_BOOK_ACTION_INPUT" ]; then
     user_shell="$(ps -o comm= -p "$PPID")"
     if [ "$user_shell" = "fish" ]; then
-      fish -c "$CMD_INPUT"
+      fish -c "$CMD_BOOK_ACTION_INPUT"
     else
-      sh -c "$CMD_INPUT"
+      sh -c "$CMD_BOOK_ACTION_INPUT"
     fi
-    unset -v CMD_INPUT
+    unset -v CMD_BOOK_ACTION_INPUT
     return
   fi
 
@@ -3194,9 +3195,9 @@ __menu_miscellaneous_add_books_from_folder() {
   local books_dir
   local custom_args
 
-  if [ -n "$CMD_INPUT" ]; then
-    books_dir="$CMD_INPUT"
-    unset -v CMD_INPUT
+  if [ -n "$CMD_MENU_ENTRY_INPUT" ]; then
+    books_dir="$CMD_MENU_ENTRY_INPUT"
+    unset -v CMD_MENU_ENTRY_INPUT
   else
     case "$CONFIG_FILE_EXPLORER" in
     yazi)
@@ -3244,9 +3245,9 @@ __menu_miscellaneous_add_books() {
   local custom_args
   local old_ifs
 
-  if [ -n "$CMD_INPUT" ]; then
-    book_paths="$(printf '%s' "$CMD_INPUT" | _util_transform_lines '\t')"
-    unset -v CMD_INPUT
+  if [ -n "$CMD_MENU_ENTRY_INPUT" ]; then
+    book_paths="$(printf '%s' "$CMD_MENU_ENTRY_INPUT" | _util_transform_lines '\t')"
+    unset -v CMD_MENU_ENTRY_INPUT
   else
     case "$CONFIG_FILE_EXPLORER" in
     yazi)
@@ -3312,9 +3313,9 @@ __menu_miscellaneous_search_by_title() {
       search_history=""
     fi
 
-    if [ -n "$CMD_INPUT" ]; then
-      query="$CMD_INPUT"
-      unset -v CMD_INPUT
+    if [ -n "$CMD_MENU_ENTRY_INPUT" ]; then
+      query="$CMD_MENU_ENTRY_INPUT"
+      unset -v CMD_MENU_ENTRY_INPUT
     else
       if [ -z "$search_history" ]; then
         query="$(ui_prompt "$TXT_MENU_MISC_SEARCH_TITLE_PROMPT")"
@@ -3368,9 +3369,9 @@ __menu_miscellaneous_fts_search() {
       search_history=""
     fi
 
-    if [ -n "$CMD_INPUT" ]; then
-      query="$CMD_INPUT"
-      unset -v CMD_INPUT
+    if [ -n "$CMD_MENU_ENTRY_INPUT" ]; then
+      query="$CMD_MENU_ENTRY_INPUT"
+      unset -v CMD_MENU_ENTRY_INPUT
     else
       if [ -z "$search_history" ]; then
         query="$(ui_prompt "$TXT_MENU_MISC_FTS_SEARCH_PROMPT")"
@@ -3424,16 +3425,16 @@ __menu_miscellaneous_fts_index() {
   local actions
   local action
 
-  if [ -n "$CMD_INPUT" ]; then
-    case "$CMD_INPUT" in
+  if [ -n "$CMD_MENU_ENTRY_INPUT" ]; then
+    case "$CMD_MENU_ENTRY_INPUT" in
     status) fetch_calibre_fts_index "status" | ui_pager ;;
     enable) fetch_calibre_fts_index "enable" ;;
     disable) fetch_calibre_fts_index "disable" ;;
     reindex) fetch_calibre_fts_index "reindex" ;;
     reindex-wait) fetch_calibre_fts_index "reindex" "--wait-for-completion" ;;
-    *) _ui_notify_error "${TXT_MENU_INVALID_ACTION}: $CMD_INPUT" ;;
+    *) _ui_notify_error "${TXT_MENU_INVALID_ACTION}: $CMD_MENU_ENTRY_INPUT" ;;
     esac
-    unset -v CMD_INPUT
+    unset -v CMD_MENU_ENTRY_INPUT
     if [ -n "$CMD_EXIT" ]; then
       _util_byebye
     fi
@@ -3610,9 +3611,9 @@ __menu_main_search() {
       search_history=""
     fi
 
-    if [ -n "$CMD_INPUT" ]; then
-      query="$CMD_INPUT"
-      unset -v CMD_INPUT
+    if [ -n "$CMD_MENU_ENTRY_INPUT" ]; then
+      query="$CMD_MENU_ENTRY_INPUT"
+      unset -v CMD_MENU_ENTRY_INPUT
     else
       if [ -z "$search_history" ]; then
         query="$(ui_prompt "$TXT_MENU_MAIN_SEARCH_PROMPT")"
@@ -3673,8 +3674,8 @@ __menu_main_series() {
   local query
 
   while true; do
-    if [ -n "$CMD_INPUT" ]; then
-      query="$CMD_INPUT"
+    if [ -n "$CMD_MENU_ENTRY_INPUT" ]; then
+      query="$CMD_MENU_ENTRY_INPUT"
     else
       query="$(
         {
@@ -3702,8 +3703,8 @@ __menu_main_authors() {
   local query
 
   while true; do
-    if [ -n "$CMD_INPUT" ]; then
-      query="$CMD_INPUT"
+    if [ -n "$CMD_MENU_ENTRY_INPUT" ]; then
+      query="$CMD_MENU_ENTRY_INPUT"
     else
       query="$(
         {
@@ -3731,8 +3732,8 @@ __menu_main_tags() {
   local query
 
   while true; do
-    if [ -n "$CMD_INPUT" ]; then
-      query="$CMD_INPUT"
+    if [ -n "$CMD_MENU_ENTRY_INPUT" ]; then
+      query="$CMD_MENU_ENTRY_INPUT"
     else
       query="$(
         {
@@ -3760,8 +3761,8 @@ __menu_main_formats() {
   local query
 
   while true; do
-    if [ -n "$CMD_INPUT" ]; then
-      query="$CMD_INPUT"
+    if [ -n "$CMD_MENU_ENTRY_INPUT" ]; then
+      query="$CMD_MENU_ENTRY_INPUT"
     else
       query="$(
         {
@@ -3789,8 +3790,8 @@ __menu_main_languages() {
   local query
 
   while true; do
-    if [ -n "$CMD_INPUT" ]; then
-      query="$CMD_INPUT"
+    if [ -n "$CMD_MENU_ENTRY_INPUT" ]; then
+      query="$CMD_MENU_ENTRY_INPUT"
     else
       query="$(
         {
@@ -3818,8 +3819,8 @@ __menu_main_ratings() {
   local query
 
   while true; do
-    if [ -n "$CMD_INPUT" ]; then
-      query="$CMD_INPUT"
+    if [ -n "$CMD_MENU_ENTRY_INPUT" ]; then
+      query="$CMD_MENU_ENTRY_INPUT"
     else
       query="$(
         {
@@ -3847,8 +3848,8 @@ __menu_main_publishers() {
   local query
 
   while true; do
-    if [ -n "$CMD_INPUT" ]; then
-      query="$CMD_INPUT"
+    if [ -n "$CMD_MENU_ENTRY_INPUT" ]; then
+      query="$CMD_MENU_ENTRY_INPUT"
     else
       query="$(
         {
@@ -3876,8 +3877,8 @@ __menu_main_identifiers() {
   local query
 
   while true; do
-    if [ -n "$CMD_INPUT" ]; then
-      query="$CMD_INPUT"
+    if [ -n "$CMD_MENU_ENTRY_INPUT" ]; then
+      query="$CMD_MENU_ENTRY_INPUT"
     else
       query="$(
         {
@@ -4335,57 +4336,57 @@ _app_cmd_line_parser() {
     --series)
       [ -n "$2" ] || _app_usage 1
       CMD_MAIN_ACTION="$TXT_MENU_MAIN_SERIES"
-      CMD_INPUT="$2"
+      CMD_MENU_ENTRY_INPUT="$2"
       shift_count=2
       ;;
     --author)
       [ -n "$2" ] || _app_usage 1
       CMD_MAIN_ACTION="$TXT_MENU_MAIN_AUTHORS"
-      CMD_INPUT="$2"
+      CMD_MENU_ENTRY_INPUT="$2"
       shift_count=2
       ;;
     --tag)
       [ -n "$2" ] || _app_usage 1
       CMD_MAIN_ACTION="$TXT_MENU_MAIN_TAGS"
-      CMD_INPUT="$2"
+      CMD_MENU_ENTRY_INPUT="$2"
       shift_count=2
       ;;
     --format)
       [ -n "$2" ] || _app_usage 1
       CMD_MAIN_ACTION="$TXT_MENU_MAIN_FORMATS"
-      CMD_INPUT="$2"
+      CMD_MENU_ENTRY_INPUT="$2"
       shift_count=2
       ;;
     --language)
       [ -n "$2" ] || _app_usage 1
       CMD_MAIN_ACTION="$TXT_MENU_MAIN_LANGUAGES"
-      CMD_INPUT="$2"
+      CMD_MENU_ENTRY_INPUT="$2"
       shift_count=2
       ;;
     --rating)
       [ -n "$2" ] || _app_usage 1
       CMD_MAIN_ACTION="$TXT_MENU_MAIN_RATINGS"
-      CMD_INPUT="$2"
+      CMD_MENU_ENTRY_INPUT="$2"
       shift_count=2
       ;;
     --publisher)
       [ -n "$2" ] || _app_usage 1
       CMD_MAIN_ACTION="$TXT_MENU_MAIN_PUBLISHER"
-      CMD_INPUT="$2"
+      CMD_MENU_ENTRY_INPUT="$2"
       shift_count=2
       ;;
     --identifier)
       [ -n "$2" ] || _app_usage 1
       CMD_MAIN_ACTION="$TXT_MENU_MAIN_IDENTIFIERS"
-      CMD_INPUT="$2"
+      CMD_MENU_ENTRY_INPUT="$2"
       shift_count=2
       ;;
     --fts-search)
       if [ -z "$2" ]; then
-        CMD_INPUT="$(ui_prompt "$TXT_MENU_MISC_FTS_SEARCH_PROMPT")"
-        [ -n "$CMD_INPUT" ] || _app_usage 1
+        CMD_MENU_ENTRY_INPUT="$(ui_prompt "$TXT_MENU_MISC_FTS_SEARCH_PROMPT")"
+        [ -n "$CMD_MENU_ENTRY_INPUT" ] || _app_usage 1
       else
-        CMD_INPUT="$2"
+        CMD_MENU_ENTRY_INPUT="$2"
         shift_count=2
       fi
       CMD_MAIN_ACTION="$TXT_MENU_MAIN_MISC"
@@ -4395,21 +4396,21 @@ _app_cmd_line_parser() {
       [ -n "$2" ] || _app_usage 1
       CMD_MAIN_ACTION="$TXT_MENU_MAIN_MISC"
       CMD_MISC_ACTION="$TXT_MENU_MISC_FTS_INDEX"
-      CMD_INPUT="$2"
+      CMD_MENU_ENTRY_INPUT="$2"
       shift_count=2
       ;;
     --add-books)
       [ -n "$2" ] || _app_usage 1
       CMD_MAIN_ACTION="$TXT_MENU_MAIN_MISC"
       CMD_MISC_ACTION="$TXT_MENU_MISC_ADD_BOOKS"
-      CMD_INPUT="$2"
+      CMD_MENU_ENTRY_INPUT="$2"
       shift_count=2
       ;;
     --add-books-from-folder)
       [ -n "$2" ] || _app_usage 1
       CMD_MAIN_ACTION="$TXT_MENU_MAIN_MISC"
       CMD_MISC_ACTION="$TXT_MENU_MISC_ADD_BOOKS_FOLDER"
-      CMD_INPUT="$2"
+      CMD_MENU_ENTRY_INPUT="$2"
       shift_count=2
       ;;
     --sync)
@@ -4420,35 +4421,35 @@ _app_cmd_line_parser() {
     --manage-my-lists) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS" ;;
     --add-to-reading)
       CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS"
-      CMD_INPUT="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_READING"
+      CMD_BOOK_ACTION_INPUT="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_READING"
       ;;
     --add-to-paused)
       CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS"
-      CMD_INPUT="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_PAUSED"
+      CMD_BOOK_ACTION_INPUT="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_PAUSED"
       ;;
     --add-to-planning)
       CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS"
-      CMD_INPUT="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_PLANNING"
+      CMD_BOOK_ACTION_INPUT="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_PLANNING"
       ;;
     --add-to-rereading)
       CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS"
-      CMD_INPUT="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_RE_READING"
+      CMD_BOOK_ACTION_INPUT="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_RE_READING"
       ;;
     --add-to-docs)
       CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS"
-      CMD_INPUT="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_DOCS"
+      CMD_BOOK_ACTION_INPUT="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_DOCS"
       ;;
     --add-to-completed)
       CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS"
-      CMD_INPUT="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_COMPLETED"
+      CMD_BOOK_ACTION_INPUT="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_COMPLETED"
       ;;
     --add-to-dropped)
       CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS"
-      CMD_INPUT="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_DROPPED"
+      CMD_BOOK_ACTION_INPUT="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_ADD_TO_DROPPED"
       ;;
     --remove-from-lists)
       CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS"
-      CMD_INPUT="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_REMOVE"
+      CMD_BOOK_ACTION_INPUT="$TXT_MENU_BOOK_ACTIONS_MANAGE_MY_LISTS_REMOVE"
       ;;
     --edit-metadata) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_EDIT_METADATA" ;;
     --remove-book) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_REMOVE_BOOK" ;;
@@ -4460,30 +4461,30 @@ _app_cmd_line_parser() {
     --shell) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_SHELL" ;;
     --shell-exec)
       if [ -z "$2" ]; then
-        CMD_INPUT="$(ui_prompt "$TXT_MENU_MAIN_SEARCH_PROMPT")"
-        [ -n "$CMD_INPUT" ] || _app_usage 1
+        CMD_BOOK_ACTION_INPUT="$(ui_prompt "$TXT_MENU_MAIN_SEARCH_PROMPT")"
+        [ -n "$CMD_BOOK_ACTION_INPUT" ] || _app_usage 1
       else
-        CMD_INPUT="$2"
+        CMD_BOOK_ACTION_INPUT="$2"
         shift_count=2
       fi
       CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_SHELL"
       ;;
     -s | --search)
       if [ -z "$2" ]; then
-        CMD_INPUT="$(ui_prompt "$TXT_MENU_MAIN_SEARCH_PROMPT")"
-        [ -n "$CMD_INPUT" ] || _app_usage 1
+        CMD_MENU_ENTRY_INPUT="$(ui_prompt "$TXT_MENU_MAIN_SEARCH_PROMPT")"
+        [ -n "$CMD_MENU_ENTRY_INPUT" ] || _app_usage 1
       else
-        CMD_INPUT="$2"
+        CMD_MENU_ENTRY_INPUT="$2"
         shift_count=2
       fi
       CMD_MAIN_ACTION="$TXT_MENU_MAIN_SEARCH"
       ;;
     --search-title)
       if [ -z "$2" ]; then
-        CMD_INPUT="$(ui_prompt "$TXT_MENU_MISC_SEARCH_TITLE_PROMPT")"
-        [ -n "$CMD_INPUT" ] || _app_usage 1
+        CMD_MENU_ENTRY_INPUT="$(ui_prompt "$TXT_MENU_MISC_SEARCH_TITLE_PROMPT")"
+        [ -n "$CMD_MENU_ENTRY_INPUT" ] || _app_usage 1
       else
-        CMD_INPUT="$2"
+        CMD_MENU_ENTRY_INPUT="$2"
         shift_count=2
       fi
       CMD_MAIN_ACTION="$TXT_MENU_MAIN_MISC"

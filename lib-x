@@ -4262,7 +4262,6 @@ EOF
 # APP: COMPLETE
 # ==============================================================================
 _app_complete() {
-  _load_config
   _state_init
 
   case "$1" in

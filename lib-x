@@ -4574,10 +4574,10 @@ _app_cmd_line_parser() {
 # ==============================================================================
 main() {
   trap _app_runtime_clean_up EXIT INT TERM
+  _app_core_dep_ch
   _load_config
   _app_cmd_line_parser "$@"
   _app_auto_update
-  _app_core_dep_ch
   menu_main
 }
 

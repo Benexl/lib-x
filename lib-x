@@ -1716,6 +1716,13 @@ _calibre_ebook_polish() {
   esac
 }
 
+_calibre_ebook_meta() {
+  case "$CLI_CALIBRE_INSTALLATION" in
+  flatpak) flatpak run --command=ebook-meta com.calibre_ebook.calibre "$@" ;;
+  *) ebook-meta "$@" ;;
+  esac
+}
+
 __update_user_lists() {
   local user_list_paths
   local calibredb_data
@@ -2943,12 +2950,7 @@ __menu_book_actions_show_metadata() {
 
   book_path="$(__menu_book_actions_pick_format)" || return 1
 
-  if ! _dep_ch ebook-meta; then
-    ui_notify_error "$TXT_DEP_MISSING_EBOOK_META"
-    return 1
-  fi
-
-  ebook-meta "$book_path" | ui_pager
+  _calibre_ebook_meta "$book_path" | ui_pager
 }
 
 __menu_book_actions_shell() {

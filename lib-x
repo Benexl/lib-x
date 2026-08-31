@@ -546,6 +546,7 @@ Direct menu shortcuts & Overrides
   --sync                         Sync the library cache
 
   --shell                        Open a sub-shell with book state variables
+  --shell-exec <code>            Execute a command in a sub-shell with book state variables
   --manage-my-lists              Open the list manager for the selected book
   --read                         Read the selected book
   --edit-metadata                Edit metadata of the selected book
@@ -3014,6 +3015,17 @@ __menu_book_actions_shell() {
     CALIBRE_CATEGORIES_TSV_FILE \
     CLI_NAME
 
+  if [ -n "$CMD_INPUT" ]; then
+    user_shell="$(ps -o comm= -p "$PPID")"
+    if [ "$user_shell" = "fish" ]; then
+      fish -c "$CMD_INPUT"
+    else
+      sh -c "$CMD_INPUT"
+    fi
+    unset -v CMD_INPUT
+    return
+  fi
+
   init_text="\
 $CLI_HEADER
 $TXT_MENU_BOOK_ACTIONS_SHELL_WELCOME
@@ -4228,6 +4240,7 @@ complete -c $CLI_NAME -n "__fish_use_subcommand" -l edit-book -d "Edit the selec
 complete -c $CLI_NAME -n "__fish_use_subcommand" -l polish -d "Polish the selected book"
 complete -c $CLI_NAME -n "__fish_use_subcommand" -l show-metadata -d "Show metadata of the selected book"
 complete -c $CLI_NAME -n "__fish_use_subcommand" -l shell -d "Open sub-shell with book state"
+complete -c $CLI_NAME -n "__fish_use_subcommand" -l shell-exec -d "Execute command in sub-shell with book state" --require-parameter
 
 # complete -c $CLI_NAME -n "__fish_use_subcommand" -s s -l search -d "Search for a book" --require-parameter --no-files -a "(_lib_x_complete_search)"
 # complete -c $CLI_NAME -n "__fish_use_subcommand" -l search-title -d "Search for a book by title (literal)" --require-parameter --no-files -a "(_lib_x_complete_search)"
@@ -4445,6 +4458,16 @@ _app_cmd_line_parser() {
     --polish) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_POLISH" ;;
     --show-metadata) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_METADATA" ;;
     --shell) CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_SHELL" ;;
+    --shell-exec)
+      if [ -z "$2" ]; then
+        CMD_INPUT="$(ui_prompt "$TXT_MENU_MAIN_SEARCH_PROMPT")"
+        [ -n "$CMD_INPUT" ] || _app_usage 1
+      else
+        CMD_INPUT="$2"
+        shift_count=2
+      fi
+      CMD_BOOK_ACTION="$TXT_MENU_BOOK_ACTIONS_SHELL"
+      ;;
     -s | --search)
       if [ -z "$2" ]; then
         CMD_INPUT="$(ui_prompt "$TXT_MENU_MAIN_SEARCH_PROMPT")"

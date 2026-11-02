@@ -628,6 +628,7 @@ __load_default_theme() {
 
     THEME_BOLD="$(printf '\033[1m')"
     THEME_RESET="$(printf '\033[0m')"
+    THEME_ESC="$(printf '\033')"
   fi
 
   # Load external theme extension if provided
@@ -811,7 +812,7 @@ _load_config() {
 # ==============================================================================
 # TODO: investigate may not need this anymore seems rofi now strips ansi
 _util_ansi_strip() {
-  sed -e 's/\033\[[0-9;]*[a-zA-Z]//g' -e 's/\033(B//g'
+  sed -e "s/$THEME_ESC\[[0-9;]*[a-zA-Z]//g"
 }
 
 _util_random_n() {
@@ -4563,7 +4564,6 @@ _app_cmd_line_parser() {
     _complete)
       shift
       _app_complete "$@"
-      return
       ;;
     *) _app_usage 1 ;;
     esac
